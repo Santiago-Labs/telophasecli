@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	cdktemplates "telophasecli/lib/templates"
+	"telophasecli/lib/ymlparser"
 	"text/template"
 
 	"github.com/spf13/cobra"
@@ -15,6 +16,7 @@ import (
 var tenant string
 var sourceCodePath string
 var awsAccountID string
+var orgs ymlparser.OrgData
 
 func init() {
 	rootCmd.AddCommand(compileCmd)
