@@ -14,8 +14,12 @@ github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.43 h1:nFBQlGtkbPzp/NjZL
 github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.43/go.mod h1:auo+PiyLl0n1l8A0e8RIeR8tOzYPfZZH/JNlrJ8igTQ=
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.37 h1:JRVhO25+r3ar2mKGP7E0LDl8K9/G36gjlqca5iQbaqc=
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.37/go.mod h1:Qe+2KtKml+FEsQF/DHmDV+xjtche/hwoF75EG4UlHW8=
+github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.37 h1:WWZA/I2K4ptBS1kg0kV1JbBtG/umed0vwHRrmcr9z7k=
+github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.37/go.mod h1:vBmDnwWXWxNPFRMmG2m/3MKOe+xEcMDo1tanpaWCcck=
 github.com/aws/aws-sdk-go-v2/service/organizations v1.20.8 h1:FUd2lRsLCF+hKf7Ve9I10in/N0f+EVqZEXB/VZm8BZI=
 github.com/aws/aws-sdk-go-v2/service/organizations v1.20.8/go.mod h1:0zR2FnFXmQBI+aHBNr6iQ9WuzssOkl7deBA+1c004Gk=
+github.com/aws/aws-sdk-go-v2/service/sts v1.23.2 h1:0BkLfgeDjfZnZ+MhB3ONb01u9pwFYTCZVhlsSSBvlbU=
+github.com/aws/aws-sdk-go-v2/service/sts v1.23.2/go.mod h1:Eows6e1uQEsc4ZaHANmsPRzAKcVDrcmjjWiih2+HUUQ=
 github.com/aws/constructs-go/constructs/v10 v10.2.70 h1:CuKeOwf27CzGUt8XxOZStFSOVZ7An5XpCzxvqUk8zW4=
 github.com/aws/constructs-go/constructs/v10 v10.2.70/go.mod h1:Jnh2jtqYQBjifA5+03aJmnIItEcjqAgMBJ8iZpFjNRE=
 github.com/aws/jsii-runtime-go v1.88.0 h1:1qJ9Ane+oxTt1c3xkpDE5YIv53MzKDKYcAr70lAxT/Q=

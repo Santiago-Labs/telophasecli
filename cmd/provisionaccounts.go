@@ -9,17 +9,24 @@ import (
 	"telophasecli/lib/ymlparser"
 	"text/template"
 
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/organizations"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
+var orgsFile string
+
 func init() {
 	rootCmd.AddCommand(accountProvision)
+	accountProvision.Flags().StringVar(&orgsFile, "orgs", "organizations.yml", "Path to the organizations.yml file")
 }
 
 func isValidAccountArg(arg string) bool {
 	switch arg {
+	case "import":
+		return true
 	case "plan":
 		return true
 	case "apply":
@@ -44,12 +51,25 @@ var accountProvision = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		orgClient := awsorgs.New()
 		ctx := context.Background()
-		newAccounts, _, err := accountsPlan(orgClient)
-		if err != nil {
-			panic(fmt.Sprintf("error: %s", err))
+		if args[0] == "import" {
+			if err := importAccounts(orgClient); err != nil {
+				panic(fmt.Sprintf("error importing accounts: %s", err))
+			}
+		}
+
+		if args[0] == "plan" {
+			_, _, err := accountsPlan(orgClient)
+			if err != nil {
+				panic(fmt.Sprintf("error: %s", err))
+			}
 		}
 
 		if args[0] == "apply" {
+			newAccounts, _, err := accountsPlan(orgClient)
+			if err != nil {
+				panic(fmt.Sprintf("error: %s", err))
+			}
+
 			errs := orgClient.CreateAccounts(ctx, newAccounts)
 			if errs != nil {
 				panic(fmt.Sprintf("error creating accounts %v", errs))
@@ -61,7 +81,7 @@ var accountProvision = &cobra.Command{
 func accountsPlan(orgClient awsorgs.Client) (new []ymlparser.Account, toDelete []*organizations.Account, err error) {
 	// With accountsPlan we want to look at the current accounts and see if we
 	// can add any accounts.
-	orgs, err = ymlparser.ParseOrganizations("organizations.yml")
+	orgs, err = ymlparser.ParseOrganizations(orgsFile)
 	if err != nil {
 		panic(fmt.Sprintf("error: %s parsing organizations", err))
 	}
@@ -83,11 +103,11 @@ func accountsPlan(orgClient awsorgs.Client) (new []ymlparser.Account, toDelete [
 	for _, account := range orgs.Organizations.ChildAccounts {
 		acct := account
 		if currAcct, ok := accountsByEmail[account.Email]; !ok {
-			if account.Properties.State == "" {
+			if account.State == "" {
 				newAccounts = append(newAccounts, acct)
 			}
 		} else {
-			if account.Properties.State == "delete" {
+			if account.State == "delete" {
 				deletedAccounts = append(deletedAccounts, currAcct)
 			}
 		}
@@ -95,8 +115,8 @@ func accountsPlan(orgClient awsorgs.Client) (new []ymlparser.Account, toDelete [
 
 	if len(newAccounts) > 0 {
 		const tmpl = `Account(s) to provision:{{range . }}
-	+	AccountName: {{ .Properties.AccountName }}
-	+	Email: {{ .Properties.Email }}
+	+	AccountName: {{ .AccountName }}
+	+	Email: {{ .Email }}
 
 	{{end }}`
 
@@ -110,8 +130,8 @@ func accountsPlan(orgClient awsorgs.Client) (new []ymlparser.Account, toDelete [
 
 	if len(deletedAccounts) > 0 {
 		const tmpl = `Account(s) to delete:{{range . }}
-	+	AccountName: {{ .Properties.AccountName }}
-	+	Email: {{ .Properties.Email }}
+	+	AccountName: {{ .AccountName }}
+	+	Email: {{ .Email }}
 
 	{{end }}`
 
@@ -128,4 +148,34 @@ func accountsPlan(orgClient awsorgs.Client) (new []ymlparser.Account, toDelete [
 	}
 
 	return newAccounts, deletedAccounts, nil
+}
+
+func currentAccountID() (string, error) {
+	stsClient := sts.New(session.Must(session.NewSession()))
+	caller, err := stsClient.GetCallerIdentity(&sts.GetCallerIdentityInput{})
+	if err != nil {
+		return "", err
+	}
+
+	return *caller.Account, nil
+}
+
+func importAccounts(orgClient awsorgs.Client) error {
+	// Assume that the current account that we are in is the Main account.
+	accounts, err := orgClient.CurrentAccounts(context.Background())
+	if err != nil {
+		return fmt.Errorf("error: %s getting current accounts", err)
+	}
+
+	managingAccountID, err := currentAccountID()
+	if err != nil {
+		return err
+	}
+
+	// Assume that the current role is the master account
+	if err := ymlparser.WriteOrgsFile(orgsFile, managingAccountID, accounts); err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -7,8 +7,10 @@ require (
 	github.com/aws/aws-cdk-go/awscdklambdagoalpha/v2 v2.100.0-alpha.0
 	github.com/aws/aws-sdk-go v1.46.0
 	github.com/aws/aws-sdk-go-v2/service/organizations v1.20.8
+	github.com/aws/aws-sdk-go-v2/service/sts v1.23.2
 	github.com/aws/constructs-go/constructs/v10 v10.2.70
 	github.com/aws/jsii-runtime-go v1.89.0
+	github.com/fatih/color v1.15.0
 	github.com/spf13/cobra v1.7.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -18,11 +20,11 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.21.2 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.43 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.37 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.37 // indirect
 	github.com/aws/smithy-go v1.15.0 // indirect
 	github.com/cdklabs/awscdk-asset-awscli-go/awscliv1/v2 v2.2.200 // indirect
 	github.com/cdklabs/awscdk-asset-kubectl-go/kubectlv20/v2 v2.1.2 // indirect
 	github.com/cdklabs/awscdk-asset-node-proxy-agent-go/nodeproxyagentv6/v2 v2.0.1 // indirect
-	github.com/fatih/color v1.15.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
