@@ -100,7 +100,7 @@ func accountsPlan(orgClient awsorgs.Client) (new []ymlparser.Account, toDelete [
 
 	var newAccounts []ymlparser.Account
 	var deletedAccounts []*organizations.Account
-	for _, account := range orgs.Organizations.ChildAccounts {
+	for _, account := range orgs.ChildAccounts {
 		acct := account
 		if currAcct, ok := accountsByEmail[account.Email]; !ok {
 			if account.State == "" {

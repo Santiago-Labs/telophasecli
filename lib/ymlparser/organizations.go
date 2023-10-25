@@ -10,66 +10,78 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type OrgData struct {
-	Organizations struct {
-		MasterAccount Account   `yaml:"MasterAccount"`
-		ChildAccounts []Account `yaml:"ChildAccounts"`
-	} `yaml:"Organizations"`
+type orgData struct {
+	Organizations Organizations `yaml:"Organizations"`
+}
+
+type Organizations struct {
+	MasterAccount Account   `yaml:"MasterAccount"`
+	ChildAccounts []Account `yaml:"ChildAccounts"`
 }
 
 type Account struct {
-	Email          string `yaml:"Email"`
-	AccountName    string `yaml:"AccountName"`
-	State          string `yaml:"State,omitempty"`
-	AccountID      string `yaml:"AccountID,omitempty"`
-	AssumeRoleName string `yaml:"AssumeRoleName,omitempty"`
+	Email          string   `yaml:"Email"`
+	AccountName    string   `yaml:"AccountName"`
+	State          string   `yaml:"State,omitempty"`
+	AccountID      string   `yaml:"AccountID,omitempty"`
+	AssumeRoleName string   `yaml:"AssumeRoleName,omitempty"`
+	Tags           []string `yaml:"Tags,omitempty"`
+}
+
+func (a Account) AssumeRoleARN() string {
+	assumeRoleName := "OrganizationAccountAccessRole"
+	if a.AssumeRoleName != "" {
+		assumeRoleName = a.AssumeRoleName
+	}
+
+	return fmt.Sprintf("arn:aws:iam::%s:role/%s", a.AccountID, assumeRoleName)
 }
 
 // We parse it and assume that the file is in the current directory
-func ParseOrganizations(filepath string) (OrgData, error) {
+func ParseOrganizations(filepath string) (Organizations, error) {
 	if filepath == "" {
-		return OrgData{}, errors.New("filepath is empty")
+		return Organizations{}, errors.New("filepath is empty")
 	}
 
 	data, err := ioutil.ReadFile(filepath)
 	if err != nil {
-		return OrgData{}, errors.New(fmt.Sprintf("err: %s reading file %s", err.Error(), filepath))
+		return Organizations{}, errors.New(fmt.Sprintf("err: %s reading file %s", err.Error(), filepath))
 	}
 
-	var org OrgData
+	var org orgData
 
 	if err := yaml.Unmarshal(data, &org); err != nil {
-		return OrgData{}, err
+		return Organizations{}, err
 	}
 
-	if err := validOrgData(org); err != nil {
-		return OrgData{}, err
+	if err := validOrganizations(org.Organizations); err != nil {
+		return Organizations{}, err
 	}
 
-	return org, nil
+	return org.Organizations, nil
 }
 
-func ParseOrganizationsIfExists(filepath string) (OrgData, error) {
+func ParseOrganizationsIfExists(filepath string) (Organizations, error) {
 	if filepath == "" {
-		return OrgData{}, nil
+		return Organizations{}, nil
 	}
 	_, err := os.Stat(filepath)
 	if err == nil {
 		return ParseOrganizations(filepath)
 	}
 	if os.IsNotExist(err) {
-		return OrgData{}, nil
+		return Organizations{}, nil
 	}
 
 	return ParseOrganizations(filepath)
 }
 
-func validOrgData(data OrgData) error {
+func validOrganizations(data Organizations) error {
 	accountIDs := map[string]struct{}{}
-	accountIDs[data.Organizations.MasterAccount.AccountID] = struct{}{}
+	accountIDs[data.MasterAccount.AccountID] = struct{}{}
 
 	validStates := []string{"delete", ""}
-	for _, account := range data.Organizations.ChildAccounts {
+	for _, account := range data.ChildAccounts {
 		if ok := isOneOf(account.State,
 			"delete",
 			"",
@@ -97,7 +109,7 @@ func isOneOf(s string, valid ...string) bool {
 }
 
 func WriteOrgsFile(filepath, currentAccountID string, accounts []*organizations.Account) error {
-	var orgData OrgData
+	var orgData orgData
 	for _, account := range accounts {
 		if *account.Id == currentAccountID {
 			orgData.Organizations.MasterAccount = Account{
@@ -121,9 +133,21 @@ func WriteOrgsFile(filepath, currentAccountID string, accounts []*organizations.
 		return err
 	}
 
+	if fileExists(filepath) {
+		return fmt.Errorf("file %s already exists we will not overwrite it", filepath)
+	}
+
 	if err := ioutil.WriteFile(filepath, result, 0644); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func fileExists(filename string) bool {
+	_, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return err == nil
 }
