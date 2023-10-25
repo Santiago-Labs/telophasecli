@@ -22,13 +22,13 @@ import (
 )
 
 var (
-	tenant          string
-	sourceCodePath  string
-	awsAccountID    string
-	cdkPath         string
-	requireApproval string
-	accountTag      string
-	orgs            ymlparser.Organizations
+	tenant         string
+	sourceCodePath string
+	awsAccountID   string
+	cdkPath        string
+	apply          bool
+	accountTag     string
+	orgs           ymlparser.Organizations
 )
 
 func init() {
@@ -41,7 +41,7 @@ func init() {
 	// compileCmd.MarkFlagRequired("account-id")
 	compileCmd.Flags().StringVar(&cdkPath, "cdk-path", "", "Path to your CDK code")
 	compileCmd.MarkFlagRequired("cdk-path")
-	compileCmd.Flags().StringVar(&requireApproval, "require-approval", "", "Set require-approval to never to apply your changes")
+	compileCmd.Flags().BoolVar(&apply, "apply", false, "Set apply to true if you want to deploy the changes to your account")
 	compileCmd.Flags().StringVar(&accountTag, "account-tag", "", "Tag associated with the accounts to apply to a subset of account IDs")
 	compileCmd.MarkFlagRequired("account-tag")
 	compileCmd.Flags().StringVar(&orgsFile, "orgs", "organizations.yml", "Path to the organizations.yml file")
@@ -65,8 +65,6 @@ var compileCmd = &cobra.Command{
 				orgsToApply = append(orgsToApply, org)
 			}
 		}
-		fmt.Printf("%+v", orgsToApply)
-		fmt.Println("orgs to apply", len(orgsToApply))
 
 		// Now for each to apply we will take that and write to stdout.
 		var wg sync.WaitGroup
@@ -88,57 +86,15 @@ var compileCmd = &cobra.Command{
 					fmt.Println("Error assuming role:", err)
 					return
 				}
-
-				tmpPath := path.Join(cdkPath, "telophasedirs", fmt.Sprintf("tmp%s", org.AccountID))
-				cdkArgs := []string{"deploy", "--output", tmpPath}
-				cmd := exec.Command("cdk", cdkArgs...)
-				cmd.Dir = cdkPath
-				cmd.Env = awssts.SetEnviron(os.Environ(),
-					*result.Credentials.AccessKeyId,
-					*result.Credentials.SecretAccessKey,
-					*result.Credentials.SessionToken)
-
 				coloredAccountID := colorFunc("[Account: " + org.AccountID + "]")
-
-				stdoutPipe, err := cmd.StdoutPipe()
-				if err != nil {
-					fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
-					return
-				}
-				stdoutScanner := bufio.NewScanner(stdoutPipe)
-
-				stderrPipe, err := cmd.StderrPipe()
-				if err != nil {
-					fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
-					return
-				}
-				stderrScanner := bufio.NewScanner(stderrPipe)
-
-				if err := cmd.Start(); err != nil {
+				bootstrapCDK := bootstrapCDK(result, org)
+				if err := runCmd(bootstrapCDK, org, coloredAccountID); err != nil {
 					fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 					return
 				}
 
-				var scannerWg sync.WaitGroup
-				scannerWg.Add(2)
-				scanF := func(scanner *bufio.Scanner, name string) {
-					defer scannerWg.Done()
-					for scanner.Scan() {
-						// fmt.Printf("%s %s\n %s\n", coloredAccountID, scanner.Text(), colorFunc("end "+org.AccountID))
-						fmt.Printf("%s %s\n", coloredAccountID, scanner.Text())
-					}
-					if err := scanner.Err(); err != nil {
-						fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
-						return
-					}
-				}
-
-				go scanF(stdoutScanner, "stdout")
-				go scanF(stderrScanner, "stderr")
-				scannerWg.Wait()
-
-				// Wait for the command to finish
-				if err := cmd.Wait(); err != nil {
+				deployCmd := deployCDK(result, org)
+				if err := runCmd(deployCmd, org, coloredAccountID); err != nil {
 					fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 					return
 				}
@@ -147,6 +103,81 @@ var compileCmd = &cobra.Command{
 
 		wg.Wait()
 	},
+}
+
+// runCmd takes the command and org and runs it while prepending the
+// coloredAccountID from stderr and stdout and printing it.
+func runCmd(cmd *exec.Cmd, org ymlparser.Account, coloredAccountID string) error {
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("[ERROR] %s %v\n", coloredAccountID, err)
+	}
+	stdoutScanner := bufio.NewScanner(stdoutPipe)
+
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("[ERROR] %s %v\n", coloredAccountID, err)
+	}
+	stderrScanner := bufio.NewScanner(stderrPipe)
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("[ERROR] %s %v\n", coloredAccountID, err)
+	}
+
+	var scannerWg sync.WaitGroup
+	scannerWg.Add(2)
+	scanF := func(scanner *bufio.Scanner, name string) {
+		defer scannerWg.Done()
+		for scanner.Scan() {
+			fmt.Printf("%s %s\n", coloredAccountID, scanner.Text())
+		}
+		if err := scanner.Err(); err != nil {
+			fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
+			return
+		}
+	}
+
+	go scanF(stdoutScanner, "stdout")
+	go scanF(stderrScanner, "stderr")
+	scannerWg.Wait()
+
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("[ERROR] %s %v\n", coloredAccountID, err)
+	}
+
+	return nil
+}
+
+func bootstrapCDK(result *sts.AssumeRoleOutput, org ymlparser.Account) *exec.Cmd {
+	tmpPath := path.Join(cdkPath, "telophasedirs", fmt.Sprintf("tmp%s", org.AccountID))
+	cdkArgs := []string{"bootstrap", "--output", tmpPath}
+	if apply {
+		cdkArgs = append(cdkArgs, "--require-approval", "never")
+	}
+	cmd := exec.Command("cdk", cdkArgs...)
+	cmd.Dir = cdkPath
+	cmd.Env = awssts.SetEnviron(os.Environ(),
+		*result.Credentials.AccessKeyId,
+		*result.Credentials.SecretAccessKey,
+		*result.Credentials.SessionToken)
+
+	return cmd
+}
+
+func deployCDK(result *sts.AssumeRoleOutput, org ymlparser.Account) *exec.Cmd {
+	tmpPath := path.Join(cdkPath, "telophasedirs", fmt.Sprintf("tmp%s", org.AccountID))
+	cdkArgs := []string{"deploy", "--output", tmpPath}
+	if apply {
+		cdkArgs = append(cdkArgs, "--require-approval", "never")
+	}
+	cmd := exec.Command("cdk", cdkArgs...)
+	cmd.Dir = cdkPath
+	cmd.Env = awssts.SetEnviron(os.Environ(),
+		*result.Credentials.AccessKeyId,
+		*result.Credentials.SecretAccessKey,
+		*result.Credentials.SessionToken)
+
+	return cmd
 }
 
 func contains(e string, s []string) bool {
