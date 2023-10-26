@@ -1,6 +1,7 @@
 package ymlparser
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -8,6 +9,8 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/organizations"
 	"gopkg.in/yaml.v3"
+
+	"telophasecli/lib/awsorgs"
 )
 
 type orgData struct {
@@ -45,7 +48,7 @@ func ParseOrganizations(filepath string) (Organizations, error) {
 
 	data, err := ioutil.ReadFile(filepath)
 	if err != nil {
-		return Organizations{}, errors.New(fmt.Sprintf("err: %s reading file %s", err.Error(), filepath))
+		return Organizations{}, fmt.Errorf("err: %s reading file %s", err.Error(), filepath)
 	}
 
 	var org orgData
@@ -56,6 +59,24 @@ func ParseOrganizations(filepath string) (Organizations, error) {
 
 	if err := validOrganizations(org.Organizations); err != nil {
 		return Organizations{}, err
+	}
+
+	orgClient := awsorgs.New()
+	allAccounts, err := orgClient.CurrentAccounts(context.TODO())
+	if err != nil {
+		return Organizations{}, err
+	}
+
+	for _, acct := range allAccounts {
+		for idx, parsedAcct := range org.Organizations.ChildAccounts {
+			if parsedAcct.AccountName == *acct.Name {
+				org.Organizations.ChildAccounts[idx].AccountID = *acct.Id
+			}
+		}
+
+		if org.Organizations.MasterAccount.AccountName == *acct.Name {
+			org.Organizations.MasterAccount.AccountID = *acct.Id
+		}
 	}
 
 	return org.Organizations, nil
@@ -77,8 +98,8 @@ func ParseOrganizationsIfExists(filepath string) (Organizations, error) {
 }
 
 func validOrganizations(data Organizations) error {
-	accountIDs := map[string]struct{}{}
-	accountIDs[data.MasterAccount.AccountID] = struct{}{}
+	accountNames := map[string]struct{}{}
+	accountNames[data.MasterAccount.AccountName] = struct{}{}
 
 	validStates := []string{"delete", ""}
 	for _, account := range data.ChildAccounts {
@@ -89,10 +110,10 @@ func validOrganizations(data Organizations) error {
 			return fmt.Errorf("invalid state (%s) for account %s valid states are: empty string or %v", account.State, account.AccountName, validStates)
 		}
 
-		if _, ok := accountIDs[account.AccountID]; ok {
-			return fmt.Errorf("duplicate account id %s", account.AccountID)
+		if _, ok := accountNames[account.AccountName]; ok {
+			return fmt.Errorf("duplicate account name %s", account.AccountName)
 		} else {
-			accountIDs[account.AccountID] = struct{}{}
+			accountNames[account.AccountName] = struct{}{}
 		}
 	}
 
@@ -108,14 +129,13 @@ func isOneOf(s string, valid ...string) bool {
 	return false
 }
 
-func WriteOrgsFile(filepath, currentAccountID string, accounts []*organizations.Account) error {
+func WriteOrgsFile(filepath, masterAccountID string, accounts []*organizations.Account) error {
 	var orgData orgData
 	for _, account := range accounts {
-		if *account.Id == currentAccountID {
+		if *account.Id == masterAccountID {
 			orgData.Organizations.MasterAccount = Account{
 				Email:       *account.Email,
 				AccountName: *account.Name,
-				AccountID:   *account.Id,
 			}
 		} else {
 			orgData.Organizations.ChildAccounts = append(
@@ -123,7 +143,6 @@ func WriteOrgsFile(filepath, currentAccountID string, accounts []*organizations.
 				Account{
 					Email:       *account.Email,
 					AccountName: *account.Name,
-					AccountID:   *account.Id,
 				})
 		}
 	}

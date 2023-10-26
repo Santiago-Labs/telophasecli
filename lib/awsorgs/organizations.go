@@ -10,8 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/organizations"
 	"github.com/aws/aws-sdk-go/service/sts"
-
-	"telophasecli/lib/ymlparser"
 )
 
 type Client struct {
@@ -52,14 +50,14 @@ func (c Client) CurrentAccounts(ctx context.Context) ([]*organizations.Account, 
 	return accounts, err
 }
 
-func (c Client) CreateAccounts(ctx context.Context, accts []ymlparser.Account) []error {
+func (c Client) CreateAccounts(ctx context.Context, accts []*organizations.Account) []error {
 	var errs []error
 	var createRequests []*organizations.CreateAccountStatus
 	for _, acct := range accts {
-		fmt.Printf("Creating Account: Name=%s Email=%s\n", acct.AccountName, acct.Email)
+		fmt.Printf("Creating Account: Name=%s Email=%s\n", *acct.Name, *acct.Email)
 		out, err := c.organizationClient.CreateAccount(&organizations.CreateAccountInput{
-			AccountName: &acct.AccountName,
-			Email:       &acct.Email,
+			AccountName: acct.Name,
+			Email:       acct.Email,
 			Tags: []*organizations.Tag{
 				{
 					Key:   aws.String("TelophaseManaged"),
