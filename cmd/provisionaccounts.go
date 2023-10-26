@@ -161,18 +161,17 @@ func currentAccountID() (string, error) {
 }
 
 func importAccounts(orgClient awsorgs.Client) error {
-	// Assume that the current account that we are in is the Main account.
 	accounts, err := orgClient.CurrentAccounts(context.Background())
 	if err != nil {
 		return fmt.Errorf("error: %s getting current accounts", err)
 	}
 
+	// Assume that the current role is the management account
 	managingAccountID, err := currentAccountID()
 	if err != nil {
 		return err
 	}
 
-	// Assume that the current role is the master account
 	if err := ymlparser.WriteOrgsFile(orgsFile, managingAccountID, accounts); err != nil {
 		return err
 	}
