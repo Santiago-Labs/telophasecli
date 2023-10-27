@@ -110,18 +110,18 @@ var compileCmd = &cobra.Command{
 func runCmd(cmd *exec.Cmd, org ymlparser.Account, coloredAccountID string) error {
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("[ERROR] %s %v\n", coloredAccountID, err)
+		return fmt.Errorf("[ERROR] %s %v", coloredAccountID, err)
 	}
 	stdoutScanner := bufio.NewScanner(stdoutPipe)
 
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
-		return fmt.Errorf("[ERROR] %s %v\n", coloredAccountID, err)
+		return fmt.Errorf("[ERROR] %s %v", coloredAccountID, err)
 	}
 	stderrScanner := bufio.NewScanner(stderrPipe)
 
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("[ERROR] %s %v\n", coloredAccountID, err)
+		return fmt.Errorf("[ERROR] %s %v", coloredAccountID, err)
 	}
 
 	var scannerWg sync.WaitGroup
@@ -142,7 +142,7 @@ func runCmd(cmd *exec.Cmd, org ymlparser.Account, coloredAccountID string) error
 	scannerWg.Wait()
 
 	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("[ERROR] %s %v\n", coloredAccountID, err)
+		return fmt.Errorf("[ERROR] %s %v", coloredAccountID, err)
 	}
 
 	return nil

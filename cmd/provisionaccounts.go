@@ -5,8 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"telophasecli/lib/awsorgs"
-	"telophasecli/lib/ymlparser"
 	"text/template"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -14,6 +12,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+
+	"telophasecli/lib/awsorgs"
+	"telophasecli/lib/ymlparser"
 )
 
 var orgsFile string
@@ -78,7 +79,7 @@ var accountProvision = &cobra.Command{
 	},
 }
 
-func accountsPlan(orgClient awsorgs.Client) (new []ymlparser.Account, toDelete []*organizations.Account, err error) {
+func accountsPlan(orgClient awsorgs.Client) (new []*organizations.Account, toDelete []*organizations.Account, err error) {
 	// With accountsPlan we want to look at the current accounts and see if we
 	// can add any accounts.
 	orgs, err = ymlparser.ParseOrganizations(orgsFile)
@@ -98,13 +99,16 @@ func accountsPlan(orgClient awsorgs.Client) (new []ymlparser.Account, toDelete [
 		accountsByEmail[*acct.Email] = accts[i]
 	}
 
-	var newAccounts []ymlparser.Account
+	var newAccounts []*organizations.Account
 	var deletedAccounts []*organizations.Account
 	for _, account := range orgs.ChildAccounts {
 		acct := account
 		if currAcct, ok := accountsByEmail[account.Email]; !ok {
 			if account.State == "" {
-				newAccounts = append(newAccounts, acct)
+				newAccounts = append(newAccounts, &organizations.Account{
+					Name:  &acct.AccountName,
+					Email: &acct.Email,
+				})
 			}
 		} else {
 			if account.State == "delete" {
@@ -161,18 +165,17 @@ func currentAccountID() (string, error) {
 }
 
 func importAccounts(orgClient awsorgs.Client) error {
-	// Assume that the current account that we are in is the Main account.
 	accounts, err := orgClient.CurrentAccounts(context.Background())
 	if err != nil {
 		return fmt.Errorf("error: %s getting current accounts", err)
 	}
 
+	// Assume that the current role is the management account
 	managingAccountID, err := currentAccountID()
 	if err != nil {
 		return err
 	}
 
-	// Assume that the current role is the master account
 	if err := ymlparser.WriteOrgsFile(orgsFile, managingAccountID, accounts); err != nil {
 		return err
 	}
