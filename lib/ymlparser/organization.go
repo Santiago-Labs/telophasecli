@@ -14,12 +14,12 @@ import (
 )
 
 type orgData struct {
-	Organizations Organizations `yaml:"Organizations"`
+	Organization Organization `yaml:"Organization"`
 }
 
-type Organizations struct {
-	MasterAccount Account   `yaml:"MasterAccount"`
-	ChildAccounts []Account `yaml:"ChildAccounts"`
+type Organization struct {
+	ManagementAccount Account   `yaml:"ManagementAccount"`
+	ChildAccounts     []Account `yaml:"ChildAccounts"`
 }
 
 type Account struct {
@@ -41,65 +41,65 @@ func (a Account) AssumeRoleARN() string {
 }
 
 // We parse it and assume that the file is in the current directory
-func ParseOrganizations(filepath string) (Organizations, error) {
+func ParseOrganization(filepath string) (Organization, error) {
 	if filepath == "" {
-		return Organizations{}, errors.New("filepath is empty")
+		return Organization{}, errors.New("filepath is empty")
 	}
 
 	data, err := ioutil.ReadFile(filepath)
 	if err != nil {
-		return Organizations{}, fmt.Errorf("err: %s reading file %s", err.Error(), filepath)
+		return Organization{}, fmt.Errorf("err: %s reading file %s", err.Error(), filepath)
 	}
 
 	var org orgData
 
 	if err := yaml.Unmarshal(data, &org); err != nil {
-		return Organizations{}, err
+		return Organization{}, err
 	}
 
-	if err := validOrganizations(org.Organizations); err != nil {
-		return Organizations{}, err
+	if err := validOrganization(org.Organization); err != nil {
+		return Organization{}, err
 	}
 
 	orgClient := awsorgs.New()
 	allAccounts, err := orgClient.CurrentAccounts(context.TODO())
 	if err != nil {
-		return Organizations{}, err
+		return Organization{}, err
 	}
 
 	for _, acct := range allAccounts {
-		for idx, parsedAcct := range org.Organizations.ChildAccounts {
+		for idx, parsedAcct := range org.Organization.ChildAccounts {
 			if parsedAcct.AccountName == *acct.Name {
-				org.Organizations.ChildAccounts[idx].AccountID = *acct.Id
+				org.Organization.ChildAccounts[idx].AccountID = *acct.Id
 			}
 		}
 
-		if org.Organizations.MasterAccount.AccountName == *acct.Name {
-			org.Organizations.MasterAccount.AccountID = *acct.Id
+		if org.Organization.ManagementAccount.AccountName == *acct.Name {
+			org.Organization.ManagementAccount.AccountID = *acct.Id
 		}
 	}
 
-	return org.Organizations, nil
+	return org.Organization, nil
 }
 
-func ParseOrganizationsIfExists(filepath string) (Organizations, error) {
+func ParseOrganizationIfExists(filepath string) (Organization, error) {
 	if filepath == "" {
-		return Organizations{}, nil
+		return Organization{}, nil
 	}
 	_, err := os.Stat(filepath)
 	if err == nil {
-		return ParseOrganizations(filepath)
+		return ParseOrganization(filepath)
 	}
 	if os.IsNotExist(err) {
-		return Organizations{}, nil
+		return Organization{}, nil
 	}
 
-	return ParseOrganizations(filepath)
+	return ParseOrganization(filepath)
 }
 
-func validOrganizations(data Organizations) error {
+func validOrganization(data Organization) error {
 	accountNames := map[string]struct{}{}
-	accountNames[data.MasterAccount.AccountName] = struct{}{}
+	accountNames[data.ManagementAccount.AccountName] = struct{}{}
 
 	validStates := []string{"delete", ""}
 	for _, account := range data.ChildAccounts {
@@ -129,17 +129,17 @@ func isOneOf(s string, valid ...string) bool {
 	return false
 }
 
-func WriteOrgsFile(filepath, masterAccountID string, accounts []*organizations.Account) error {
+func WriteOrgFile(filepath, masterAccountID string, accounts []*organizations.Account) error {
 	var orgData orgData
 	for _, account := range accounts {
 		if *account.Id == masterAccountID {
-			orgData.Organizations.MasterAccount = Account{
+			orgData.Organization.ManagementAccount = Account{
 				Email:       *account.Email,
 				AccountName: *account.Name,
 			}
 		} else {
-			orgData.Organizations.ChildAccounts = append(
-				orgData.Organizations.ChildAccounts,
+			orgData.Organization.ChildAccounts = append(
+				orgData.Organization.ChildAccounts,
 				Account{
 					Email:       *account.Email,
 					AccountName: *account.Name,

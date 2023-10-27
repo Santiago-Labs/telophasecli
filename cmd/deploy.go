@@ -28,7 +28,7 @@ var (
 	cdkPath        string
 	apply          bool
 	accountTag     string
-	orgs           ymlparser.Organizations
+	orgs           ymlparser.Organization
 )
 
 func init() {
@@ -44,7 +44,7 @@ func init() {
 	compileCmd.Flags().BoolVar(&apply, "apply", false, "Set apply to true if you want to deploy the changes to your account")
 	compileCmd.Flags().StringVar(&accountTag, "account-tag", "", "Tag associated with the accounts to apply to a subset of account IDs")
 	compileCmd.MarkFlagRequired("account-tag")
-	compileCmd.Flags().StringVar(&orgsFile, "orgs", "organizations.yml", "Path to the organizations.yml file")
+	compileCmd.Flags().StringVar(&orgFile, "org", "organization.yml", "Path to the organization.yml file")
 }
 
 var compileCmd = &cobra.Command{
@@ -54,9 +54,9 @@ var compileCmd = &cobra.Command{
 		// cmdStr := "cdk"
 		// cdkArgs := []string{"deploy", "--require-approval=never"}
 
-		orgs, err := ymlparser.ParseOrganizations(orgsFile)
+		orgs, err := ymlparser.ParseOrganization(orgFile)
 		if err != nil {
-			panic(fmt.Sprintf("error: %s parsing organizations", err))
+			panic(fmt.Sprintf("error: %s parsing organization", err))
 		}
 
 		orgsToApply := []ymlparser.Account{}

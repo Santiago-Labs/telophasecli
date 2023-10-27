@@ -17,11 +17,11 @@ import (
 	"telophasecli/lib/ymlparser"
 )
 
-var orgsFile string
+var orgFile string
 
 func init() {
 	rootCmd.AddCommand(accountProvision)
-	accountProvision.Flags().StringVar(&orgsFile, "orgs", "organizations.yml", "Path to the organizations.yml file")
+	accountProvision.Flags().StringVar(&orgFile, "org", "organization.yml", "Path to the organization.yml file")
 }
 
 func isValidAccountArg(arg string) bool {
@@ -82,9 +82,9 @@ var accountProvision = &cobra.Command{
 func accountsPlan(orgClient awsorgs.Client) (new []*organizations.Account, toDelete []*organizations.Account, err error) {
 	// With accountsPlan we want to look at the current accounts and see if we
 	// can add any accounts.
-	orgs, err = ymlparser.ParseOrganizations(orgsFile)
+	orgs, err = ymlparser.ParseOrganization(orgFile)
 	if err != nil {
-		panic(fmt.Sprintf("error: %s parsing organizations", err))
+		panic(fmt.Sprintf("error: %s parsing organization", err))
 	}
 
 	accts, err := orgClient.CurrentAccounts(context.Background())
@@ -176,7 +176,8 @@ func importAccounts(orgClient awsorgs.Client) error {
 		return err
 	}
 
-	if err := ymlparser.WriteOrgsFile(orgsFile, managingAccountID, accounts); err != nil {
+	// Assume that the current role is the master account
+	if err := ymlparser.WriteOrgFile(orgFile, managingAccountID, accounts); err != nil {
 		return err
 	}
 
