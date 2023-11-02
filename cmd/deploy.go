@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -14,6 +15,7 @@ import (
 	"telophasecli/lib/awssts"
 	"telophasecli/lib/colors"
 	"telophasecli/lib/ymlparser"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -323,4 +325,48 @@ func deployTUI(orgsToApply []ymlparser.Account) error {
 
 	wg.Wait()
 	return nil
+}
+
+func runeIndex(i int) rune {
+	j := 0
+	for r := 'a'; r <= 'p'; r++ {
+		if j == i {
+			return r
+		}
+		j++
+	}
+
+	return 'z'
+}
+
+func runCmdWriter(cmd *exec.Cmd, org ymlparser.Account, writer io.Writer) error {
+	cmd.Stderr = writer
+	cmd.Stdout = writer
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// liveTextSetter updates the current tui view with the current tail's text.
+func liveTextSetter(tv *tview.TextView, tails []*func() string) {
+	for {
+		func() {
+			time.Sleep(200 * time.Millisecond)
+			tuiLock.Lock()
+			defer tuiLock.Unlock()
+			f := *tails[tuiIndex.Load()]
+
+			curr := tv.GetText(true)
+			newText := f()
+			if newText != curr && newText != "" {
+				tv.SetText(f())
+			}
+		}()
+	}
 }
