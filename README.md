@@ -1,4 +1,8 @@
 # telophasecli
+# Why
+Manage your AWS Account Factory with code. One place to provision new accounts and apply your CDK stacks across as many AWS accounts as you have.
+
+Tag AWS accounts to apply changes to a subset of your global infrastructure.
 
 # Features
 ## Provision AWS accounts under one Management Account via code
@@ -7,23 +11,40 @@ Example `organization.yml`
 Organization:
     MasterAccount:
         Email: management@telophase.dev
-        AccountName: Acme 
+        AccountName: Telophase 
 
     ChildAccounts:
+        - Email: production+us0@telophase.dev
+            AccountName: Production US0 
+            Tags:
+                - "prod"
+            Env:
+                - "TELOPHASE_CELL=us0"
+                - "AWS_REGION=us-west-2"
+
+        - Email: production+us1@telophase.dev
+            AccountName: Production US1
+            Tags:
+                - "prod"
+            Env:
+                - "TELOPHASE_CELL=us1"
+                - "AWS_REGION=us-east-2"
+
         - Email: eng1@telophase.dev
-          AccountName: Engineer 1 
-          Tags:
-            - "dev"
+            AccountName: Engineer 1 
+            Tags:
+                - "dev"
 
         - Email: eng2@telophase.dev
-          AccountName: Engineer 2 
-          Tags:
-            - "dev"
+            AccountName: Engineer 2 
+            Tags:
+                - "dev"
 
+# Adds a new AWS account for a new dev
 +        - Email: eng3@telophase.dev
 +          AccountName: Engineer 3
 +          Tags:
-+            - "dev"
++               - "dev"
 ```
 
 In the above example adding account "Engineer 3" then running:
@@ -34,8 +55,7 @@ In the above example adding account "Engineer 3" then running:
 ## Terminal UI for deploying to multiple AWS accounts 
 `telophase` TUI is helpful when applying your CDK code to multiple Accounts.
 
-https://github.com/Santiago-Labs/telophasecli/assets/22655472/525b4c71-3f42-41b3-9c5c-4b8ddb1a3482
-
+https://github.com/Santiago-Labs/telophasecli/assets/22655472/aa1080d5-d763-4d41-b040-7827d341c384
 
 # Requirements
 - Setup AWS Organizations. 
