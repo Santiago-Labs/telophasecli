@@ -32,7 +32,7 @@ In the above example adding account "Engineer 3" then running:
 - Apply your CDK stack to all accounts with the tag `dev` in parallel
 
 ## Terminal UI for deploying to multiple AWS accounts 
-`telophase`
+`telophase` TUI is helpful when applying your CDK code to multiple Accounts.
 
 # Requirements
 - Setup AWS Organizations. 
