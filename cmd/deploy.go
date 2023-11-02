@@ -8,15 +8,12 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"telophasecli/lib/awsorgs"
 	"telophasecli/lib/awssts"
 	"telophasecli/lib/colors"
-	cdktemplates "telophasecli/lib/templates"
 	"telophasecli/lib/ymlparser"
-	"text/template"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -44,12 +41,6 @@ var (
 
 func init() {
 	rootCmd.AddCommand(compileCmd)
-	// compileCmd.Flags().StringVar(&tenant, "tenant", "", "Name of the tenant to provision/deploy.")
-	// compileCmd.MarkFlagRequired("tenant")
-	// compileCmd.Flags().StringVar(&sourceCodePath, "source", "", "Path to the source code that will be deployed for the lambda")
-	// compileCmd.MarkFlagRequired("source")
-	// compileCmd.Flags().StringVar(&awsAccountID, "account-id", "", "AWS account ID")
-	// compileCmd.MarkFlagRequired("account-id")
 	compileCmd.Flags().StringVar(&cdkPath, "cdk-path", "", "Path to your CDK code")
 	compileCmd.Flags().BoolVar(&apply, "apply", false, "Set apply to true if you want to deploy the changes to your account")
 	compileCmd.Flags().BoolVar(&allStacks, "all-stacks", false, "If all stacks should be deployed")
@@ -222,49 +213,6 @@ func contains(e string, s []string) bool {
 		}
 	}
 	return false
-}
-
-// writeCdkFiles writes the setup for the CDK files.
-func writeCdkFiles() (string, error) {
-	// Create a new temporary directory
-	tmpDir, err := ioutil.TempDir("", "cdkproj")
-	if err != nil {
-		fmt.Println("Error creating temp directory:", err)
-		return "", err
-	}
-
-	files := map[string]string{
-		"cdkapp.go": cdktemplates.CdkMainTmpl,
-		"go.mod":    cdktemplates.GoModTmpl,
-		"cdk.json":  cdktemplates.CdkJSONTmpl,
-	}
-
-	data := cdktemplates.CdkData{
-		AwsAccountId:     awsAccountID,
-		AwsAccountRegion: "us-west-2",
-	}
-
-	for fileName, tmplContent := range files {
-		tmpl, err := template.New(fileName).Parse(tmplContent)
-		if err != nil {
-			fmt.Printf("Error parsing template for file %s: %v\n", fileName, err)
-			return "", err
-		}
-
-		filePath := filepath.Join(tmpDir, fileName)
-		file, err := os.Create(filePath)
-		if err != nil {
-			fmt.Printf("Error creating file %s: %v\n", filePath, err)
-			return "", err
-		}
-
-		if err := tmpl.Execute(file, data); err != nil {
-			fmt.Printf("Error executing template for file %s: %v\n", fileName, err)
-			return "", err
-		}
-		file.Close()
-	}
-	return tmpDir, nil
 }
 
 func deployTUI(orgsToApply []ymlparser.Account) error {
