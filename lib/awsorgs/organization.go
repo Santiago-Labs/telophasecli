@@ -46,8 +46,11 @@ func (c Client) CurrentAccounts(ctx context.Context) ([]*organizations.Account, 
 			return !lastPage
 		},
 	)
+	if err != nil {
+		return nil, fmt.Errorf("ListAccounts: are you using the right AWS role? err: %s", err)
+	}
 
-	return accounts, err
+	return accounts, nil
 }
 
 func (c Client) CreateAccounts(ctx context.Context, accts []*organizations.Account) []error {
