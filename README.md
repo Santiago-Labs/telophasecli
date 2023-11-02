@@ -34,6 +34,9 @@ In the above example adding account "Engineer 3" then running:
 ## Terminal UI for deploying to multiple AWS accounts 
 `telophase` TUI is helpful when applying your CDK code to multiple Accounts.
 
+https://github.com/Santiago-Labs/telophasecli/assets/22655472/4acf6d1d-3b24-43c2-84c7-d6c61cd9eef4
+
+
 # Requirements
 - Setup AWS Organizations. 
     - Follow directions from [here](https://docs.aws.amazon.com/organizations/latest/userguide/orgs_tutorials_basic.html) for setting up your Organization.
@@ -46,7 +49,7 @@ In the above example adding account "Engineer 3" then running:
 ## Authentication
 Valid `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` must be set in either your `env` or in `~/.aws/credentials`. Run `aws sts get-caller-identity` to check if your credentials are valid.
 
-Make sure to set `AWS_SDK_LOAD_CONFIG=1` when passing env variables e.g. `AWS_PROFILE=<profile_name> AWS_SDK_LOAD_CONFIG=1 telophasecli account import`
+Make sure to set `AWS_SDK_LOAD_CONFIG=1` when passing env variables e.g. `AWS_PROFILE=<profile_name> AWS_SDK_LOAD_CONFIG=1 telophase account import`
 
 ### IAM Identity Center/AWS SSO (Optional)
 Run `aws configure sso` and follow the directions. Make sure to choose the region where IAM Identity Center is configured!
