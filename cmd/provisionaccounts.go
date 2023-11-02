@@ -119,7 +119,7 @@ func accountsPlan(orgClient awsorgs.Client) (new []*organizations.Account, toDel
 
 	if len(newAccounts) > 0 {
 		const tmpl = `Account(s) to provision:{{range . }}
-	+	AccountName: {{ .AccountName }}
+	+	AccountName: {{ .Name }}
 	+	Email: {{ .Email }}
 
 	{{end }}`
@@ -134,7 +134,7 @@ func accountsPlan(orgClient awsorgs.Client) (new []*organizations.Account, toDel
 
 	if len(deletedAccounts) > 0 {
 		const tmpl = `Account(s) to delete:{{range . }}
-	+	AccountName: {{ .AccountName }}
+	+	AccountName: {{ .Name }}
 	+	Email: {{ .Email }}
 
 	{{end }}`
