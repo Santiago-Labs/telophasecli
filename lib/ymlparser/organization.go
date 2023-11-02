@@ -48,6 +48,7 @@ func ParseOrganization(filepath string) (Organization, error) {
 
 	data, err := ioutil.ReadFile(filepath)
 	if err != nil {
+		fmt.Println("read file")
 		return Organization{}, fmt.Errorf("err: %s reading file %s", err.Error(), filepath)
 	}
 
@@ -98,8 +99,13 @@ func ParseOrganizationIfExists(filepath string) (Organization, error) {
 }
 
 func validOrganization(data Organization) error {
+	// accountNames aren't enforced to be unique. But we believe unique account
+	// names is a good pattern to follow.
 	accountNames := map[string]struct{}{}
 	accountNames[data.ManagementAccount.AccountName] = struct{}{}
+
+	accountEmails := map[string]struct{}{}
+	accountEmails[data.ManagementAccount.Email] = struct{}{}
 
 	validStates := []string{"delete", ""}
 	for _, account := range data.ChildAccounts {
@@ -115,6 +121,13 @@ func validOrganization(data Organization) error {
 		} else {
 			accountNames[account.AccountName] = struct{}{}
 		}
+
+		if _, ok := accountEmails[account.Email]; ok {
+			return fmt.Errorf("duplicate account email %s", account.Email)
+		} else {
+			accountEmails[account.Email] = struct{}{}
+		}
+
 	}
 
 	return nil
