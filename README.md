@@ -1,8 +1,14 @@
 # telophasecli
+Open-source AWS Control Tower.
+
 # Why
-Manage your AWS Account Factory with code. One place to provision new accounts and apply your CDK stacks across as many AWS accounts as you have.
+Manage your Account Factory with code. One place to provision new accounts and apply your CDK stacks across as many AWS accounts as you have.
 
 Tag AWS accounts to apply changes to a subset of your global infrastructure.
+
+## Future Development
+Support for multi-cloud organizations with a unified account factory.
+Guardrails around new Accounts.
 
 # Features
 ## Provision AWS accounts under one Management Account via code
@@ -60,11 +66,10 @@ https://github.com/Santiago-Labs/telophasecli/assets/22655472/aa1080d5-d763-4d41
 # Requirements
 - Setup AWS Organizations. 
     - Follow directions from [here](https://docs.aws.amazon.com/organizations/latest/userguide/orgs_tutorials_basic.html) for setting up your Organization.
-- Configure awscli credentials. You must have the following privileges from the management account.
-    - `accounts:*`
-        - We need to modify sub AWS accounts.
-    - `sts:*`
-        - From the management account we assume roles in the sub-accounts to manage their infrastructure.
+
+- Configure awscli credentials. You must have the following AWS managed policies from the management account for the role you will be using.
+    -  `AWSOrganizationsFullAccess` - Allows organizatoin creation and linked role creation
+    - `sts:*` - Allows the CLI to assume a role in the sub-accounts to update infrastructure
 
 ## Authentication
 Valid `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` must be set in either your `env` or in `~/.aws/credentials`. Run `aws sts get-caller-identity` to check if your credentials are valid.
