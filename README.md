@@ -2,13 +2,24 @@
 Open-source AWS Control Tower.
 
 # Why
-Manage your Account Factory with code. One place to provision new accounts and apply CDK stacks across all your AWS accounts.
+Manage your Account Factory with code. One place to provision new accounts and
+apply CDK stacks across all your AWS accounts.
 
-Tag AWS accounts to apply changes to a subset of your global infrastructure.
+We developed this tool because we have experienced the pain of managing multiple
+AWS accounts with Control Tower and Cloudformation Templates. Amazon
+forces you to login to their UI and manage all your infrastructure from within
+the portal where changing accounts while using SSO is a pain. 
+
+That's is why we developed `telopahsecli`. We wanted a way to apply our CDK code
+across many AWS accounts with code and with a great UX.
 
 ## Future Development
 Support for multi-cloud organizations with a unified account factory.
+
 Drift detection/prevention
+
+Guardrails around account resources 
+Guardrails around new Accounts similar to Control Tower rules.
 
 # Features
 ## Provision AWS accounts via code
@@ -54,14 +65,36 @@ Organization:
 ```
 
 In the above example adding account "Engineer 3" then running:
-`telophase deploy --account-tag="dev" --apply` in your CDK repository `telophase` will:
+`telophasecli deploy --account-tag="dev" --apply` in your CDK repository `telophase` will:
 - provision the new AWS account
 - Apply your CDK stack to all accounts with the tag `dev` in parallel
 
 ## Terminal UI for deploying to multiple AWS accounts 
-`telophase` TUI is helpful when applying your CDK code to multiple Accounts.
+`telophasecli` TUI is helpful when applying your CDK code to multiple Accounts.
 
 https://github.com/Santiago-Labs/telophasecli/assets/22655472/aa1080d5-d763-4d41-b040-7827d341c384
+
+# Getting Started 
+## Installation
+```
+go install github.com/santiago-labs/telophasecli@latest
+```
+## Import Current AWS accounts
+Run from your management account:
+```
+telophasecli account import
+```
+
+This will output an `organization.yml` file where you can see all the accounts within your organization.
+
+## Deploy
+Once you have an `organization.yml` add `Tags` based on your account organization.
+
+1. View expected change 
+`telophasecli deploy --cdk-path=$HOME/cdkapp --account-tag=dev`
+
+2. Apply changes by including `--apply`
+
 
 # Requirements
 - Setup AWS Organizations. 
@@ -83,9 +116,10 @@ For more details:
 https://docs.aws.amazon.com/cli/latest/userguide/sso-configure-profile-token.html
 
 # Comparisons
-## Telophase vs StackSets
-Telophase can be used alongside your IaC. Telophase allows you to manage your Account settings via one shared file and limit IAM permissions.
+## Telophase vs Control Tower
+Manage Accounts via code not a UI. Telophase leaves the controls up to you and your IaC.
 
 ## Telophase vs CDK with multiple environments
-Telophase allows you to apply CDK to multiple accounts in parallel. Telophase lets you focus on your infrastructure and not worry about setting up the right IAM roles for multi account management.
-
+Telophase wraps your usage of CDK so that you can apply the cdk to multiple
+accounts in parallel. Telophase lets you focus on your actual infrastructure and
+not worrying about setting up the right IAM roles for multi account management.
