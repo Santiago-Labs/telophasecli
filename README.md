@@ -72,7 +72,19 @@ In the above example adding account "Engineer 3" then running:
 ## Terminal UI for deploying to multiple AWS accounts 
 `telophasecli` TUI is helpful when applying your CDK code to multiple Accounts.
 
-https://github.com/Santiago-Labs/telophasecli/assets/22655472/aa1080d5-d763-4d41-b040-7827d341c384
+[![Watch the video](https://cdn.loom.com/sessions/thumbnails/f55b9436b50a4861adc84be6e1506dbf-with-play.gif)](https://www.loom.com/share/f55b9436b50a4861adc84be6e1506dbf)
+
+
+<div>
+    <a href="https://www.loom.com/share/f55b9436b50a4861adc84be6e1506dbf">
+      <p>Telophasecli with TUI - Watch Video</p>
+    </a>
+    <a href="https://www.loom.com/share/f55b9436b50a4861adc84be6e1506dbf">
+      <img style="max-width:300px;" src="https://cdn.loom.com/sessions/thumbnails/f55b9436b50a4861adc84be6e1506dbf-with-play.gif">
+    </a>
+  </div>
+
+<div style="position: relative; padding-bottom: 64.63195691202873%; height: 0;"><iframe src="https://www.loom.com/embed/f55b9436b50a4861adc84be6e1506dbf?sid=8483c400-e508-44ec-9bb5-63e0eaec8229" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe></div>
 
 # Getting Started 
 ## Installation
