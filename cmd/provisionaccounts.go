@@ -13,8 +13,8 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
-	"telophasecli/lib/awsorgs"
-	"telophasecli/lib/ymlparser"
+	"github.com/santiago-labs/telophasecli/lib/awsorgs"
+	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 )
 
 var orgFile string
