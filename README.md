@@ -2,16 +2,16 @@
 Open-source AWS Control Tower.
 
 # Why
-Manage your Account Factory with code. One place to provision new accounts and apply your CDK stacks across as many AWS accounts as you have.
+Manage your Account Factory with code. One place to provision new accounts and apply CDK stacks across all your AWS accounts.
 
 Tag AWS accounts to apply changes to a subset of your global infrastructure.
 
 ## Future Development
 Support for multi-cloud organizations with a unified account factory.
-Guardrails around new Accounts.
+Drift detection/prevention
 
 # Features
-## Provision AWS accounts under one Management Account via code
+## Provision AWS accounts via code
 Example `organization.yml`
 ```yml
 Organization:
@@ -84,8 +84,8 @@ https://docs.aws.amazon.com/cli/latest/userguide/sso-configure-profile-token.htm
 
 # Comparisons
 ## Telophase vs StackSets
-Telophase is a CLI program that can be used alongside your IaC. Telophase allows you to manage your Account settings via one shared file and limit IAM permissions.
+Telophase can be used alongside your IaC. Telophase allows you to manage your Account settings via one shared file and limit IAM permissions.
 
 ## Telophase vs CDK with multiple environments
-Telophase wraps your usage of CDK so that you can apply the cdk to multiple accounts in parallel. Telophase lets you focus on your actual infrastructure and not worrying about setting up the right IAM roles for multi account management.
+Telophase allows you to apply CDK to multiple accounts in parallel. Telophase lets you focus on your infrastructure and not worry about setting up the right IAM roles for multi account management.
 
