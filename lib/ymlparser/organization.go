@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/organizations"
 	"gopkg.in/yaml.v3"
 
-	"telophasecli/lib/awsorgs"
+	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 )
 
 type orgData struct {

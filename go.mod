@@ -1,4 +1,4 @@
-module telophasecli
+module github.com/santiago-labs/telophasecli
 
 go 1.20
 

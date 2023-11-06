@@ -2,7 +2,8 @@ package main
 
 import (
 	"os/exec"
-	"telophasecli/cmd"
+
+	"github.com/santiago-labs/telophasecli/cmd"
 )
 
 func main() {
