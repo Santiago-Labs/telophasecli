@@ -17,7 +17,7 @@ func UpsertAccount(accountID string, accountName string) {
 			"name":       accountName,
 		})
 		client := &http.Client{}
-		req, _ := http.NewRequest("POST", "http://localhost:5001/cloudAccount", bytes.NewBuffer(reqBody))
+		req, _ := http.NewRequest("POST", "https://api.telophase.dev/cloudAccount", bytes.NewBuffer(reqBody))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 		resp, err := client.Do(req)
@@ -40,7 +40,7 @@ func RecordDeploy(accountID string, accountName string) {
 	if token != "" {
 		reqBody, _ := json.Marshal(map[string]string{})
 		client := &http.Client{}
-		req, _ := http.NewRequest("PATCH", fmt.Sprintf("http://localhost:5001/cloudAccount/%s", accountID), bytes.NewBuffer(reqBody))
+		req, _ := http.NewRequest("PATCH", fmt.Sprintf("https://api.telophase.dev/cloudAccount/%s", accountID), bytes.NewBuffer(reqBody))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 		resp, err := client.Do(req)
