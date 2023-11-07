@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
+	"github.com/santiago-labs/telophasecli/lib/telophase"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 )
 
@@ -82,7 +83,7 @@ var accountProvision = &cobra.Command{
 func accountsPlan(orgClient awsorgs.Client) (new []*organizations.Account, toDelete []*organizations.Account, err error) {
 	// With accountsPlan we want to look at the current accounts and see if we
 	// can add any accounts.
-	orgs, err = ymlparser.ParseOrganization(orgFile)
+	org, err = ymlparser.ParseOrganization(orgFile)
 	if err != nil {
 		panic(fmt.Sprintf("error: %s parsing organization", err))
 	}
@@ -101,7 +102,7 @@ func accountsPlan(orgClient awsorgs.Client) (new []*organizations.Account, toDel
 
 	var newAccounts []*organizations.Account
 	var deletedAccounts []*organizations.Account
-	for _, account := range orgs.ChildAccounts {
+	for _, account := range org.ChildAccounts {
 		acct := account
 		if currAcct, ok := accountsByEmail[account.Email]; !ok {
 			if account.State == "" {
@@ -148,7 +149,7 @@ func accountsPlan(orgClient awsorgs.Client) (new []*organizations.Account, toDel
 	}
 
 	if len(newAccounts) == 0 && len(deletedAccounts) == 0 {
-		fmt.Println("No accounts changed.")
+		fmt.Println("Organization.yml unchanged")
 	}
 
 	return newAccounts, deletedAccounts, nil
@@ -174,6 +175,10 @@ func importAccounts(orgClient awsorgs.Client) error {
 	managingAccountID, err := currentAccountID()
 	if err != nil {
 		return err
+	}
+
+	for _, acct := range accounts {
+		telophase.UpsertAccount(*acct.Id, *acct.Name)
 	}
 
 	// Assume that the current role is the master account

@@ -39,7 +39,7 @@ var authCommand = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		if args[0] == "signup" {
 			if err := openSignup(); err != nil {
-				panic(fmt.Sprintf("error opening signup page: %s. Please visit https://app.telophade.dev", err))
+				panic(fmt.Sprintf("error opening signup page: %s. Please visit https://app.telophase.dev", err))
 			}
 		}
 	},
