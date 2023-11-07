@@ -11,11 +11,13 @@ import (
 	"path"
 	"sync"
 	"sync/atomic"
+	"time"
+
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/awssts"
 	"github.com/santiago-labs/telophasecli/lib/colors"
+	"github.com/santiago-labs/telophasecli/lib/telophase"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -29,33 +31,31 @@ var (
 	sourceCodePath string
 	awsAccountID   string
 	cdkPath        string
-	apply          bool
 	accountTag     string
-	orgs           ymlparser.Organization
+	org            ymlparser.Organization
 	allStacks      bool
 	stacks         string
 
 	// TUI
-	tuiDeploy bool
-	tuiIndex  atomic.Int64
-	tuiLock   sync.Mutex
+	useTUI   bool
+	tuiIndex atomic.Int64
+	tuiLock  sync.Mutex
 )
 
 func init() {
 	rootCmd.AddCommand(compileCmd)
 	compileCmd.Flags().StringVar(&cdkPath, "cdk-path", "", "Path to your CDK code")
-	compileCmd.Flags().BoolVar(&apply, "apply", false, "Set apply to true if you want to deploy the changes to your account")
 	compileCmd.Flags().BoolVar(&allStacks, "all-stacks", false, "If all stacks should be deployed")
 	compileCmd.Flags().StringVar(&stacks, "stacks", "", "List of specific stacks to deploy")
 	compileCmd.Flags().StringVar(&accountTag, "account-tag", "", "Tag associated with the accounts to apply to a subset of account IDs, tag \"all\" to deploy all accounts.")
 	compileCmd.MarkFlagRequired("account-tag")
 	compileCmd.Flags().StringVar(&orgFile, "org", "organization.yml", "Path to the organization.yml file")
-	compileCmd.Flags().BoolVar(&tuiDeploy, "tui", false, "use the TUI for deploy")
+	compileCmd.Flags().BoolVar(&useTUI, "tui", false, "use the TUI for deploy")
 }
 
 var compileCmd = &cobra.Command{
 	Use:   "deploy",
-	Short: "deploy - Deploy a tenant to the Telophase platform. If there is no existing tenant the infrastructure will be stood up on its own.",
+	Short: "deploy - Deploy a CDK stack to your AWS account(s). Accounts in organization.yml will be created if they do not exist.",
 	Run: func(cmd *cobra.Command, args []string) {
 		orgClient := awsorgs.New()
 		ctx := context.Background()
@@ -64,48 +64,49 @@ var compileCmd = &cobra.Command{
 			panic(fmt.Sprintf("error: %s", err))
 		}
 
-		if apply {
-			errs := orgClient.CreateAccounts(ctx, newAccounts)
-			if errs != nil {
-				panic(fmt.Sprintf("error creating accounts %v", errs))
-			}
+		errs := orgClient.CreateAccounts(ctx, newAccounts)
+		if errs != nil {
+			panic(fmt.Sprintf("error creating accounts %v", errs))
 		}
 
-		fmt.Println("parsing file", orgFile)
 		orgs, err := ymlparser.ParseOrganization(orgFile)
 		if err != nil {
 			panic(fmt.Sprintf("error: %s parsing organization", err))
 		}
 
-		orgsToApply := []ymlparser.Account{}
+		accountsToApply := []ymlparser.Account{}
 		for _, org := range orgs.ChildAccounts {
 			if contains(accountTag, org.Tags) || accountTag == "all" {
-				orgsToApply = append(orgsToApply, org)
+				accountsToApply = append(accountsToApply, org)
 			}
 		}
 
-		if tuiDeploy {
-			deployTUI(orgsToApply)
+		if len(accountsToApply) == 0 {
+			fmt.Println("No accounts to deploy")
+		}
+
+		if useTUI {
+			deployTUI(accountsToApply)
 			return
 		}
 
 		// Now for each to apply we will take that and write to stdout.
 		var wg sync.WaitGroup
-		for i := range orgsToApply {
+		for i := range accountsToApply {
 			wg.Add(1)
-			go func(org ymlparser.Account) {
-				colorFunc := colors.DeterministicColorFunc(org.AccountID)
+			go func(acct ymlparser.Account) {
+				colorFunc := colors.DeterministicColorFunc(acct.AccountID)
 				defer wg.Done()
-				if org.AccountID == "" {
-					fmt.Println(colorFunc(fmt.Sprintf("skipping account: %s because it hasn't been provisioned yet", org.AccountName)))
+				if acct.AccountID == "" {
+					fmt.Println(colorFunc(fmt.Sprintf("skipping account: %s because it hasn't been provisioned yet", acct.AccountName)))
 					return
 				}
 
 				sess := session.Must(session.NewSession(&aws.Config{}))
 				svc := sts.New(sess)
-				fmt.Println("assuming role", colorFunc(org.AssumeRoleARN()))
+				fmt.Println("assuming role", colorFunc(acct.AssumeRoleARN()))
 				input := &sts.AssumeRoleInput{
-					RoleArn:         aws.String(org.AssumeRoleARN()), // Change this to your role ARN
+					RoleArn:         aws.String(acct.AssumeRoleARN()), // Change this to your role ARN
 					RoleSessionName: aws.String("telophase-org"),
 				}
 
@@ -114,28 +115,30 @@ var compileCmd = &cobra.Command{
 					fmt.Println("Error assuming role:", err)
 					return
 				}
-				coloredAccountID := colorFunc("[Account: " + org.AccountID + "]")
-				bootstrapCDK := bootstrapCDK(result, org, cdkPath, apply)
-				if err := runCmd(bootstrapCDK, org, coloredAccountID); err != nil {
+				coloredAccountID := colorFunc("[Account: " + acct.AccountID + "]")
+				bootstrapCDK := bootstrapCDK(result, acct, cdkPath)
+				if err := runCmd(bootstrapCDK, acct, coloredAccountID); err != nil {
 					fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 					return
 				}
 
-				deployCmd := deployCDK(result, org, cdkPath, apply)
-				if err := runCmd(deployCmd, org, coloredAccountID); err != nil {
+				deployCmd := deployCDK(result, acct, cdkPath)
+				if err := runCmd(deployCmd, acct, coloredAccountID); err != nil {
 					fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 					return
+				} else {
+					telophase.RecordDeploy(acct.AccountID, acct.AccountName)
 				}
-			}(orgsToApply[i])
+			}(accountsToApply[i])
 		}
 
 		wg.Wait()
 	},
 }
 
-// runCmd takes the command and org and runs it while prepending the
+// runCmd takes the command and acct and runs it while prepending the
 // coloredAccountID from stderr and stdout and printing it.
-func runCmd(cmd *exec.Cmd, org ymlparser.Account, coloredAccountID string) error {
+func runCmd(cmd *exec.Cmd, acct ymlparser.Account, coloredAccountID string) error {
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("[ERROR] %s %v", coloredAccountID, err)
@@ -176,12 +179,9 @@ func runCmd(cmd *exec.Cmd, org ymlparser.Account, coloredAccountID string) error
 	return nil
 }
 
-func bootstrapCDK(result *sts.AssumeRoleOutput, org ymlparser.Account, cdkPath string, apply bool) *exec.Cmd {
-	tmpPath := path.Join(cdkPath, "telophasedirs", fmt.Sprintf("tmp%s", org.AccountID))
+func bootstrapCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, cdkPath string) *exec.Cmd {
+	tmpPath := path.Join(cdkPath, "telophasedirs", fmt.Sprintf("tmp%s", acct.AccountID))
 	cdkArgs := []string{"bootstrap", "--output", tmpPath}
-	if apply {
-		cdkArgs = append(cdkArgs, "--require-approval", "never")
-	}
 	cmd := exec.Command("cdk", cdkArgs...)
 	cmd.Dir = cdkPath
 	cmd.Env = awssts.SetEnviron(os.Environ(),
@@ -192,12 +192,9 @@ func bootstrapCDK(result *sts.AssumeRoleOutput, org ymlparser.Account, cdkPath s
 	return cmd
 }
 
-func deployCDK(result *sts.AssumeRoleOutput, org ymlparser.Account, cdkPath string, apply bool) *exec.Cmd {
-	tmpPath := path.Join(cdkPath, "telophasedirs", fmt.Sprintf("tmp%s", org.AccountID))
-	cdkArgs := []string{"deploy", "--output", tmpPath}
-	if apply {
-		cdkArgs = append(cdkArgs, "--require-approval", "never")
-	}
+func deployCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, cdkPath string) *exec.Cmd {
+	tmpPath := path.Join(cdkPath, "telophasedirs", fmt.Sprintf("tmp%s", acct.AccountID))
+	cdkArgs := []string{"deploy", "--output", tmpPath, "--require-approval", "never"}
 	cmd := exec.Command("cdk", cdkArgs...)
 	cmd.Dir = cdkPath
 	cmd.Env = awssts.SetEnviron(os.Environ(),
@@ -287,13 +284,13 @@ func deployTUI(orgsToApply []ymlparser.Account) error {
 			}
 
 			coloredAccountID := colorFunc("[Account: " + org.AccountID + "]")
-			bootstrapCDK := bootstrapCDK(result, org, cdkPath, apply)
+			bootstrapCDK := bootstrapCDK(result, org, cdkPath)
 			if err := runCmdWriter(bootstrapCDK, org, file); err != nil {
 				fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 				return
 			}
 
-			deployCmd := deployCDK(result, org, cdkPath, apply)
+			deployCmd := deployCDK(result, org, cdkPath)
 			if err := runCmdWriter(deployCmd, org, file); err != nil {
 				fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 				return
