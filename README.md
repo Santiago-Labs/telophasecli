@@ -64,8 +64,8 @@ Organization:
 +               - "dev"
 ```
 
-In the above example adding account "Engineer 3" then running:
-`telophasecli deploy --account-tag="dev" --apply` in your CDK repository `telophase` will:
+In the above example adding account "Engineer 3" then running: `telophasecli
+deploy --account-tag="dev"` in your CDK repository `telophase` will:
 - provision the new AWS account
 - Apply your CDK stack to all accounts with the tag `dev` in parallel
 
@@ -98,10 +98,10 @@ This will output an `organization.yml` file where you can see all the accounts w
 Once you have an `organization.yml` add `Tags` based on your account organization.
 
 1. View expected change 
+`telophasecli diff --cdk-path=$HOME/cdkapp --account-tag=dev`
+
+2. Apply changes by including using `deploy` instead of `diff`
 `telophasecli deploy --cdk-path=$HOME/cdkapp --account-tag=dev`
-
-2. Apply changes by including `--apply`
-
 
 # Requirements
 - Setup AWS Organizations. 
