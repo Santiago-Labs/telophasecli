@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -46,7 +47,7 @@ func init() {
 	rootCmd.AddCommand(compileCmd)
 	compileCmd.Flags().StringVar(&cdkPath, "cdk-path", "", "Path to your CDK code")
 	compileCmd.Flags().BoolVar(&allStacks, "all-stacks", false, "If all stacks should be deployed")
-	compileCmd.Flags().StringVar(&stacks, "stacks", "", "List of specific stacks to deploy")
+	compileCmd.Flags().StringVar(&stacks, "stacks", "", "List of comma separated stacks to deploy")
 	compileCmd.Flags().StringVar(&accountTag, "account-tag", "", "Tag associated with the accounts to apply to a subset of account IDs, tag \"all\" to deploy all accounts.")
 	compileCmd.MarkFlagRequired("account-tag")
 	compileCmd.Flags().StringVar(&orgFile, "org", "organization.yml", "Path to the organization.yml file")
@@ -195,6 +196,12 @@ func bootstrapCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, cdkPath 
 func deployCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, cdkPath string) *exec.Cmd {
 	tmpPath := path.Join(cdkPath, "telophasedirs", fmt.Sprintf("tmp%s", acct.AccountID))
 	cdkArgs := []string{"deploy", "--output", tmpPath, "--require-approval", "never"}
+	if allStacks {
+		cdkArgs = append(cdkArgs, "--all")
+	}
+	if stacks != "" {
+		cdkArgs = append(cdkArgs, strings.Split(stacks, ",")...)
+	}
 	cmd := exec.Command("cdk", cdkArgs...)
 	cmd.Dir = cdkPath
 	cmd.Env = awssts.SetEnviron(os.Environ(),

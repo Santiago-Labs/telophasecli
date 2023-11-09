@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 	"sync"
 
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
@@ -103,6 +104,9 @@ var diffCmd = &cobra.Command{
 func diffCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, cdkPath string) *exec.Cmd {
 	tmpPath := path.Join(cdkPath, "telophasedirs", fmt.Sprintf("tmp%s", acct.AccountID))
 	cdkArgs := []string{"diff", "--output", tmpPath}
+	if stacks != "" {
+		cdkArgs = append(cdkArgs, strings.Split(stacks, ",")...)
+	}
 	cmd := exec.Command("cdk", cdkArgs...)
 	cmd.Dir = cdkPath
 	cmd.Env = awssts.SetEnviron(os.Environ(),
