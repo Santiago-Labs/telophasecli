@@ -10,8 +10,8 @@ AWS accounts with Control Tower and Cloudformation Templates. Amazon
 forces you to login to their UI and manage all your infrastructure from within
 the portal where changing accounts while using SSO is a pain. 
 
-That's is why we developed `telopahsecli`. We wanted a way to apply our CDK code
-across many AWS accounts with code and with a great UX.
+We wanted a way to apply our CDK code across many AWS accounts with code and
+with a great UX.
 
 ## Future Development
 Support for multi-cloud organizations with a unified account factory.
@@ -26,7 +26,7 @@ Guardrails around new Accounts similar to Control Tower rules.
 Example `organization.yml`
 ```yml
 Organization:
-    MasterAccount:
+    ManagementAccount:
         Email: management@telophase.dev
         AccountName: Telophase 
 
@@ -64,8 +64,8 @@ Organization:
 +               - "dev"
 ```
 
-In the above example adding account "Engineer 3" then running: `telophasecli
-deploy --account-tag="dev"` in your CDK repository `telophase` will:
+In the above example adding account "Engineer 3" then running:
+`telophasecli deploy --account-tag=dev` in your CDK repository `telophase` will:
 - provision the new AWS account
 - Apply your CDK stack to all accounts with the tag `dev` in parallel
 
@@ -97,11 +97,9 @@ This will output an `organization.yml` file where you can see all the accounts w
 ## Deploy
 Once you have an `organization.yml` add `Tags` based on your account organization.
 
-1. View expected change 
+View changes
 `telophasecli diff --cdk-path=$HOME/cdkapp --account-tag=dev`
 
-2. Apply changes by including using `deploy` instead of `diff`
-`telophasecli deploy --cdk-path=$HOME/cdkapp --account-tag=dev`
 
 # Requirements
 - Setup AWS Organizations. 
