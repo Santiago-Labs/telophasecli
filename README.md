@@ -100,13 +100,17 @@ Once you have an `organization.yml` add `Tags` based on your account organizatio
 View changes
 `telophasecli diff --cdk-path=$HOME/cdkapp --account-tag=dev`
 
+## Metrics Collection
+We are collecting metrics on commands run via PostHog. By default, we collect the
+commands run, but this can be turned off by setting
+`TELOPHASE_METRICS_DISABLED=true`
 
 # Requirements
 - Setup AWS Organizations. 
     - Follow directions from [here](https://docs.aws.amazon.com/organizations/latest/userguide/orgs_tutorials_basic.html) for setting up your Organization.
 
 - Configure awscli credentials. You must have the following AWS managed policies from the management account for the role you will be using.
-    -  `AWSOrganizationsFullAccess` - Allows organizatoin creation and linked role creation
+    -  `AWSOrganizationsFullAccess` - Allows organization creation and linked role creation
     - `sts:*` - Allows the CLI to assume a role in the sub-accounts to update infrastructure
 
 ## Authentication
