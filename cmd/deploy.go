@@ -54,87 +54,95 @@ func init() {
 	compileCmd.Flags().BoolVar(&useTUI, "tui", false, "use the TUI for deploy")
 }
 
+type cdkCmd interface {
+	cmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, cdkPath string) *exec.Cmd
+}
+
 var compileCmd = &cobra.Command{
 	Use:   "deploy",
 	Short: "deploy - Deploy a CDK stack to your AWS account(s). Accounts in organization.yml will be created if they do not exist.",
 	Run: func(cmd *cobra.Command, args []string) {
-		orgClient := awsorgs.New()
-		ctx := context.Background()
-		newAccounts, _, err := accountsPlan(orgClient)
-		if err != nil {
-			panic(fmt.Sprintf("error: %s", err))
-		}
-
-		errs := orgClient.CreateAccounts(ctx, newAccounts)
-		if errs != nil {
-			panic(fmt.Sprintf("error creating accounts %v", errs))
-		}
-
-		orgs, err := ymlparser.ParseOrganization(orgFile)
-		if err != nil {
-			panic(fmt.Sprintf("error: %s parsing organization", err))
-		}
-
-		accountsToApply := []ymlparser.Account{}
-		for _, org := range orgs.ChildAccounts {
-			if contains(accountTag, org.Tags) || accountTag == "all" {
-				accountsToApply = append(accountsToApply, org)
-			}
-		}
-
-		if len(accountsToApply) == 0 {
-			fmt.Println("No accounts to deploy")
-		}
-
-		if useTUI {
-			deployTUI(accountsToApply)
-			return
-		}
-
-		// Now for each to apply we will take that and write to stdout.
-		var wg sync.WaitGroup
-		for i := range accountsToApply {
-			wg.Add(1)
-			go func(acct ymlparser.Account) {
-				colorFunc := colors.DeterministicColorFunc(acct.AccountID)
-				defer wg.Done()
-				if acct.AccountID == "" {
-					fmt.Println(colorFunc(fmt.Sprintf("skipping account: %s because it hasn't been provisioned yet", acct.AccountName)))
-					return
-				}
-
-				sess := session.Must(session.NewSession(&aws.Config{}))
-				svc := sts.New(sess)
-				fmt.Println("assuming role", colorFunc(acct.AssumeRoleARN()))
-				input := &sts.AssumeRoleInput{
-					RoleArn:         aws.String(acct.AssumeRoleARN()), // Change this to your role ARN
-					RoleSessionName: aws.String("telophase-org"),
-				}
-
-				result, err := svc.AssumeRole(input)
-				if err != nil {
-					fmt.Println("Error assuming role:", err)
-					return
-				}
-				coloredAccountID := colorFunc("[Account: " + acct.AccountID + "]")
-				bootstrapCDK := bootstrapCDK(result, acct, cdkPath)
-				if err := runCmd(bootstrapCDK, acct, coloredAccountID); err != nil {
-					fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
-					return
-				}
-
-				deployCmd := deployCDK(result, acct, cdkPath)
-				if err := runCmd(deployCmd, acct, coloredAccountID); err != nil {
-					fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
-					return
-				} else {
-					telophase.RecordDeploy(acct.AccountID, acct.AccountName)
-				}
-			}(accountsToApply[i])
-		}
-
-		wg.Wait()
+		runCDK(deployCDK{})
 	},
+}
+
+func runCDK(cmd cdkCmd) {
+	orgClient := awsorgs.New()
+	ctx := context.Background()
+	newAccounts, _, err := accountsPlan(orgClient)
+	if err != nil {
+		panic(fmt.Sprintf("error: %s", err))
+	}
+
+	errs := orgClient.CreateAccounts(ctx, newAccounts)
+	if errs != nil {
+		panic(fmt.Sprintf("error creating accounts %v", errs))
+	}
+
+	orgs, err := ymlparser.ParseOrganization(orgFile)
+	if err != nil {
+		panic(fmt.Sprintf("error: %s parsing organization", err))
+	}
+
+	accountsToApply := []ymlparser.Account{}
+	for _, org := range orgs.ChildAccounts {
+		if contains(accountTag, org.Tags) || accountTag == "all" {
+			accountsToApply = append(accountsToApply, org)
+		}
+	}
+
+	if len(accountsToApply) == 0 {
+		fmt.Println("No accounts to deploy")
+	}
+
+	if useTUI {
+		deployTUI(cmd, accountsToApply)
+		return
+	}
+
+	// Now for each to apply we will take that and write to stdout.
+	var wg sync.WaitGroup
+	for i := range accountsToApply {
+		wg.Add(1)
+		go func(acct ymlparser.Account) {
+			colorFunc := colors.DeterministicColorFunc(acct.AccountID)
+			defer wg.Done()
+			if acct.AccountID == "" {
+				fmt.Println(colorFunc(fmt.Sprintf("skipping account: %s because it hasn't been provisioned yet", acct.AccountName)))
+				return
+			}
+
+			sess := session.Must(session.NewSession(&aws.Config{}))
+			svc := sts.New(sess)
+			fmt.Println("assuming role", colorFunc(acct.AssumeRoleARN()))
+			input := &sts.AssumeRoleInput{
+				RoleArn:         aws.String(acct.AssumeRoleARN()), // Change this to your role ARN
+				RoleSessionName: aws.String("telophase-org"),
+			}
+
+			result, err := svc.AssumeRole(input)
+			if err != nil {
+				fmt.Println("Error assuming role:", err)
+				return
+			}
+			coloredAccountID := colorFunc("[Account: " + acct.AccountID + "]")
+			bootstrapCDK := bootstrapCDK(result, acct, cdkPath)
+			if err := runCmd(bootstrapCDK, acct, coloredAccountID); err != nil {
+				fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
+				return
+			}
+
+			deployCmd := cmd.cmd(result, acct, cdkPath)
+			if err := runCmd(deployCmd, acct, coloredAccountID); err != nil {
+				fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
+				return
+			} else {
+				telophase.RecordDeploy(acct.AccountID, acct.AccountName)
+			}
+		}(accountsToApply[i])
+	}
+
+	wg.Wait()
 }
 
 // runCmd takes the command and acct and runs it while prepending the
@@ -193,7 +201,9 @@ func bootstrapCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, cdkPath 
 	return cmd
 }
 
-func deployCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, cdkPath string) *exec.Cmd {
+type deployCDK struct{}
+
+func (d deployCDK) cmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, cdkPath string) *exec.Cmd {
 	tmpPath := path.Join(cdkPath, "telophasedirs", fmt.Sprintf("tmp%s", acct.AccountID))
 	cdkArgs := []string{"deploy", "--output", tmpPath, "--require-approval", "never"}
 	if allStacks {
@@ -221,7 +231,7 @@ func contains(e string, s []string) bool {
 	return false
 }
 
-func deployTUI(orgsToApply []ymlparser.Account) error {
+func deployTUI(cmd cdkCmd, orgsToApply []ymlparser.Account) error {
 	app := tview.NewApplication()
 	tv := tview.NewTextView()
 
@@ -297,7 +307,7 @@ func deployTUI(orgsToApply []ymlparser.Account) error {
 				return
 			}
 
-			deployCmd := deployCDK(result, org, cdkPath)
+			deployCmd := cmd.cmd(result, org, cdkPath)
 			if err := runCmdWriter(deployCmd, org, file); err != nil {
 				fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 				return
