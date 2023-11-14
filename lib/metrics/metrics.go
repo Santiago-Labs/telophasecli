@@ -79,10 +79,6 @@ func RegisterCommand() {
 		command = os.Args[1]
 	}
 
-	for i := range os.Args {
-		fmt.Println("i", i, os.Args[i])
-	}
-
 	Push(
 		EventRunCommand,
 		map[string]interface{}{
