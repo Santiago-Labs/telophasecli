@@ -345,13 +345,13 @@ func deployTUI(cmd iacCmd, orgsToApply []ymlparser.Account) error {
 			if tfPath != "" {
 				initTFCmd := initTf(result, acct, tfPath)
 				if initTFCmd != nil {
-					if err := runCmd(initTFCmd, acct, coloredAccountID); err != nil {
+					if err := runCmdWriter(initTFCmd, acct, file); err != nil {
 						fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 						return
 					}
 				}
 				deployTFCmd := cmd.tfCmd(result, acct, tfPath)
-				if err := runCmd(deployTFCmd, acct, coloredAccountID); err != nil {
+				if err := runCmdWriter(deployTFCmd, acct, file); err != nil {
 					fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 					return
 				} else {
