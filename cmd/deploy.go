@@ -1,10 +1,8 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
-	"path"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -53,8 +51,8 @@ var compileCmd = &cobra.Command{
 type deployIAC struct{}
 
 func (d deployIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, cdkPath string) *exec.Cmd {
-	tmpPath := path.Join("telophasedirs", fmt.Sprintf("cdk-tmp%s", acct.AccountID))
-	cdkArgs := []string{"deploy", "--output", tmpPath, "--require-approval", "never"}
+	outPath := tmpPath("CDK", acct, cdkPath)
+	cdkArgs := []string{"deploy", "--output", outPath, "--require-approval", "never"}
 	if allStacks {
 		cdkArgs = append(cdkArgs, "--all")
 	}
@@ -72,12 +70,12 @@ func (d deployIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, 
 }
 
 func (d deployIAC) tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, tfPath string) *exec.Cmd {
-	tmpPath := path.Join("telophasedirs", fmt.Sprintf("tf-tmp%s", acct.AccountID))
+	workingPath := tmpPath("Terraform", acct, tfPath)
 	args := []string{
 		"apply", "-auto-approve",
 	}
 	cmd := exec.Command("terraform", args...)
-	cmd.Dir = tmpPath
+	cmd.Dir = workingPath
 	cmd.Env = awssts.SetEnviron(os.Environ(),
 		*result.Credentials.AccessKeyId,
 		*result.Credentials.SecretAccessKey,

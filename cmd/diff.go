@@ -1,10 +1,8 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
-	"path"
 	"strings"
 
 	"github.com/santiago-labs/telophasecli/lib/awssts"
@@ -37,8 +35,8 @@ var diffCmd = &cobra.Command{
 type diffIAC struct{}
 
 func (d diffIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, cdkPath string) *exec.Cmd {
-	tmpPath := path.Join("telophasedirs", fmt.Sprintf("cdk-tmp%s", acct.AccountID))
-	cdkArgs := []string{"diff", "--output", tmpPath}
+	outPath := tmpPath("CDK", acct, cdkPath)
+	cdkArgs := []string{"diff", "--output", outPath}
 	if stacks != "" {
 		cdkArgs = append(cdkArgs, strings.Split(stacks, ",")...)
 	}
@@ -53,12 +51,12 @@ func (d diffIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, cd
 }
 
 func (d diffIAC) tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, tfPath string) *exec.Cmd {
-	tmpPath := path.Join("telophasedirs", fmt.Sprintf("tf-tmp%s", acct.AccountID))
+	workingPath := tmpPath("Terraform", acct, tfPath)
 	args := []string{
 		"plan",
 	}
 	cmd := exec.Command("terraform", args...)
-	cmd.Dir = tmpPath
+	cmd.Dir = workingPath
 	cmd.Env = awssts.SetEnviron(os.Environ(),
 		*result.Credentials.AccessKeyId,
 		*result.Credentials.SecretAccessKey,
