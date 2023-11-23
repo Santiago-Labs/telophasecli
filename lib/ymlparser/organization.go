@@ -29,6 +29,13 @@ type Account struct {
 	AccountID      string   `yaml:"AccountID,omitempty"`
 	AssumeRoleName string   `yaml:"AssumeRoleName,omitempty"`
 	Tags           []string `yaml:"Tags,omitempty"`
+	Stacks         []Stack  `yaml:"Stacks,omitempty"`
+}
+
+type Stack struct {
+	Name string `yaml:"Name"`
+	Type string `yaml:"Type"`
+	Path string `yaml:"Path"`
 }
 
 func (a Account) AssumeRoleARN() string {
@@ -48,7 +55,6 @@ func ParseOrganization(filepath string) (Organization, error) {
 
 	data, err := ioutil.ReadFile(filepath)
 	if err != nil {
-		fmt.Println("read file")
 		return Organization{}, fmt.Errorf("err: %s reading file %s", err.Error(), filepath)
 	}
 
