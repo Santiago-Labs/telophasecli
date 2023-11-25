@@ -31,24 +31,17 @@ import (
 type iacCmd interface {
 	cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, cdkPath string) *exec.Cmd
 	tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, tfPath string) *exec.Cmd
+	orgV1Cmd(ctx context.Context, orgClient awsorgs.Client) // Deprecated
+	orgV2Cmd(ctx context.Context, orgClient awsorgs.Client)
 }
 
 func runIAC(cmd iacCmd) {
 	orgClient := awsorgs.New()
 	ctx := context.Background()
-	newAccounts, _, err := orgV1Plan(orgClient)
-	if err != nil {
-		panic(fmt.Sprintf("error: %s", err))
-	}
-
-	errs := orgClient.CreateAccounts(ctx, newAccounts)
-	if errs != nil {
-		panic(fmt.Sprintf("error creating accounts %v", errs))
-	}
 
 	var accountsToApply []ymlparser.Account
-	rootGroup, err := ymlparser.ParseOrganizationV2(orgFile)
-	if err != nil {
+	if ymlparser.IsUsingOrgV1(orgFile) {
+		cmd.orgV1Cmd(ctx, orgClient)
 		org, err := ymlparser.ParseOrganizationV1(orgFile)
 		if err != nil {
 			panic(fmt.Sprintf("error: %s parsing organization", err))
@@ -63,6 +56,11 @@ func runIAC(cmd iacCmd) {
 			}
 		}
 	} else {
+		cmd.orgV2Cmd(ctx, orgClient)
+		rootGroup, err := ymlparser.ParseOrganizationV2(orgFile)
+		if err != nil {
+			panic(fmt.Sprintf("error: %s parsing organization", err))
+		}
 		for _, acct := range rootGroup.AllDescendentAccounts() {
 			if contains(accountTag, acct.Tags) || accountTag == "all" {
 				accountsToApply = append(accountsToApply, *acct)

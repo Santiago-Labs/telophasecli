@@ -1,10 +1,13 @@
 package cmd
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 
+	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/awssts"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 
@@ -62,4 +65,18 @@ func (d diffIAC) tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, tfP
 		*result.Credentials.SessionToken)
 
 	return cmd
+}
+
+func (d diffIAC) orgV1Cmd(ctx context.Context, orgClient awsorgs.Client) {
+	_, _, err := orgV1Plan(orgClient)
+	if err != nil {
+		panic(fmt.Sprintf("error: %s", err))
+	}
+}
+
+func (d diffIAC) orgV2Cmd(ctx context.Context, orgClient awsorgs.Client) {
+	_, err := orgV2Plan(orgClient)
+	if err != nil {
+		panic(fmt.Sprintf("error: %s", err))
+	}
 }
