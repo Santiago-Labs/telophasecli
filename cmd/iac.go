@@ -36,7 +36,7 @@ type iacCmd interface {
 func runIAC(cmd iacCmd) {
 	orgClient := awsorgs.New()
 	ctx := context.Background()
-	newAccounts, _, err := accountsPlan(orgClient)
+	newAccounts, _, err := orgV1Plan(orgClient)
 	if err != nil {
 		panic(fmt.Sprintf("error: %s", err))
 	}
@@ -46,15 +46,27 @@ func runIAC(cmd iacCmd) {
 		panic(fmt.Sprintf("error creating accounts %v", errs))
 	}
 
-	orgs, err := ymlparser.ParseOrganization(orgFile)
+	var accountsToApply []ymlparser.Account
+	rootGroup, err := ymlparser.ParseOrganizationV2(orgFile)
 	if err != nil {
-		panic(fmt.Sprintf("error: %s parsing organization", err))
-	}
+		org, err := ymlparser.ParseOrganizationV1(orgFile)
+		if err != nil {
+			panic(fmt.Sprintf("error: %s parsing organization", err))
+		}
 
-	accountsToApply := []ymlparser.Account{}
-	for _, org := range orgs.ChildAccounts {
-		if contains(accountTag, org.Tags) || accountTag == "all" {
-			accountsToApply = append(accountsToApply, org)
+		if contains(accountTag, org.ManagementAccount.Tags) || accountTag == "all" {
+			accountsToApply = append(accountsToApply, org.ManagementAccount)
+		}
+		for _, acct := range org.ChildAccounts {
+			if contains(accountTag, acct.Tags) || accountTag == "all" {
+				accountsToApply = append(accountsToApply, acct)
+			}
+		}
+	} else {
+		for _, acct := range rootGroup.AllDescendentAccounts() {
+			if contains(accountTag, acct.Tags) || accountTag == "all" {
+				accountsToApply = append(accountsToApply, *acct)
+			}
 		}
 	}
 
@@ -93,8 +105,8 @@ func runIAC(cmd iacCmd) {
 				return
 			}
 
-			acctStacks := make([]ymlparser.Stack, len(acct.Stacks))
-			copy(acctStacks, acct.Stacks)
+			var acctStacks []ymlparser.Stack
+			acctStacks = append(acctStacks, acct.Stacks...)
 			if cdkPath != "" {
 				acctStacks = append(acctStacks, ymlparser.Stack{
 					Path: cdkPath,
@@ -360,8 +372,8 @@ func deployTUI(cmd iacCmd, orgsToApply []ymlparser.Account) error {
 				return
 			}
 
-			acctStacks := make([]ymlparser.Stack, len(acct.Stacks))
-			copy(acctStacks, acct.Stacks)
+			var acctStacks []ymlparser.Stack
+			acctStacks = append(acctStacks, acct.Stacks...)
 			if cdkPath != "" {
 				acctStacks = append(acctStacks, ymlparser.Stack{
 					Path: cdkPath,

@@ -19,7 +19,6 @@ func init() {
 	diffCmd.Flags().BoolVar(&allStacks, "all-stacks", false, "If all stacks should be deployed")
 	diffCmd.Flags().StringVar(&stacks, "stacks", "", "List of specific stacks to deploy")
 	diffCmd.Flags().StringVar(&accountTag, "account-tag", "", "Tag associated with the accounts to apply to a subset of account IDs, tag \"all\" to deploy all accounts.")
-	diffCmd.MarkFlagRequired("account-tag")
 	diffCmd.Flags().StringVar(&orgFile, "org", "organization.yml", "Path to the organization.yml file")
 	diffCmd.Flags().BoolVar(&useTUI, "tui", false, "use the TUI for diff")
 }

@@ -19,10 +19,12 @@ import (
 )
 
 var orgFile string
+var orgV1 bool
 
 func init() {
 	rootCmd.AddCommand(accountProvision)
 	accountProvision.Flags().StringVar(&orgFile, "org", "organization.yml", "Path to the organization.yml file")
+	accountProvision.Flags().BoolVar(&orgV1, "orgv1", false, "Used for import only. Use this flag to import your organization in the old format.")
 }
 
 func isValidAccountArg(arg string) bool {
@@ -54,36 +56,61 @@ var accountProvision = &cobra.Command{
 		orgClient := awsorgs.New()
 		ctx := context.Background()
 		if args[0] == "import" {
-			if err := importAccounts(orgClient); err != nil {
-				panic(fmt.Sprintf("error importing accounts: %s", err))
+			if orgV1 {
+				if err := importOrgV1(orgClient); err != nil {
+					panic(fmt.Sprintf("error importing accounts: %s", err))
+				}
+			} else {
+				if err := importOrgV2(orgClient); err != nil {
+					panic(fmt.Sprintf("error importing organization: %s", err))
+				}
 			}
 		}
 
 		if args[0] == "plan" {
-			_, _, err := accountsPlan(orgClient)
-			if err != nil {
-				panic(fmt.Sprintf("error: %s", err))
+			if ymlparser.IsUsingOrgV1(orgFile) {
+				_, _, err := orgV1Plan(orgClient)
+				if err != nil {
+					panic(fmt.Sprintf("error: %s", err))
+				}
+			} else {
+				_, err := orgV2Plan(orgClient)
+				if err != nil {
+					panic(fmt.Sprintf("error: %s", err))
+				}
 			}
 		}
 
 		if args[0] == "apply" {
-			newAccounts, _, err := accountsPlan(orgClient)
-			if err != nil {
-				panic(fmt.Sprintf("error: %s", err))
-			}
+			if ymlparser.IsUsingOrgV1(orgFile) {
+				newAccounts, _, err := orgV1Plan(orgClient)
+				if err != nil {
+					panic(fmt.Sprintf("error: %s", err))
+				}
 
-			errs := orgClient.CreateAccounts(ctx, newAccounts)
-			if errs != nil {
-				panic(fmt.Sprintf("error creating accounts %v", errs))
+				errs := orgClient.CreateAccounts(ctx, newAccounts)
+				if errs != nil {
+					panic(fmt.Sprintf("error creating accounts %v", errs))
+				}
+			} else {
+				operations, err := orgV2Plan(orgClient)
+				if err != nil {
+					panic(fmt.Sprintf("error: %s", err))
+				}
+
+				for _, op := range operations {
+					err := op.Call(ctx, orgClient)
+					if err != nil {
+						panic(fmt.Sprintf("error: %s", err))
+					}
+				}
 			}
 		}
 	},
 }
 
-func accountsPlan(orgClient awsorgs.Client) (new []*organizations.Account, toDelete []*organizations.Account, err error) {
-	// With accountsPlan we want to look at the current accounts and see if we
-	// can add any accounts.
-	org, err = ymlparser.ParseOrganization(orgFile)
+func orgV1Plan(orgClient awsorgs.Client) (new []*organizations.Account, toDelete []*organizations.Account, err error) {
+	org, err := ymlparser.ParseOrganizationV1(orgFile)
 	if err != nil {
 		panic(fmt.Sprintf("error: %s parsing organization", err))
 	}
@@ -148,11 +175,28 @@ func accountsPlan(orgClient awsorgs.Client) (new []*organizations.Account, toDel
 		fmt.Println(color.RedString(b.String()))
 	}
 
-	if len(newAccounts) == 0 && len(deletedAccounts) == 0 {
-		fmt.Println("Organization.yml unchanged")
+	// Only output unchanged message if using legacy org definition.
+	if len(org.ChildAccounts) > 0 {
+		if len(newAccounts) == 0 && len(deletedAccounts) == 0 {
+			fmt.Println("Organization.yml unchanged")
+		}
 	}
 
 	return newAccounts, deletedAccounts, nil
+}
+
+func orgV2Plan(orgClient awsorgs.Client) (ops []ymlparser.ResourceOperation, err error) {
+	org, err := ymlparser.ParseOrganizationV2(orgFile)
+	if err != nil {
+		panic(fmt.Sprintf("error: %s parsing organization", err))
+	}
+
+	operations := org.Diff(orgClient)
+	for _, op := range ymlparser.FlattenOperations(operations) {
+		fmt.Println(op.ToString())
+	}
+
+	return operations, nil
 }
 
 func currentAccountID() (string, error) {
@@ -165,7 +209,7 @@ func currentAccountID() (string, error) {
 	return *caller.Account, nil
 }
 
-func importAccounts(orgClient awsorgs.Client) error {
+func importOrgV1(orgClient awsorgs.Client) error {
 	accounts, err := orgClient.CurrentAccounts(context.Background())
 	if err != nil {
 		return fmt.Errorf("error: %s getting current accounts", err)
@@ -177,12 +221,69 @@ func importAccounts(orgClient awsorgs.Client) error {
 		return err
 	}
 
+	var childAccounts []ymlparser.Account
+	var mgmtAccount ymlparser.Account
+	for _, acct := range accounts {
+		telophase.UpsertAccount(*acct.Id, *acct.Name)
+		if *acct.Id == managingAccountID {
+			mgmtAccount = ymlparser.Account{
+				AccountName: *acct.Name,
+				AccountID:   *acct.Id,
+			}
+		} else {
+			childAccounts = append(childAccounts, ymlparser.Account{
+				AccountName: *acct.Name,
+				AccountID:   *acct.Id,
+			})
+		}
+	}
+
+	org := &ymlparser.Organization{
+		ManagementAccount: mgmtAccount,
+		ChildAccounts:     childAccounts,
+	}
+	// Assume that the current role is the master account
+	if err := ymlparser.WriteOrgV1File(orgFile, org); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func importOrgV2(orgClient awsorgs.Client) error {
+	accounts, err := orgClient.CurrentAccounts(context.Background())
+	if err != nil {
+		return fmt.Errorf("error: %s getting current accounts", err)
+	}
+
+	managingAccountID, err := currentAccountID()
+	if err != nil {
+		return err
+	}
+
 	for _, acct := range accounts {
 		telophase.UpsertAccount(*acct.Id, *acct.Name)
 	}
 
-	// Assume that the current role is the master account
-	if err := ymlparser.WriteOrgFile(orgFile, managingAccountID, accounts); err != nil {
+	rootId, err := orgClient.GetRootId()
+	if err != nil {
+		return err
+	}
+	if rootId == "" {
+		return fmt.Errorf("no root ID found")
+	}
+
+	rootGroup, err := ymlparser.FetchGroupAndDescendents(context.TODO(), orgClient, rootId, managingAccountID)
+	if err != nil {
+		return err
+	}
+	org := ymlparser.AccountGroup{
+		Name:        rootGroup.Name,
+		ChildGroups: rootGroup.ChildGroups,
+		Accounts:    rootGroup.Accounts,
+	}
+
+	if err := ymlparser.WriteOrgV2File(orgFile, &org); err != nil {
 		return err
 	}
 
