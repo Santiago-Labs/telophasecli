@@ -120,11 +120,6 @@ func ParseOrganizationIfExists(filepath string) (Organization, error) {
 }
 
 func validOrganization(data Organization) error {
-	// accountNames aren't enforced to be unique. But we believe unique account
-	// names is a good pattern to follow.
-	accountNames := map[string]struct{}{}
-	accountNames[data.ManagementAccount.AccountName] = struct{}{}
-
 	accountEmails := map[string]struct{}{}
 	accountEmails[data.ManagementAccount.Email] = struct{}{}
 
@@ -135,12 +130,6 @@ func validOrganization(data Organization) error {
 			"",
 		); !ok {
 			return fmt.Errorf("invalid state (%s) for account %s valid states are: empty string or %v", account.State, account.AccountName, validStates)
-		}
-
-		if _, ok := accountNames[account.AccountName]; ok {
-			return fmt.Errorf("duplicate account name %s", account.AccountName)
-		} else {
-			accountNames[account.AccountName] = struct{}{}
 		}
 
 		if _, ok := accountEmails[account.Email]; ok {
