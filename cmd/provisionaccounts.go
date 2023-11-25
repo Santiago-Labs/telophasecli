@@ -229,11 +229,13 @@ func importOrgV1(orgClient awsorgs.Client) error {
 			mgmtAccount = ymlparser.Account{
 				AccountName: *acct.Name,
 				AccountID:   *acct.Id,
+				Email:       *acct.Email,
 			}
 		} else {
 			childAccounts = append(childAccounts, ymlparser.Account{
 				AccountName: *acct.Name,
 				AccountID:   *acct.Id,
+				Email:       *acct.Email,
 			})
 		}
 	}
