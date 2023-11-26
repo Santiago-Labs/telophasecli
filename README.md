@@ -26,48 +26,41 @@ Guardrails around new Accounts similar to Control Tower rules.
 Example `organization.yml`
 ```yml
 Organization:
-    ManagementAccount:
-        Email: management@telophase.dev
-        AccountName: Telophase 
-
-    ChildAccounts:
-        - Email: production+us0@telophase.dev
-            AccountName: Production US0 
-            Tags:
-                - "prod"
-            Env:
-                - "TELOPHASE_CELL=us0"
-                - "AWS_REGION=us-west-2"
-
-        - Email: production+us1@telophase.dev
-            AccountName: Production US1
-            Tags:
-                - "prod"
-            Env:
-                - "TELOPHASE_CELL=us1"
-                - "AWS_REGION=us-east-2"
-
-        - Email: eng1@telophase.dev
-            AccountName: Engineer 1 
-            Tags:
-                - "dev"
-
-        - Email: eng2@telophase.dev
-            AccountName: Engineer 2 
-            Tags:
-                - "dev"
+    AccountGroups:
+        - Name: Production
+          AccountGroups:
+            - Name: Safety Team
+              AccountGroups:
+                - Name: Firmware Team
+                  Accounts:
+                    - Email: safety+firmware@example.app
+                      AccountName: Safety Firmware
+                - Name: Safety Ingestion
+                  Accounts:
+                    - Email: safety+ingestion@example.app
+                      AccountName: Safety Ingestion Team
+        - Name: Security
+          Accounts:
+            - Email: ethan+audit@example.app
+              AccountName: Audit
+            - Email: ethan+logs@example.app
+              AccountName: Log Archive
+        - Name: Development
+          Accounts:
+            - Email: eng1@example.app
+              AccountName: Engineer 1
+            - Email: eng2@example.app
+              AccountName: Engineer 2
 
 # Adds a new AWS account for a new dev
-+        - Email: eng3@telophase.dev
-+          AccountName: Engineer 3
-+          Tags:
-+               - "dev"
++           - Email: eng3@example.app
++             AccountName: Engineer 3
 ```
 
 In the above example adding account "Engineer 3" then running:
-`telophasecli deploy --account-tag=dev` in your CDK repository `telophase` will:
+`telophasecli deploy` in your CDK repository `telophase` will:
 - provision the new AWS account
-- Apply your CDK stack to all accounts with the tag `dev` in parallel
+- Apply your CDK stack to all accounts in parallel
 
 ## Terminal UI for deploying to multiple AWS accounts 
 `telophasecli` TUI is helpful when applying your CDK code to multiple Accounts.
