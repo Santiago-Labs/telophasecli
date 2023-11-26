@@ -47,11 +47,11 @@ func runIAC(cmd iacCmd) {
 			panic(fmt.Sprintf("error: %s parsing organization", err))
 		}
 
-		if contains(accountTag, org.ManagementAccount.Tags) || accountTag == "all" {
+		if contains(tag, org.ManagementAccount.Tags) || tag == "all" {
 			accountsToApply = append(accountsToApply, org.ManagementAccount)
 		}
 		for _, acct := range org.ChildAccounts {
-			if contains(accountTag, acct.Tags) || accountTag == "all" {
+			if contains(tag, acct.Tags) || tag == "all" {
 				accountsToApply = append(accountsToApply, acct)
 			}
 		}
@@ -62,7 +62,7 @@ func runIAC(cmd iacCmd) {
 			panic(fmt.Sprintf("error: %s parsing organization", err))
 		}
 		for _, acct := range rootGroup.AllDescendentAccounts() {
-			if contains(accountTag, acct.Tags) || accountTag == "all" {
+			if contains(tag, acct.Tags) || tag == "all" {
 				accountsToApply = append(accountsToApply, *acct)
 			}
 		}

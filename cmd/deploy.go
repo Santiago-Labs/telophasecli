@@ -18,12 +18,12 @@ import (
 )
 
 var (
-	cdkPath    string
-	tfPath     string
-	accountTag string
-	org        ymlparser.Organization
-	allStacks  bool
-	stacks     string
+	cdkPath   string
+	tfPath    string
+	tag       string
+	org       ymlparser.Organization
+	allStacks bool
+	stacks    string
 
 	// TUI
 	useTUI   bool
@@ -35,9 +35,9 @@ func init() {
 	rootCmd.AddCommand(compileCmd)
 	compileCmd.Flags().StringVar(&cdkPath, "cdk-path", "", "Path to your CDK code")
 	compileCmd.Flags().StringVar(&tfPath, "tf-path", "", "Path to your Terraform code")
-	compileCmd.Flags().BoolVar(&allStacks, "all-stacks", false, "If all stacks should be deployed")
+	compileCmd.Flags().BoolVar(&allStacks, "all-stacks", true, "If all stacks should be deployed")
 	compileCmd.Flags().StringVar(&stacks, "stacks", "", "List of comma separated stacks to deploy")
-	compileCmd.Flags().StringVar(&accountTag, "account-tag", "", "Tag associated with the accounts to apply to a subset of account IDs, tag \"all\" to deploy all accounts.")
+	compileCmd.Flags().StringVar(&tag, "tag", "all", "Tag associated with the accounts to apply to a subset of account IDs, tag \"all\" to deploy all accounts.")
 	compileCmd.Flags().StringVar(&orgFile, "org", "organization.yml", "Path to the organization.yml file")
 	compileCmd.Flags().BoolVar(&useTUI, "tui", false, "use the TUI for deploy")
 }

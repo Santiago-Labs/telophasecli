@@ -19,9 +19,9 @@ func init() {
 	rootCmd.AddCommand(diffCmd)
 	diffCmd.Flags().StringVar(&cdkPath, "cdk-path", "", "Path to your CDK code")
 	diffCmd.Flags().StringVar(&tfPath, "tf-path", "", "Path to your TF code")
-	diffCmd.Flags().BoolVar(&allStacks, "all-stacks", false, "If all stacks should be deployed")
+	diffCmd.Flags().BoolVar(&allStacks, "all-stacks", true, "If all stacks should be deployed")
 	diffCmd.Flags().StringVar(&stacks, "stacks", "", "List of specific stacks to deploy")
-	diffCmd.Flags().StringVar(&accountTag, "account-tag", "", "Tag associated with the accounts to apply to a subset of account IDs, tag \"all\" to deploy all accounts.")
+	diffCmd.Flags().StringVar(&tag, "account-tag", "all", "Tag associated with the accounts to apply to a subset of account IDs, tag \"all\" to deploy all accounts.")
 	diffCmd.Flags().StringVar(&orgFile, "org", "organization.yml", "Path to the organization.yml file")
 	diffCmd.Flags().BoolVar(&useTUI, "tui", false, "use the TUI for diff")
 }
