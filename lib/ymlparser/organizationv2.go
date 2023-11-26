@@ -30,6 +30,15 @@ type AccountGroup struct {
 	Parent      *AccountGroup   `yaml:"-"`
 }
 
+func (grp AccountGroup) AllStacks() []Stack {
+	var stacks []Stack
+	stacks = append(stacks, grp.Stacks...)
+	if grp.Parent != nil {
+		stacks = append(stacks, grp.Parent.AllStacks()...)
+	}
+	return stacks
+}
+
 // grp == configuration in organization.yml.
 // other == configuration in cloud provider.
 func (grp AccountGroup) Diff(orgClient awsorgs.Client) []ResourceOperation {

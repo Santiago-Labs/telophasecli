@@ -104,7 +104,7 @@ func runIAC(cmd iacCmd) {
 			}
 
 			var acctStacks []ymlparser.Stack
-			acctStacks = append(acctStacks, acct.Stacks...)
+			acctStacks = append(acctStacks, acct.AllStacks()...)
 			if cdkPath != "" {
 				acctStacks = append(acctStacks, ymlparser.Stack{
 					Path: cdkPath,
@@ -371,7 +371,7 @@ func deployTUI(cmd iacCmd, orgsToApply []ymlparser.Account) error {
 			}
 
 			var acctStacks []ymlparser.Stack
-			acctStacks = append(acctStacks, acct.Stacks...)
+			acctStacks = append(acctStacks, acct.AllStacks()...)
 			if cdkPath != "" {
 				acctStacks = append(acctStacks, ymlparser.Stack{
 					Path: cdkPath,

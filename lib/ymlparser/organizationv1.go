@@ -49,6 +49,15 @@ func (a Account) AssumeRoleARN() string {
 	return fmt.Sprintf("arn:aws:iam::%s:role/%s", a.AccountID, assumeRoleName)
 }
 
+func (a Account) AllStacks() []Stack {
+	var stacks []Stack
+	stacks = append(stacks, a.Stacks...)
+	if a.Parent != nil {
+		stacks = append(stacks, a.Parent.AllStacks()...)
+	}
+	return stacks
+}
+
 func IsUsingOrgV1(filepath string) bool {
 	if filepath == "" {
 		return true
