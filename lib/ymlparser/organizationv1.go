@@ -6,30 +6,32 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-
-	"github.com/aws/aws-sdk-go/service/organizations"
-	"gopkg.in/yaml.v3"
+	"strings"
 
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
+	"gopkg.in/yaml.v3"
 )
 
-type orgData struct {
+// Deprecated: use orgDatav2 and AccountGroup instead.
+type orgDatav1 struct {
 	Organization Organization `yaml:"Organization"`
 }
 
 type Organization struct {
 	ManagementAccount Account   `yaml:"ManagementAccount"`
-	ChildAccounts     []Account `yaml:"ChildAccounts"`
+	ChildAccounts     []Account `yaml:"ChildAccounts,omitempty"`
 }
 
 type Account struct {
-	Email          string   `yaml:"Email"`
-	AccountName    string   `yaml:"AccountName"`
-	State          string   `yaml:"State,omitempty"`
-	AccountID      string   `yaml:"AccountID,omitempty"`
-	AssumeRoleName string   `yaml:"AssumeRoleName,omitempty"`
-	Tags           []string `yaml:"Tags,omitempty"`
-	Stacks         []Stack  `yaml:"Stacks,omitempty"`
+	Email             string        `yaml:"Email"`
+	AccountName       string        `yaml:"AccountName"`
+	State             string        `yaml:"State,omitempty"`
+	AccountID         string        `yaml:"-"`
+	AssumeRoleName    string        `yaml:"AssumeRoleName,omitempty"`
+	Tags              []string      `yaml:"Tags,omitempty"`
+	Stacks            []Stack       `yaml:"Stacks,omitempty"`
+	ManagementAccount bool          `yaml:"ManagementAccount,omitempty"`
+	Parent            *AccountGroup `yaml:"-"`
 }
 
 type Stack struct {
@@ -47,8 +49,33 @@ func (a Account) AssumeRoleARN() string {
 	return fmt.Sprintf("arn:aws:iam::%s:role/%s", a.AccountID, assumeRoleName)
 }
 
+func (a Account) AllStacks() []Stack {
+	var stacks []Stack
+	stacks = append(stacks, a.Stacks...)
+	if a.Parent != nil {
+		stacks = append(stacks, a.Parent.AllStacks()...)
+	}
+	return stacks
+}
+
+func IsUsingOrgV1(filepath string) bool {
+	if filepath == "" {
+		return true
+	}
+
+	data, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		return true
+	}
+
+	if strings.Contains(string(data), "AccountGroups") {
+		return false
+	}
+	return true
+}
+
 // We parse it and assume that the file is in the current directory
-func ParseOrganization(filepath string) (Organization, error) {
+func ParseOrganizationV1(filepath string) (Organization, error) {
 	if filepath == "" {
 		return Organization{}, errors.New("filepath is empty")
 	}
@@ -58,7 +85,7 @@ func ParseOrganization(filepath string) (Organization, error) {
 		return Organization{}, fmt.Errorf("err: %s reading file %s", err.Error(), filepath)
 	}
 
-	var org orgData
+	var org orgDatav1
 
 	if err := yaml.Unmarshal(data, &org); err != nil {
 		return Organization{}, err
@@ -75,14 +102,11 @@ func ParseOrganization(filepath string) (Organization, error) {
 	}
 
 	for _, acct := range allAccounts {
+		// Deprecated logic.
 		for idx, parsedAcct := range org.Organization.ChildAccounts {
 			if parsedAcct.AccountName == *acct.Name {
 				org.Organization.ChildAccounts[idx].AccountID = *acct.Id
 			}
-		}
-
-		if org.Organization.ManagementAccount.AccountName == *acct.Name {
-			org.Organization.ManagementAccount.AccountID = *acct.Id
 		}
 	}
 
@@ -95,21 +119,16 @@ func ParseOrganizationIfExists(filepath string) (Organization, error) {
 	}
 	_, err := os.Stat(filepath)
 	if err == nil {
-		return ParseOrganization(filepath)
+		return ParseOrganizationV1(filepath)
 	}
 	if os.IsNotExist(err) {
 		return Organization{}, nil
 	}
 
-	return ParseOrganization(filepath)
+	return ParseOrganizationV1(filepath)
 }
 
 func validOrganization(data Organization) error {
-	// accountNames aren't enforced to be unique. But we believe unique account
-	// names is a good pattern to follow.
-	accountNames := map[string]struct{}{}
-	accountNames[data.ManagementAccount.AccountName] = struct{}{}
-
 	accountEmails := map[string]struct{}{}
 	accountEmails[data.ManagementAccount.Email] = struct{}{}
 
@@ -120,12 +139,6 @@ func validOrganization(data Organization) error {
 			"",
 		); !ok {
 			return fmt.Errorf("invalid state (%s) for account %s valid states are: empty string or %v", account.State, account.AccountName, validStates)
-		}
-
-		if _, ok := accountNames[account.AccountName]; ok {
-			return fmt.Errorf("duplicate account name %s", account.AccountName)
-		} else {
-			accountNames[account.AccountName] = struct{}{}
 		}
 
 		if _, ok := accountEmails[account.Email]; ok {
@@ -148,24 +161,10 @@ func isOneOf(s string, valid ...string) bool {
 	return false
 }
 
-func WriteOrgFile(filepath, masterAccountID string, accounts []*organizations.Account) error {
-	var orgData orgData
-	for _, account := range accounts {
-		if *account.Id == masterAccountID {
-			orgData.Organization.ManagementAccount = Account{
-				Email:       *account.Email,
-				AccountName: *account.Name,
-			}
-		} else {
-			orgData.Organization.ChildAccounts = append(
-				orgData.Organization.ChildAccounts,
-				Account{
-					Email:       *account.Email,
-					AccountName: *account.Name,
-				})
-		}
+func WriteOrgV1File(filepath string, org *Organization) error {
+	orgData := orgDatav1{
+		Organization: *org,
 	}
-
 	result, err := yaml.Marshal(orgData)
 	if err != nil {
 		return err

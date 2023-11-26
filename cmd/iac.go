@@ -31,30 +31,40 @@ import (
 type iacCmd interface {
 	cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, cdkPath string) *exec.Cmd
 	tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, tfPath string) *exec.Cmd
+	orgV1Cmd(ctx context.Context, orgClient awsorgs.Client) // Deprecated
+	orgV2Cmd(ctx context.Context, orgClient awsorgs.Client)
 }
 
 func runIAC(cmd iacCmd) {
 	orgClient := awsorgs.New()
 	ctx := context.Background()
-	newAccounts, _, err := accountsPlan(orgClient)
-	if err != nil {
-		panic(fmt.Sprintf("error: %s", err))
-	}
 
-	errs := orgClient.CreateAccounts(ctx, newAccounts)
-	if errs != nil {
-		panic(fmt.Sprintf("error creating accounts %v", errs))
-	}
+	var accountsToApply []ymlparser.Account
+	if ymlparser.IsUsingOrgV1(orgFile) {
+		cmd.orgV1Cmd(ctx, orgClient)
+		org, err := ymlparser.ParseOrganizationV1(orgFile)
+		if err != nil {
+			panic(fmt.Sprintf("error: %s parsing organization", err))
+		}
 
-	orgs, err := ymlparser.ParseOrganization(orgFile)
-	if err != nil {
-		panic(fmt.Sprintf("error: %s parsing organization", err))
-	}
-
-	accountsToApply := []ymlparser.Account{}
-	for _, org := range orgs.ChildAccounts {
-		if contains(accountTag, org.Tags) || accountTag == "all" {
-			accountsToApply = append(accountsToApply, org)
+		if contains(accountTag, org.ManagementAccount.Tags) || accountTag == "all" {
+			accountsToApply = append(accountsToApply, org.ManagementAccount)
+		}
+		for _, acct := range org.ChildAccounts {
+			if contains(accountTag, acct.Tags) || accountTag == "all" {
+				accountsToApply = append(accountsToApply, acct)
+			}
+		}
+	} else {
+		cmd.orgV2Cmd(ctx, orgClient)
+		rootGroup, err := ymlparser.ParseOrganizationV2(orgFile)
+		if err != nil {
+			panic(fmt.Sprintf("error: %s parsing organization", err))
+		}
+		for _, acct := range rootGroup.AllDescendentAccounts() {
+			if contains(accountTag, acct.Tags) || accountTag == "all" {
+				accountsToApply = append(accountsToApply, *acct)
+			}
 		}
 	}
 
@@ -93,8 +103,8 @@ func runIAC(cmd iacCmd) {
 				return
 			}
 
-			acctStacks := make([]ymlparser.Stack, len(acct.Stacks))
-			copy(acctStacks, acct.Stacks)
+			var acctStacks []ymlparser.Stack
+			acctStacks = append(acctStacks, acct.AllStacks()...)
 			if cdkPath != "" {
 				acctStacks = append(acctStacks, ymlparser.Stack{
 					Path: cdkPath,
@@ -360,8 +370,8 @@ func deployTUI(cmd iacCmd, orgsToApply []ymlparser.Account) error {
 				return
 			}
 
-			acctStacks := make([]ymlparser.Stack, len(acct.Stacks))
-			copy(acctStacks, acct.Stacks)
+			var acctStacks []ymlparser.Stack
+			acctStacks = append(acctStacks, acct.AllStacks()...)
 			if cdkPath != "" {
 				acctStacks = append(acctStacks, ymlparser.Stack{
 					Path: cdkPath,

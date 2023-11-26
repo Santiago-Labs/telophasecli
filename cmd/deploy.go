@@ -1,12 +1,15 @@
 package cmd
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 	"sync"
 	"sync/atomic"
 
+	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/awssts"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 
@@ -35,7 +38,6 @@ func init() {
 	compileCmd.Flags().BoolVar(&allStacks, "all-stacks", false, "If all stacks should be deployed")
 	compileCmd.Flags().StringVar(&stacks, "stacks", "", "List of comma separated stacks to deploy")
 	compileCmd.Flags().StringVar(&accountTag, "account-tag", "", "Tag associated with the accounts to apply to a subset of account IDs, tag \"all\" to deploy all accounts.")
-	compileCmd.MarkFlagRequired("account-tag")
 	compileCmd.Flags().StringVar(&orgFile, "org", "organization.yml", "Path to the organization.yml file")
 	compileCmd.Flags().BoolVar(&useTUI, "tui", false, "use the TUI for deploy")
 }
@@ -82,4 +84,27 @@ func (d deployIAC) tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, t
 		*result.Credentials.SessionToken)
 
 	return cmd
+}
+
+func (d deployIAC) orgV1Cmd(ctx context.Context, orgClient awsorgs.Client) {
+	newAccounts, _, err := orgV1Plan(orgClient)
+	if err != nil {
+		panic(fmt.Sprintf("error: %s", err))
+	}
+
+	errs := orgClient.CreateAccounts(ctx, newAccounts)
+	if errs != nil {
+		panic(fmt.Sprintf("error creating accounts %v", errs))
+	}
+}
+
+func (d deployIAC) orgV2Cmd(ctx context.Context, orgClient awsorgs.Client) {
+	ops, err := orgV2Plan(orgClient)
+	if err != nil {
+		panic(fmt.Sprintf("error: %s", err))
+	}
+
+	for _, op := range ops {
+		op.Call(ctx, orgClient)
+	}
 }
