@@ -49,6 +49,15 @@ func (a Account) AssumeRoleARN() string {
 	return fmt.Sprintf("arn:aws:iam::%s:role/%s", a.AccountID, assumeRoleName)
 }
 
+func (a Account) AllTags() []string {
+	var tags []string
+	tags = append(tags, a.Tags...)
+	if a.Parent != nil {
+		tags = append(tags, a.Parent.AllTags()...)
+	}
+	return tags
+}
+
 func (a Account) AllStacks() []Stack {
 	var stacks []Stack
 	stacks = append(stacks, a.Stacks...)
@@ -56,6 +65,31 @@ func (a Account) AllStacks() []Stack {
 		stacks = append(stacks, a.Parent.AllStacks()...)
 	}
 	return stacks
+}
+
+func (a Account) FilterStacks(stackNames string) []Stack {
+	var matchingStacks []Stack
+	targetStackNames := strings.Split(stackNames, ",")
+	for _, stack := range a.AllStacks() {
+		acctStackNames := strings.Split(stack.Name, ",")
+		var matchingStackNames []string
+		for _, name := range acctStackNames {
+			for _, targetName := range targetStackNames {
+				if strings.TrimSpace(name) == strings.TrimSpace(targetName) {
+					matchingStackNames = append(matchingStackNames, name)
+					break
+				}
+			}
+		}
+		if len(matchingStackNames) > 0 {
+			matchingStacks = append(matchingStacks, Stack{
+				Path: stack.Path,
+				Type: stack.Type,
+				Name: strings.Join(matchingStackNames, ","),
+			})
+		}
+	}
+	return matchingStacks
 }
 
 func IsUsingOrgV1(filepath string) bool {

@@ -18,12 +18,10 @@ import (
 )
 
 var (
-	cdkPath   string
-	tfPath    string
-	tag       string
-	org       ymlparser.Organization
-	allStacks bool
-	stacks    string
+	cdkPath string
+	tfPath  string
+	tag     string
+	stacks  string
 
 	// TUI
 	useTUI   bool
@@ -35,9 +33,8 @@ func init() {
 	rootCmd.AddCommand(compileCmd)
 	compileCmd.Flags().StringVar(&cdkPath, "cdk-path", "", "Path to your CDK code")
 	compileCmd.Flags().StringVar(&tfPath, "tf-path", "", "Path to your Terraform code")
-	compileCmd.Flags().BoolVar(&allStacks, "all-stacks", true, "If all stacks should be deployed")
-	compileCmd.Flags().StringVar(&stacks, "stacks", "", "List of comma separated stacks to deploy")
-	compileCmd.Flags().StringVar(&tag, "tag", "all", "Tag associated with the accounts to apply to a subset of account IDs, tag \"all\" to deploy all accounts.")
+	compileCmd.Flags().StringVar(&stacks, "stacks", "", "Filter stacks to deploy")
+	compileCmd.Flags().StringVar(&tag, "tag", "", "Filter accounts and account groups to deploy")
 	compileCmd.Flags().StringVar(&orgFile, "org", "organization.yml", "Path to the organization.yml file")
 	compileCmd.Flags().BoolVar(&useTUI, "tui", false, "use the TUI for deploy")
 }
@@ -52,17 +49,16 @@ var compileCmd = &cobra.Command{
 
 type deployIAC struct{}
 
-func (d deployIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, cdkPath string) *exec.Cmd {
-	outPath := tmpPath("CDK", acct, cdkPath)
+func (d deployIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
+	outPath := tmpPath("CDK", acct, stack.Path)
 	cdkArgs := []string{"deploy", "--output", outPath, "--require-approval", "never"}
-	if allStacks {
+	if stack.Name == "" {
 		cdkArgs = append(cdkArgs, "--all")
-	}
-	if stacks != "" {
-		cdkArgs = append(cdkArgs, strings.Split(stacks, ",")...)
+	} else {
+		cdkArgs = append(cdkArgs, strings.Split(stack.Name, ",")...)
 	}
 	cmd := exec.Command("cdk", cdkArgs...)
-	cmd.Dir = cdkPath
+	cmd.Dir = stack.Path
 	cmd.Env = awssts.SetEnviron(os.Environ(),
 		*result.Credentials.AccessKeyId,
 		*result.Credentials.SecretAccessKey,
@@ -71,8 +67,8 @@ func (d deployIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, 
 	return cmd
 }
 
-func (d deployIAC) tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, tfPath string) *exec.Cmd {
-	workingPath := tmpPath("Terraform", acct, tfPath)
+func (d deployIAC) tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
+	workingPath := tmpPath("Terraform", acct, stack.Path)
 	args := []string{
 		"apply", "-auto-approve",
 	}
