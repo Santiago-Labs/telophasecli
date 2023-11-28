@@ -30,6 +30,15 @@ type AccountGroup struct {
 	Parent      *AccountGroup   `yaml:"-"`
 }
 
+func (grp AccountGroup) AllTags() []string {
+	var tags []string
+	tags = append(tags, grp.Tags...)
+	if grp.Parent != nil {
+		tags = append(tags, grp.Parent.AllTags()...)
+	}
+	return tags
+}
+
 func (grp AccountGroup) AllStacks() []Stack {
 	var stacks []Stack
 	stacks = append(stacks, grp.Stacks...)

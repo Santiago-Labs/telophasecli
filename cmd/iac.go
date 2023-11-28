@@ -29,8 +29,8 @@ import (
 )
 
 type iacCmd interface {
-	cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, cdkPath string) *exec.Cmd
-	tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, tfPath string) *exec.Cmd
+	cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd
+	tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd
 	orgV1Cmd(ctx context.Context, orgClient awsorgs.Client) // Deprecated
 	orgV2Cmd(ctx context.Context, orgClient awsorgs.Client)
 }
@@ -47,11 +47,11 @@ func runIAC(cmd iacCmd) {
 			panic(fmt.Sprintf("error: %s parsing organization", err))
 		}
 
-		if contains(accountTag, org.ManagementAccount.Tags) || accountTag == "all" {
+		if contains(tag, org.ManagementAccount.Tags) || tag == "" {
 			accountsToApply = append(accountsToApply, org.ManagementAccount)
 		}
 		for _, acct := range org.ChildAccounts {
-			if contains(accountTag, acct.Tags) || accountTag == "all" {
+			if contains(tag, acct.AllTags()) || tag == "" {
 				accountsToApply = append(accountsToApply, acct)
 			}
 		}
@@ -62,7 +62,7 @@ func runIAC(cmd iacCmd) {
 			panic(fmt.Sprintf("error: %s parsing organization", err))
 		}
 		for _, acct := range rootGroup.AllDescendentAccounts() {
-			if contains(accountTag, acct.Tags) || accountTag == "all" {
+			if contains(tag, acct.AllTags()) || tag == "" {
 				accountsToApply = append(accountsToApply, *acct)
 			}
 		}
@@ -104,32 +104,44 @@ func runIAC(cmd iacCmd) {
 			}
 
 			var acctStacks []ymlparser.Stack
-			acctStacks = append(acctStacks, acct.AllStacks()...)
-			if cdkPath != "" {
-				acctStacks = append(acctStacks, ymlparser.Stack{
-					Path: cdkPath,
-					Name: "Command-line arg CDK",
-					Type: "CDK",
-				})
-			}
-			if tfPath != "" {
-				acctStacks = append(acctStacks, ymlparser.Stack{
-					Path: tfPath,
-					Name: "Command-line arg TF",
-					Type: "Terraform",
-				})
+			if cdkPath == "" && tfPath == "" {
+				if stacks != "" && stacks != "*" {
+					acctStacks = append(acctStacks, acct.FilterStacks(stacks)...)
+				} else {
+					acctStacks = append(acctStacks, acct.AllStacks()...)
+				}
+			} else {
+				if cdkPath != "" {
+					acctStacks = append(acctStacks, ymlparser.Stack{
+						Path: cdkPath,
+						Name: stacks,
+						Type: "CDK",
+					})
+				}
+				if tfPath != "" {
+					acctStacks = append(acctStacks, ymlparser.Stack{
+						Path: tfPath,
+						Name: stacks,
+						Type: "Terraform",
+					})
+				}
 			}
 
 			coloredAccountID := colorFunc("[Account: " + acct.AccountID + "]")
+
+			if len(acctStacks) == 0 {
+				fmt.Printf("%s No stacks to deploy\n", coloredAccountID)
+				return
+			}
 			for _, stack := range acctStacks {
 				if stack.Type == "CDK" {
-					bootstrapCDK := bootstrapCDK(result, acct, stack.Path)
+					bootstrapCDK := bootstrapCDK(result, acct, stack)
 					if err := runCmd(bootstrapCDK, acct, coloredAccountID); err != nil {
 						fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 						return
 					}
 
-					deployCDKCmd := cmd.cdkCmd(result, acct, stack.Path)
+					deployCDKCmd := cmd.cdkCmd(result, acct, stack)
 					if err := runCmd(deployCDKCmd, acct, coloredAccountID); err != nil {
 						fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 						return
@@ -137,14 +149,14 @@ func runIAC(cmd iacCmd) {
 						telophase.RecordDeploy(acct.AccountID, acct.AccountName)
 					}
 				} else if stack.Type == "Terraform" {
-					initTFCmd := initTf(result, acct, stack.Path)
+					initTFCmd := initTf(result, acct, stack)
 					if initTFCmd != nil {
 						if err := runCmd(initTFCmd, acct, coloredAccountID); err != nil {
 							fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 							return
 						}
 					}
-					deployTFCmd := cmd.tfCmd(result, acct, stack.Path)
+					deployTFCmd := cmd.tfCmd(result, acct, stack)
 					if err := runCmd(deployTFCmd, acct, coloredAccountID); err != nil {
 						fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 						return
@@ -204,11 +216,11 @@ func runCmd(cmd *exec.Cmd, acct ymlparser.Account, coloredAccountID string) erro
 	return nil
 }
 
-func bootstrapCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, cdkPath string) *exec.Cmd {
-	outPath := tmpPath("CDK", acct, cdkPath)
+func bootstrapCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
+	outPath := tmpPath("CDK", acct, stack.Path)
 	cdkArgs := []string{"bootstrap", "--output", outPath}
 	cmd := exec.Command("cdk", cdkArgs...)
-	cmd.Dir = cdkPath
+	cmd.Dir = stack.Path
 	cmd.Env = awssts.SetEnviron(os.Environ(),
 		*result.Credentials.AccessKeyId,
 		*result.Credentials.SecretAccessKey,
@@ -217,16 +229,16 @@ func bootstrapCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, cdkPath 
 	return cmd
 }
 
-func initTf(result *sts.AssumeRoleOutput, acct ymlparser.Account, tfPath string) *exec.Cmd {
-	workingPath := tmpPath("Terraform", acct, tfPath)
+func initTf(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
+	workingPath := tmpPath("Terraform", acct, stack.Path)
 	terraformDir := filepath.Join(workingPath, ".terraform")
 	if _, err := os.Stat(terraformDir); os.IsNotExist(err) {
 		if err := os.MkdirAll(workingPath, 0755); err != nil {
 			panic(fmt.Errorf("failed to create directory %s: %w", workingPath, err))
 		}
 
-		if err := copyDir(tfPath, workingPath, acct); err != nil {
-			panic(fmt.Errorf("failed to copy files from %s to %s: %w", tfPath, workingPath, err))
+		if err := copyDir(stack.Path, workingPath, acct); err != nil {
+			panic(fmt.Errorf("failed to copy files from %s to %s: %w", stack.Path, workingPath, err))
 		}
 
 		cmd := exec.Command("terraform", "init")
@@ -366,48 +378,60 @@ func deployTUI(cmd iacCmd, orgsToApply []ymlparser.Account) error {
 
 			result, err := svc.AssumeRole(input)
 			if err != nil {
-				fmt.Println("Error assuming role:", err)
+				fmt.Fprint(file, "Error assuming role:", err)
 				return
 			}
 
 			var acctStacks []ymlparser.Stack
-			acctStacks = append(acctStacks, acct.AllStacks()...)
-			if cdkPath != "" {
-				acctStacks = append(acctStacks, ymlparser.Stack{
-					Path: cdkPath,
-					Name: "Command-line arg CDK",
-					Type: "CDK",
-				})
+			if cdkPath == "" && tfPath == "" {
+				if stacks != "" && stacks != "*" {
+					acctStacks = append(acctStacks, acct.FilterStacks(stacks)...)
+				} else {
+					acctStacks = append(acctStacks, acct.AllStacks()...)
+				}
+			} else {
+				if cdkPath != "" {
+					acctStacks = append(acctStacks, ymlparser.Stack{
+						Path: cdkPath,
+						Name: stacks,
+						Type: "CDK",
+					})
+				}
+				if tfPath != "" {
+					acctStacks = append(acctStacks, ymlparser.Stack{
+						Path: tfPath,
+						Name: stacks,
+						Type: "Terraform",
+					})
+				}
 			}
-			if tfPath != "" {
-				acctStacks = append(acctStacks, ymlparser.Stack{
-					Path: tfPath,
-					Name: "Command-line arg TF",
-					Type: "Terraform",
-				})
+
+			if len(acctStacks) == 0 {
+				fmt.Fprint(file, "No stacks to deploy\n")
+				return
 			}
 
 			for _, stack := range acctStacks {
 				if stack.Type == "CDK" {
-					bootstrapCDK := bootstrapCDK(result, acct, stack.Path)
+					bootstrapCDK := bootstrapCDK(result, acct, stack)
 					if err := runCmdWriter(bootstrapCDK, acct, file); err != nil {
 						return
 					}
 
-					deployCDKCmd := cmd.cdkCmd(result, acct, stack.Path)
+					deployCDKCmd := cmd.cdkCmd(result, acct, stack)
 					if err := runCmdWriter(deployCDKCmd, acct, file); err != nil {
 						return
 					} else {
 						telophase.RecordDeploy(acct.AccountID, acct.AccountName)
 					}
 				} else if stack.Type == "Terraform" {
-					initTFCmd := initTf(result, acct, stack.Path)
+					initTFCmd := initTf(result, acct, stack)
 					if initTFCmd != nil {
 						if err := runCmdWriter(initTFCmd, acct, file); err != nil {
 							return
 						}
 					}
-					deployTFCmd := cmd.tfCmd(result, acct, stack.Path)
+					deployTFCmd := cmd.tfCmd(result, acct, stack)
 					if err := runCmdWriter(deployTFCmd, acct, file); err != nil {
 						return
 					} else {
