@@ -87,7 +87,7 @@ func (ao *AccountOperation) ToString() string {
 
 `
 	} else if ao.Operation == UpdateParent {
-		templated = `(Update Account Parent) (Creates a new resource)
+		templated = `(Update Account Parent)
 ID: {{ .Account.AccountID }}
 Name: {{ .Account.AccountName }}
 Email: {{ .Account.Email }}
