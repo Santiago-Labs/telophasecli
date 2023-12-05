@@ -83,7 +83,7 @@ func (d deployIAC) tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, s
 }
 
 func (d deployIAC) orgV1Cmd(ctx context.Context, orgClient awsorgs.Client) {
-	newAccounts, _, err := orgV1Plan(orgClient)
+	newAccounts, _, err := orgV1Diff(orgClient)
 	if err != nil {
 		panic(fmt.Sprintf("error: %s", err))
 	}
@@ -95,7 +95,7 @@ func (d deployIAC) orgV1Cmd(ctx context.Context, orgClient awsorgs.Client) {
 }
 
 func (d deployIAC) orgV2Cmd(ctx context.Context, orgClient awsorgs.Client) {
-	ops, err := orgV2Plan(orgClient)
+	ops, err := orgV2Diff(orgClient)
 	if err != nil {
 		panic(fmt.Sprintf("error: %s", err))
 	}

@@ -174,6 +174,16 @@ func (c Client) RecreateOU(ctx context.Context, ouID, ouName, newParentId string
 	return nil
 }
 
+func (c Client) UpdateOrganizationUnit(ctx context.Context, ouID, newName string) error {
+	_, err := c.organizationClient.UpdateOrganizationalUnitWithContext(ctx,
+		&organizations.UpdateOrganizationalUnitInput{
+			Name:                 aws.String(newName),
+			OrganizationalUnitId: aws.String(ouID),
+		})
+
+	return err
+}
+
 func (c Client) CreateAccounts(ctx context.Context, accts []*organizations.Account) []error {
 	var errs []error
 	var createRequests []*organizations.CreateAccountStatus

@@ -31,9 +31,9 @@ func isValidAccountArg(arg string) bool {
 	switch arg {
 	case "import":
 		return true
-	case "plan":
+	case "diff":
 		return true
-	case "apply":
+	case "deploy":
 		return true
 	default:
 		return false
@@ -67,23 +67,23 @@ var accountProvision = &cobra.Command{
 			}
 		}
 
-		if args[0] == "plan" {
+		if args[0] == "diff" {
 			if ymlparser.IsUsingOrgV1(orgFile) {
-				_, _, err := orgV1Plan(orgClient)
+				_, _, err := orgV1Diff(orgClient)
 				if err != nil {
 					panic(fmt.Sprintf("error: %s", err))
 				}
 			} else {
-				_, err := orgV2Plan(orgClient)
+				_, err := orgV2Diff(orgClient)
 				if err != nil {
 					panic(fmt.Sprintf("error: %s", err))
 				}
 			}
 		}
 
-		if args[0] == "apply" {
+		if args[0] == "deploy" {
 			if ymlparser.IsUsingOrgV1(orgFile) {
-				newAccounts, _, err := orgV1Plan(orgClient)
+				newAccounts, _, err := orgV1Diff(orgClient)
 				if err != nil {
 					panic(fmt.Sprintf("error: %s", err))
 				}
@@ -93,7 +93,7 @@ var accountProvision = &cobra.Command{
 					panic(fmt.Sprintf("error creating accounts %v", errs))
 				}
 			} else {
-				operations, err := orgV2Plan(orgClient)
+				operations, err := orgV2Diff(orgClient)
 				if err != nil {
 					panic(fmt.Sprintf("error: %s", err))
 				}
@@ -109,7 +109,7 @@ var accountProvision = &cobra.Command{
 	},
 }
 
-func orgV1Plan(orgClient awsorgs.Client) (new []*organizations.Account, toDelete []*organizations.Account, err error) {
+func orgV1Diff(orgClient awsorgs.Client) (new []*organizations.Account, toDelete []*organizations.Account, err error) {
 	org, err := ymlparser.ParseOrganizationV1(orgFile)
 	if err != nil {
 		panic(fmt.Sprintf("error: %s parsing organization", err))
@@ -185,7 +185,7 @@ func orgV1Plan(orgClient awsorgs.Client) (new []*organizations.Account, toDelete
 	return newAccounts, deletedAccounts, nil
 }
 
-func orgV2Plan(orgClient awsorgs.Client) (ops []ymlparser.ResourceOperation, err error) {
+func orgV2Diff(orgClient awsorgs.Client) (ops []ymlparser.ResourceOperation, err error) {
 	org, err := ymlparser.ParseOrganizationV2(orgFile)
 	if err != nil {
 		panic(fmt.Sprintf("error: %s parsing organization", err))
