@@ -101,7 +101,6 @@ func (grp AccountGroup) Diff(orgClient awsorgs.Client) []ResourceOperation {
 		}
 
 		if !found {
-			fmt.Printf("%v\n", parsedGroup)
 			if parsedGroup.Parent.ID == nil {
 				for _, newGroup := range FlattenOperations(operations) {
 					newGroupOperation, ok := newGroup.(*OrganizationUnitOperation)

@@ -69,14 +69,14 @@ func (d diffIAC) tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, sta
 }
 
 func (d diffIAC) orgV1Cmd(ctx context.Context, orgClient awsorgs.Client) {
-	_, _, err := orgV1Plan(orgClient)
+	_, _, err := orgV1Diff(orgClient)
 	if err != nil {
 		panic(fmt.Sprintf("error: %s", err))
 	}
 }
 
 func (d diffIAC) orgV2Cmd(ctx context.Context, orgClient awsorgs.Client) {
-	_, err := orgV2Plan(orgClient)
+	_, err := orgV2Diff(orgClient)
 	if err != nil {
 		panic(fmt.Sprintf("error: %s", err))
 	}

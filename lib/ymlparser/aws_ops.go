@@ -14,6 +14,7 @@ import (
 const (
 	UpdateParent = 1
 	Create       = 2
+	Update       = 3
 )
 
 type ResourceOperation interface {
@@ -116,6 +117,7 @@ type OrganizationUnitOperation struct {
 	Operation           int
 	NewParent           *AccountGroup
 	CurrentParent       *AccountGroup
+	NewName             *string
 	DependentOperations []ResourceOperation
 }
 
@@ -139,6 +141,11 @@ func (ou *OrganizationUnitOperation) Call(ctx context.Context, orgsClient awsorg
 		if err != nil {
 			return err
 		}
+	} else if ou.Operation == Update {
+		err := orgsClient.UpdateOrganizationUnit(ctx, *ou.OrganizationUnit.ID, ou.OrganizationUnit.Name)
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, op := range ou.DependentOperations {
@@ -153,18 +160,24 @@ func (ou *OrganizationUnitOperation) ToString() string {
 	var templated string
 	if ou.Operation == Create {
 		printColor = "green"
-		templated = `(Create Organization Unit)
+		templated = `(Create Organizational Unit)
 +	Name: {{ .OrganizationUnit.Name }}
 +	Parent ID: {{ if .NewParent.ID }}{{ .NewParent.ID }}{{else}}<computed>{{end}}
 +	Parent Name: {{ .NewParent.Name }}
 
 `
 	} else if ou.Operation == UpdateParent {
-		templated = `(Update Organization Unit Parent)
+		templated = `(Update Organizational Unit Parent)
 ID: {{ .OrganizationUnit.ID }}
 Name: {{ .OrganizationUnit.Name }}
 ~	Parent ID: {{ .CurrentParent.ID }} -> {{ if .NewParent.ID }}{{ .NewParent.ID }}{{else}}<computed>{{end}}
 ~	Parent Name: {{ .CurrentParent.Name }} -> {{ .NewParent.Name }}
+
+`
+	} else if ou.Operation == Update {
+		templated = `(Update Organizational Unit)
+ID: {{ .OrganizationUnit.ID }}
+~	Name: {{ .OrganizationUnit.Name }} -> {{ .NewName }}
 
 `
 	}
