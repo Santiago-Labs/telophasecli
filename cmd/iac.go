@@ -59,7 +59,7 @@ func runIAC(cmd iacCmd) {
 		}
 	} else {
 		cmd.orgV2Cmd(ctx, orgClient)
-		rootGroup, err := ymlparser.ParseOrganizationV2(orgFile)
+		rootGroup, _, err := ymlparser.ParseOrganizationV2(orgFile)
 		if err != nil {
 			panic(fmt.Sprintf("error: %s parsing organization", err))
 		}
