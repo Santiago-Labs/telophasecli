@@ -186,7 +186,7 @@ func orgV1Diff(orgClient awsorgs.Client) (new []*organizations.Account, toDelete
 }
 
 func orgV2Diff(orgClient awsorgs.Client) (ops []ymlparser.ResourceOperation, err error) {
-	org, err := ymlparser.ParseOrganizationV2(orgFile)
+	org, _, err := ymlparser.ParseOrganizationV2(orgFile)
 	if err != nil {
 		panic(fmt.Sprintf("error: %s parsing organization", err))
 	}

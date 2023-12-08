@@ -17,7 +17,8 @@ import (
 )
 
 type orgDatav2 struct {
-	Organization AccountGroup `yaml:"Organization"`
+	Organization      AccountGroup       `yaml:"Organization"`
+	AzureAccountGroup *AzureAccountGroup `yaml:"Azure,omitempty"`
 }
 
 type AccountGroup struct {
@@ -28,8 +29,6 @@ type AccountGroup struct {
 	Accounts    []*Account      `yaml:"Accounts,omitempty"`
 	Stacks      []Stack         `yaml:"Stacks,omitempty"`
 	Parent      *AccountGroup   `yaml:"-"`
-
-	AzureAccountGroup *string `yaml:"Azure,omitempty"`
 }
 
 type AzureAccountGroup struct {
@@ -245,50 +244,59 @@ func (grp AccountGroup) AllDescendentGroups() []*AccountGroup {
 
 }
 
-func ParseOrganizationV2(filepath string) (AccountGroup, error) {
+func ParseOrganizationV2(filepath string) (AccountGroup, AzureAccountGroup, error) {
 	if filepath == "" {
-		return AccountGroup{}, errors.New("filepath is empty")
+		return AccountGroup{}, AzureAccountGroup{}, errors.New("filepath is empty")
 	}
 
 	data, err := ioutil.ReadFile(filepath)
 	if err != nil {
-		return AccountGroup{}, fmt.Errorf("err: %s reading file %s", err.Error(), filepath)
+		return AccountGroup{}, AzureAccountGroup{}, fmt.Errorf("err: %s reading file %s", err.Error(), filepath)
 	}
 
 	var org orgDatav2
 
 	if err := yaml.Unmarshal(data, &org); err != nil {
-		return AccountGroup{}, err
+		return AccountGroup{}, AzureAccountGroup{}, err
 	}
 
 	if err := validOrganizationV2(org.Organization); err != nil {
-		return AccountGroup{}, err
+		return AccountGroup{}, AzureAccountGroup{}, err
 	}
 
-	orgClient := awsorgs.New()
+	// Handle AWS refresh
+	if org.Organization.Accounts != nil {
+		orgClient := awsorgs.New()
 
-	rootId, err := orgClient.GetRootId()
-	if err != nil {
-		return AccountGroup{}, err
-	}
-	rootName := "root"
-	rootOU := &organizations.OrganizationalUnit{
-		Id:   &rootId,
-		Name: &rootName,
-	}
-	org.Organization.Name = "root"
-	hydrateOU(orgClient, &org.Organization, rootOU)
+		rootId, err := orgClient.GetRootId()
+		if err != nil {
+			return AccountGroup{}, AzureAccountGroup{}, err
+		}
+		rootName := "root"
+		rootOU := &organizations.OrganizationalUnit{
+			Id:   &rootId,
+			Name: &rootName,
+		}
+		org.Organization.Name = "root"
+		hydrateOU(orgClient, &org.Organization, rootOU)
 
-	// Hydrate Group, then fetch all accounts (pointers) and populate ID.
-	allAccounts, err := orgClient.CurrentAccounts(context.TODO())
-	if err != nil {
-		return AccountGroup{}, err
-	}
-	for _, acct := range allAccounts {
-		hydrateAccount(&org.Organization, acct)
+		// Hydrate Group, then fetch all accounts (pointers) and populate ID.
+		allAccounts, err := orgClient.CurrentAccounts(context.TODO())
+		if err != nil {
+			return AccountGroup{}, AzureAccountGroup{}, err
+		}
+		for _, acct := range allAccounts {
+			hydrateAccount(&org.Organization, acct)
+		}
 	}
 
-	return org.Organization, nil
+	azureGroup := org.AzureAccountGroup
+	if org.AzureAccountGroup == nil {
+		azureGroup = &AzureAccountGroup{}
+	}
+
+	return org.Organization, *azureGroup, nil
+
 }
 
 func hydrateAccount(group *AccountGroup, acct *organizations.Account) {
@@ -403,21 +411,6 @@ func FetchGroupAndDescendents(ctx context.Context, orgClient awsorgs.Client, ouI
 	}
 
 	return group, nil
-}
-
-func ParseOrganizationV2IfExists(filepath string) (AccountGroup, error) {
-	if filepath == "" {
-		return AccountGroup{}, nil
-	}
-	_, err := os.Stat(filepath)
-	if err == nil {
-		return ParseOrganizationV2(filepath)
-	}
-	if os.IsNotExist(err) {
-		return AccountGroup{}, nil
-	}
-
-	return ParseOrganizationV2(filepath)
 }
 
 func WriteOrgV2File(filepath string, org *AccountGroup) error {
