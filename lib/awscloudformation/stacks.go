@@ -11,11 +11,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/aws/jsii-runtime-go"
-)
+	"gopkg.in/yaml.v3"
 
-type CFOutput struct {
-	Outputs []map[string]string
-}
+	"github.com/santiago-labs/telophasecli/lib/cdk/template"
+)
 
 type Client struct {
 	client *cloudformation.CloudFormation
@@ -68,4 +67,41 @@ func (c Client) FetchStackOutputs(ctx context.Context, stackName string) ([]map[
 	}
 
 	return outputs, nil
+}
+
+func (c Client) FetchTemplateOutputs(ctx context.Context, stackName string) (*template.CDKOutputs, error) {
+	var templateOutputs template.CDKOutputs
+	template, err := c.client.GetTemplateWithContext(ctx, &cloudformation.GetTemplateInput{
+		StackName: jsii.String(stackName),
+	})
+	if err != nil {
+		return &templateOutputs, err
+	}
+
+	err = yaml.Unmarshal([]byte(*template.TemplateBody), &templateOutputs)
+	if err != nil {
+		return &templateOutputs, err
+	}
+
+	return &templateOutputs, nil
+}
+
+func (c Client) IsStackDeployed(ctx context.Context, stackName string) (bool, error) {
+	stacks, err := c.client.DescribeStacksWithContext(ctx, &cloudformation.DescribeStacksInput{
+		StackName: jsii.String(stackName),
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			if aerr.Code() == cloudformation.ErrCodeStackInstanceNotFoundException {
+				return false, nil
+			}
+		}
+		return false, err
+	}
+
+	if len(stacks.Stacks) == 0 {
+		return false, nil
+	}
+
+	return true, nil
 }

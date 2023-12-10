@@ -9,8 +9,12 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/santiago-labs/telophasecli/lib/awscloudformation"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/awssts"
+	"github.com/santiago-labs/telophasecli/lib/cdk"
+	"github.com/santiago-labs/telophasecli/lib/cdk/template"
+	"github.com/santiago-labs/telophasecli/lib/terraform"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 
 	"github.com/aws/aws-sdk-go/service/sts"
@@ -49,9 +53,15 @@ var compileCmd = &cobra.Command{
 
 type deployIAC struct{}
 
-func (d deployIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
-	outPath := tmpPath("CDK", acct, stack.Path)
+func (d deployIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack, prevOutputs []*template.CDKOutputs) *exec.Cmd {
+	outPath := cdk.TmpPath(acct, stack.Path)
 	cdkArgs := []string{"deploy", "--output", outPath, "--require-approval", "never"}
+	cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName))
+	for _, prevOutput := range prevOutputs {
+		for key, val := range prevOutput.Outputs {
+			cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("%s.%s=%s", prevOutput.StackName, key, val["Value"]))
+		}
+	}
 	if stack.Name == "" {
 		cdkArgs = append(cdkArgs, "--all")
 	} else {
@@ -67,8 +77,17 @@ func (d deployIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, 
 	return cmd
 }
 
+func (d deployIAC) cdkOutputs(cfnClient awscloudformation.Client, acct ymlparser.Account, stack ymlparser.Stack) []*template.CDKOutputs {
+	outputs, err := cdk.StackRemoteOutput(cfnClient, acct, stack)
+	if err != nil {
+		panic(err)
+	}
+
+	return outputs
+}
+
 func (d deployIAC) tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
-	workingPath := tmpPath("Terraform", acct, stack.Path)
+	workingPath := terraform.TmpPath(acct, stack.Path)
 	args := []string{
 		"apply", "-auto-approve",
 	}

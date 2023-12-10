@@ -35,9 +35,10 @@ type Account struct {
 }
 
 type Stack struct {
-	Name string `yaml:"Name"`
-	Type string `yaml:"Type"`
-	Path string `yaml:"Path"`
+	Name            string `yaml:"Name"`
+	Type            string `yaml:"Type"`
+	Path            string `yaml:"Path"`
+	RoleOverrideARN string `yaml:"RoleOverrideARN,omitempty"`
 }
 
 func (a Account) AssumeRoleARN() string {
@@ -60,10 +61,10 @@ func (a Account) AllTags() []string {
 
 func (a Account) AllStacks() []Stack {
 	var stacks []Stack
-	stacks = append(stacks, a.Stacks...)
 	if a.Parent != nil {
 		stacks = append(stacks, a.Parent.AllStacks()...)
 	}
+	stacks = append(stacks, a.Stacks...)
 	return stacks
 }
 

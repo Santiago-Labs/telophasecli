@@ -41,15 +41,14 @@ func (grp AccountGroup) AllTags() []string {
 
 func (grp AccountGroup) AllStacks() []Stack {
 	var stacks []Stack
-	stacks = append(stacks, grp.Stacks...)
 	if grp.Parent != nil {
 		stacks = append(stacks, grp.Parent.AllStacks()...)
 	}
+	stacks = append(stacks, grp.Stacks...)
 	return stacks
 }
 
 // grp == configuration in organization.yml.
-// other == configuration in cloud provider.
 func (grp AccountGroup) Diff(orgClient awsorgs.Client) []ResourceOperation {
 	// Order of operations matters. Groups must be created first, followed by account creation,
 	// and finally (re)parenting groups and accounts.

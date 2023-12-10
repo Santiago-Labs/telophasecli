@@ -3,17 +3,14 @@ package cmd
 import (
 	"bufio"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
-	"io/fs"
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
-	"strings"
+	"reflect"
 	"sync"
 	"time"
 
@@ -21,16 +18,21 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/rivo/tview"
+	"github.com/santiago-labs/telophasecli/lib/awscloudformation"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/awssts"
+	"github.com/santiago-labs/telophasecli/lib/cdk"
+	"github.com/santiago-labs/telophasecli/lib/cdk/template"
 	"github.com/santiago-labs/telophasecli/lib/colors"
 	"github.com/santiago-labs/telophasecli/lib/telophase"
+	"github.com/santiago-labs/telophasecli/lib/terraform"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 )
 
 type iacCmd interface {
-	cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd
+	cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack, prevOutputs []*template.CDKOutputs) *exec.Cmd
 	tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd
+	cdkOutputs(cfnClient awscloudformation.Client, acct ymlparser.Account, stack ymlparser.Stack) []*template.CDKOutputs
 	orgV1Cmd(ctx context.Context, orgClient awsorgs.Client) // Deprecated
 	orgV2Cmd(ctx context.Context, orgClient awsorgs.Client)
 }
@@ -97,7 +99,7 @@ func runIAC(cmd iacCmd) {
 				RoleSessionName: aws.String("telophase-org"),
 			}
 
-			result, err := svc.AssumeRole(input)
+			accountRole, err := svc.AssumeRole(input)
 			if err != nil {
 				fmt.Println("Error assuming role:", err)
 				return
@@ -133,30 +135,59 @@ func runIAC(cmd iacCmd) {
 				fmt.Printf("%s No stacks to deploy\n", coloredAccountID)
 				return
 			}
+			var cdkOutputs []*template.CDKOutputs
+
+			var bootstrappedCDK bool
 			for _, stack := range acctStacks {
+				fmt.Printf("%s executing stack: %s (empty string means all stacks) \n", coloredAccountID, stack.Name)
+				stackRole := accountRole
+				if stack.RoleOverrideARN != "" {
+					fmt.Printf("%s assuming role: %s \n", coloredAccountID, colorFunc(stack.RoleOverrideARN))
+					input := &sts.AssumeRoleInput{
+						RoleArn:         aws.String(stack.RoleOverrideARN),
+						RoleSessionName: aws.String("telophase-org"),
+					}
+
+					stackRole, err = svc.AssumeRole(input)
+					if err != nil {
+						fmt.Println("Error assuming role:", err)
+						return
+					}
+				}
 				if stack.Type == "CDK" {
-					bootstrapCDK := bootstrapCDK(result, acct, stack)
-					if err := runCmd(bootstrapCDK, acct, coloredAccountID); err != nil {
+					cfnClient := awscloudformation.New(stackRole.Credentials)
+					if !bootstrappedCDK {
+						bootstrapCDK := bootstrapCDK(stackRole, acct, stack)
+						if err := runCmd(bootstrapCDK, acct, coloredAccountID); err != nil {
+							fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
+							return
+						}
+						bootstrappedCDK = true
+					}
+
+					synthCDK := synthCDK(stackRole, acct, stack, cdkOutputs)
+					if err := runCmd(synthCDK, acct, coloredAccountID); err != nil {
 						fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 						return
 					}
-
-					deployCDKCmd := cmd.cdkCmd(result, acct, stack)
+					deployCDKCmd := cmd.cdkCmd(stackRole, acct, stack, cdkOutputs)
 					if err := runCmd(deployCDKCmd, acct, coloredAccountID); err != nil {
 						fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 						return
 					} else {
 						telophase.RecordDeploy(acct.AccountID, acct.AccountName)
 					}
+					cdkOutputs = append(cdkOutputs, cmd.cdkOutputs(cfnClient, acct, stack)...)
+
 				} else if stack.Type == "Terraform" {
-					initTFCmd := initTf(result, acct, stack)
+					initTFCmd := initTf(stackRole, acct, stack)
 					if initTFCmd != nil {
 						if err := runCmd(initTFCmd, acct, coloredAccountID); err != nil {
 							fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 							return
 						}
 					}
-					deployTFCmd := cmd.tfCmd(result, acct, stack)
+					deployTFCmd := cmd.tfCmd(stackRole, acct, stack)
 					if err := runCmd(deployTFCmd, acct, coloredAccountID); err != nil {
 						fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 						return
@@ -217,8 +248,36 @@ func runCmd(cmd *exec.Cmd, acct ymlparser.Account, coloredAccountID string) erro
 }
 
 func bootstrapCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
-	outPath := tmpPath("CDK", acct, stack.Path)
+	outPath := cdk.TmpPath(acct, stack.Path)
 	cdkArgs := []string{"bootstrap", "--output", outPath}
+	cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName))
+	cmd := exec.Command("cdk", cdkArgs...)
+	cmd.Dir = stack.Path
+	cmd.Env = awssts.SetEnviron(os.Environ(),
+		*result.Credentials.AccessKeyId,
+		*result.Credentials.SecretAccessKey,
+		*result.Credentials.SessionToken)
+
+	return cmd
+}
+
+func synthCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack, prevOutputs []*template.CDKOutputs) *exec.Cmd {
+	outPath := cdk.TmpPath(acct, stack.Path)
+	cdkArgs := []string{"synth", "--output", outPath}
+	cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName))
+	for _, prevOutput := range prevOutputs {
+		for key, val := range prevOutput.Outputs {
+			if reflect.TypeOf(val["Value"]).Kind() == reflect.Map {
+				serializedVal, err := json.Marshal(val)
+				if err != nil {
+					panic(err)
+				}
+				cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("%s.%s=%s", prevOutput.StackName, key, serializedVal))
+			} else {
+				cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("%s.%s=%s", prevOutput.StackName, key, val["Value"]))
+			}
+		}
+	}
 	cmd := exec.Command("cdk", cdkArgs...)
 	cmd.Dir = stack.Path
 	cmd.Env = awssts.SetEnviron(os.Environ(),
@@ -230,14 +289,14 @@ func bootstrapCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ym
 }
 
 func initTf(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
-	workingPath := tmpPath("Terraform", acct, stack.Path)
+	workingPath := terraform.TmpPath(acct, stack.Path)
 	terraformDir := filepath.Join(workingPath, ".terraform")
 	if _, err := os.Stat(terraformDir); os.IsNotExist(err) {
 		if err := os.MkdirAll(workingPath, 0755); err != nil {
 			panic(fmt.Errorf("failed to create directory %s: %w", workingPath, err))
 		}
 
-		if err := copyDir(stack.Path, workingPath, acct); err != nil {
+		if err := terraform.CopyDir(stack.Path, workingPath, acct); err != nil {
 			panic(fmt.Errorf("failed to copy files from %s to %s: %w", stack.Path, workingPath, err))
 		}
 
@@ -252,57 +311,6 @@ func initTf(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparse
 	}
 
 	return nil
-}
-
-func tmpPath(iacType string, acct ymlparser.Account, filePath string) string {
-	hasher := sha256.New()
-	hasher.Write([]byte(tfPath))
-	hashBytes := hasher.Sum(nil)
-	hashString := hex.EncodeToString(hashBytes)
-
-	if iacType == "Terraform" {
-		return path.Join("telophasedirs", fmt.Sprintf("tf-tmp%s-%s", acct.AccountID, hashString))
-	} else if iacType == "CDK" {
-		return path.Join("telophasedirs", fmt.Sprintf("cdk-tmp%s-%s", acct.AccountID, hashString))
-	}
-	panic(fmt.Sprintf("unsupported iac type: %s", iacType))
-}
-
-func copyDir(src string, dst string, acct ymlparser.Account) error {
-	ignoreDir := "telophasedirs"
-
-	return filepath.Walk(src, func(path string, info fs.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if strings.Contains(path, filepath.Join(src, ignoreDir)) {
-			return nil
-		}
-
-		relPath := strings.TrimPrefix(path, src)
-		targetPath := filepath.Join(dst, relPath)
-
-		if info.IsDir() {
-			return os.MkdirAll(targetPath, info.Mode())
-		} else {
-			return replaceVariablesInFile(path, targetPath, acct)
-		}
-	})
-}
-
-func replaceVariablesInFile(srcFile, dstFile string, acct ymlparser.Account) error {
-	content, err := ioutil.ReadFile(srcFile)
-	if err != nil {
-		return err
-	}
-
-	updatedContent := strings.ReplaceAll(string(content), "${telophase.account_id}", acct.AccountID)
-	updatedContent = strings.ReplaceAll(updatedContent, "telophase.account_id", fmt.Sprintf("\"%s\"", acct.AccountID))
-	updatedContent = strings.ReplaceAll(updatedContent, "${telophase.account_name}", acct.AccountName)
-	updatedContent = strings.ReplaceAll(updatedContent, "telophase.account_name", fmt.Sprintf("\"%s\"", acct.AccountName))
-
-	return ioutil.WriteFile(dstFile, []byte(updatedContent), 0644)
 }
 
 func contains(e string, s []string) bool {
@@ -376,7 +384,7 @@ func deployTUI(cmd iacCmd, orgsToApply []ymlparser.Account) error {
 				RoleSessionName: aws.String("telophase-org"),
 			}
 
-			result, err := svc.AssumeRole(input)
+			accountRole, err := svc.AssumeRole(input)
 			if err != nil {
 				fmt.Fprint(file, "Error assuming role:", err)
 				return
@@ -411,27 +419,54 @@ func deployTUI(cmd iacCmd, orgsToApply []ymlparser.Account) error {
 				return
 			}
 
+			var cdkOutputs []*template.CDKOutputs
+			var bootstrappedCDK bool
 			for _, stack := range acctStacks {
+				fmt.Fprintf(file, "executing stack: %s (empty means all) \n", stack.Name)
+				stackRole := accountRole
+				if stack.RoleOverrideARN != "" {
+					fmt.Fprintf(file, "assuming role: %s", stack.RoleOverrideARN)
+					input := &sts.AssumeRoleInput{
+						RoleArn:         aws.String(stack.RoleOverrideARN),
+						RoleSessionName: aws.String("telophase-org"),
+					}
+
+					stackRole, err = svc.AssumeRole(input)
+					if err != nil {
+						fmt.Println("Error assuming role:", err)
+						return
+					}
+				}
 				if stack.Type == "CDK" {
-					bootstrapCDK := bootstrapCDK(result, acct, stack)
-					if err := runCmdWriter(bootstrapCDK, acct, file); err != nil {
+					cfnClient := awscloudformation.New(stackRole.Credentials)
+					if !bootstrappedCDK {
+						bootstrapCDK := bootstrapCDK(stackRole, acct, stack)
+						if err := runCmdWriter(bootstrapCDK, acct, file); err != nil {
+							return
+						}
+						bootstrappedCDK = true
+					}
+
+					synthCDK := synthCDK(stackRole, acct, stack, cdkOutputs)
+					if err := runCmdWriter(synthCDK, acct, file); err != nil {
 						return
 					}
 
-					deployCDKCmd := cmd.cdkCmd(result, acct, stack)
+					deployCDKCmd := cmd.cdkCmd(stackRole, acct, stack, cdkOutputs)
 					if err := runCmdWriter(deployCDKCmd, acct, file); err != nil {
 						return
 					} else {
 						telophase.RecordDeploy(acct.AccountID, acct.AccountName)
 					}
+					cdkOutputs = append(cdkOutputs, cmd.cdkOutputs(cfnClient, acct, stack)...)
 				} else if stack.Type == "Terraform" {
-					initTFCmd := initTf(result, acct, stack)
+					initTFCmd := initTf(stackRole, acct, stack)
 					if initTFCmd != nil {
 						if err := runCmdWriter(initTFCmd, acct, file); err != nil {
 							return
 						}
 					}
-					deployTFCmd := cmd.tfCmd(result, acct, stack)
+					deployTFCmd := cmd.tfCmd(stackRole, acct, stack)
 					if err := runCmdWriter(deployTFCmd, acct, file); err != nil {
 						return
 					} else {
