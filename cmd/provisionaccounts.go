@@ -116,6 +116,7 @@ var accountProvision = &cobra.Command{
 					panic(fmt.Sprintf("error: %s", err))
 				}
 
+				fmt.Println("len ops", len(operations))
 				for _, op := range operations {
 					err := op.Call(ctx, orgClient)
 					if err != nil {
