@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"sort"
 	"strings"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/organizations"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
+	"github.com/santiago-labs/telophasecli/lib/azureorgs"
 	"gopkg.in/yaml.v3"
 )
 
@@ -55,7 +55,7 @@ type AzureAccountGroup struct {
 }
 
 type Subscription struct {
-	SubscriptionName string `yaml:"SubscriptionName"`
+	SubscriptionName string `yaml:"Name"`
 }
 
 func (grp AccountGroup) AllTags() []string {
@@ -465,4 +465,42 @@ func FlattenOperations(topList []ResourceOperation) []ResourceOperation {
 	}
 
 	return finalOperations
+}
+
+func (az AzureAccountGroup) Diff(subscriptionClient *azureorgs.Client) ([]ResourceOperation, error) {
+	if subscriptionClient == nil {
+		return nil, nil
+	}
+
+	ctx := context.TODO()
+	subscriptions, err := subscriptionClient.CurrentSubscriptions(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var operations []ResourceOperation
+
+	liveSubs := map[string]struct{}{}
+	for _, sub := range subscriptions {
+		liveSubs[*sub.DisplayName] = struct{}{}
+	}
+
+	subsToCreate := map[string]Subscription{}
+	for _, iacSub := range az.Subscriptions {
+		if _, ok := liveSubs[iacSub.SubscriptionName]; !ok {
+			subsToCreate[iacSub.SubscriptionName] = iacSub
+		}
+	}
+
+	for i := range subsToCreate {
+		toCreate := subsToCreate[i]
+
+		operations = append(operations, &AzureSubscriptionOperation{
+			Operation:    Create,
+			Subscription: &toCreate,
+			AzureGroup:   az,
+		})
+	}
+
+	return operations, nil
 }

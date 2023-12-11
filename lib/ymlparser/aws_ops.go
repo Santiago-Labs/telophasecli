@@ -17,13 +17,6 @@ const (
 	Update       = 3
 )
 
-type ResourceOperation interface {
-	Call(context.Context, awsorgs.Client) error
-	ToString() string
-	AddDependent(ResourceOperation)
-	ListDependents() []ResourceOperation
-}
-
 type AccountOperation struct {
 	Account             *Account
 	Operation           int
