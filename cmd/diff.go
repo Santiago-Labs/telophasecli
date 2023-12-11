@@ -2,13 +2,19 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
+	"reflect"
 	"strings"
 
+	"github.com/santiago-labs/telophasecli/lib/awscloudformation"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/awssts"
+	"github.com/santiago-labs/telophasecli/lib/cdk"
+	"github.com/santiago-labs/telophasecli/lib/cdk/template"
+	"github.com/santiago-labs/telophasecli/lib/terraform"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 
 	"github.com/aws/aws-sdk-go/service/sts"
@@ -35,9 +41,23 @@ var diffCmd = &cobra.Command{
 
 type diffIAC struct{}
 
-func (d diffIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
-	outPath := tmpPath("CDK", acct, stack.Path)
+func (d diffIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack, prevOutputs []*template.CDKOutputs) *exec.Cmd {
+	outPath := cdk.TmpPath(acct, stack.Path)
 	cdkArgs := []string{"diff", "--output", outPath}
+	cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName))
+	for _, prevOutput := range prevOutputs {
+		for key, val := range prevOutput.Outputs {
+			if reflect.TypeOf(val["Value"]).Kind() == reflect.Map {
+				serializedVal, err := json.Marshal(val)
+				if err != nil {
+					panic(err)
+				}
+				cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("%s.%s=%s", prevOutput.StackName, key, serializedVal))
+			} else {
+				cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("%s.%s=%s", prevOutput.StackName, key, val["Value"]))
+			}
+		}
+	}
 	if stack.Name == "" {
 		cdkArgs = append(cdkArgs, "--all")
 	} else {
@@ -53,8 +73,29 @@ func (d diffIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, st
 	return cmd
 }
 
+func (d diffIAC) cdkOutputs(cfnClient awscloudformation.Client, acct ymlparser.Account, stack ymlparser.Stack) []*template.CDKOutputs {
+	isDeployed, err := cfnClient.IsStackDeployed(context.TODO(), stack.Name)
+	if err != nil {
+		panic(err)
+	}
+
+	if !isDeployed {
+		outputs, err := cdk.StackLocalOutput(cfnClient, acct, stack)
+		if err != nil {
+			panic(err)
+		}
+		return outputs
+	}
+
+	outputs, err := cdk.StackRemoteOutput(cfnClient, acct, stack)
+	if err != nil {
+		panic(err)
+	}
+	return outputs
+}
+
 func (d diffIAC) tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
-	workingPath := tmpPath("Terraform", acct, stack.Path)
+	workingPath := terraform.TmpPath(acct, stack.Path)
 	args := []string{
 		"plan",
 	}
