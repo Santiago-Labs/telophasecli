@@ -21,6 +21,7 @@ import (
 	"github.com/santiago-labs/telophasecli/lib/awscloudformation"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/awssts"
+	"github.com/santiago-labs/telophasecli/lib/azureorgs"
 	"github.com/santiago-labs/telophasecli/lib/cdk"
 	"github.com/santiago-labs/telophasecli/lib/cdk/template"
 	"github.com/santiago-labs/telophasecli/lib/colors"
@@ -34,11 +35,15 @@ type iacCmd interface {
 	tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd
 	cdkOutputs(cfnClient awscloudformation.Client, acct ymlparser.Account, stack ymlparser.Stack) []*template.CDKOutputs
 	orgV1Cmd(ctx context.Context, orgClient awsorgs.Client) // Deprecated
-	orgV2Cmd(ctx context.Context, orgClient awsorgs.Client)
+	orgV2Cmd(ctx context.Context, orgClient awsorgs.Client, subsClient *azureorgs.Client)
 }
 
 func runIAC(cmd iacCmd) {
 	orgClient := awsorgs.New()
+	subsClient, err := azureorgs.New()
+	if err != nil {
+		panic(fmt.Sprintf("error: %s", err))
+	}
 	ctx := context.Background()
 
 	var accountsToApply []ymlparser.Account
@@ -58,7 +63,7 @@ func runIAC(cmd iacCmd) {
 			}
 		}
 	} else {
-		cmd.orgV2Cmd(ctx, orgClient)
+		cmd.orgV2Cmd(ctx, orgClient, subsClient)
 		rootGroup, _, err := ymlparser.ParseOrganizationV2(orgFile)
 		if err != nil {
 			panic(fmt.Sprintf("error: %s parsing organization", err))

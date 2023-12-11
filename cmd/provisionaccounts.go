@@ -7,24 +7,37 @@ import (
 	"fmt"
 	"text/template"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/aws/aws-sdk-go/aws/session"
+
 	"github.com/aws/aws-sdk-go/service/organizations"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
+	"github.com/santiago-labs/telophasecli/lib/azureorgs"
 	"github.com/santiago-labs/telophasecli/lib/telophase"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 )
 
 var orgFile string
 var orgV1 bool
+var azure bool
 
 func init() {
 	rootCmd.AddCommand(accountProvision)
 	accountProvision.Flags().StringVar(&orgFile, "org", "organization.yml", "Path to the organization.yml file")
 	accountProvision.Flags().BoolVar(&orgV1, "orgv1", false, "Used for import only. Use this flag to import your organization in the old format.")
+}
+
+func connectionAzure() (azcore.TokenCredential, error) {
+	cred, err := azidentity.NewDefaultAzureCredential(nil)
+	if err != nil {
+		return nil, err
+	}
+	return cred, nil
 }
 
 func isValidAccountArg(arg string) bool {
@@ -54,6 +67,11 @@ var accountProvision = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		orgClient := awsorgs.New()
+		subscriptionClient, err := azureorgs.New()
+		if err != nil {
+			panic(fmt.Sprintf("error creating azure client err: %s" + err.Error()))
+		}
+
 		ctx := context.Background()
 		if args[0] == "import" {
 			if orgV1 {
@@ -74,7 +92,7 @@ var accountProvision = &cobra.Command{
 					panic(fmt.Sprintf("error: %s", err))
 				}
 			} else {
-				_, err := orgV2Diff(orgClient)
+				_, err := orgV2Diff(orgClient, subscriptionClient)
 				if err != nil {
 					panic(fmt.Sprintf("error: %s", err))
 				}
@@ -93,7 +111,7 @@ var accountProvision = &cobra.Command{
 					panic(fmt.Sprintf("error creating accounts %v", errs))
 				}
 			} else {
-				operations, err := orgV2Diff(orgClient)
+				operations, err := orgV2Diff(orgClient, subscriptionClient)
 				if err != nil {
 					panic(fmt.Sprintf("error: %s", err))
 				}
@@ -185,8 +203,8 @@ func orgV1Diff(orgClient awsorgs.Client) (new []*organizations.Account, toDelete
 	return newAccounts, deletedAccounts, nil
 }
 
-func orgV2Diff(orgClient awsorgs.Client) (ops []ymlparser.ResourceOperation, err error) {
-	org, _, err := ymlparser.ParseOrganizationV2(orgFile)
+func orgV2Diff(orgClient awsorgs.Client, subscriptionsClient *azureorgs.Client) (ops []ymlparser.ResourceOperation, err error) {
+	org, azure, err := ymlparser.ParseOrganizationV2(orgFile)
 	if err != nil {
 		panic(fmt.Sprintf("error: %s parsing organization", err))
 	}
@@ -195,6 +213,15 @@ func orgV2Diff(orgClient awsorgs.Client) (ops []ymlparser.ResourceOperation, err
 	for _, op := range ymlparser.FlattenOperations(operations) {
 		fmt.Println(op.ToString())
 	}
+
+	azureOps, err := azure.Diff(subscriptionsClient)
+	if err != nil {
+		return nil, err
+	}
+	for _, op := range ymlparser.FlattenOperations(azureOps) {
+		fmt.Println(op.ToString())
+	}
+	operations = append(operations, azureOps...)
 
 	return operations, nil
 }

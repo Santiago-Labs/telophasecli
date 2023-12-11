@@ -12,6 +12,7 @@ import (
 	"github.com/santiago-labs/telophasecli/lib/awscloudformation"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/awssts"
+	"github.com/santiago-labs/telophasecli/lib/azureorgs"
 	"github.com/santiago-labs/telophasecli/lib/cdk"
 	"github.com/santiago-labs/telophasecli/lib/cdk/template"
 	"github.com/santiago-labs/telophasecli/lib/terraform"
@@ -113,8 +114,8 @@ func (d deployIAC) orgV1Cmd(ctx context.Context, orgClient awsorgs.Client) {
 	}
 }
 
-func (d deployIAC) orgV2Cmd(ctx context.Context, orgClient awsorgs.Client) {
-	ops, err := orgV2Diff(orgClient)
+func (d deployIAC) orgV2Cmd(ctx context.Context, orgClient awsorgs.Client, subsClient *azureorgs.Client) {
+	ops, err := orgV2Diff(orgClient, subsClient)
 	if err != nil {
 		panic(fmt.Sprintf("error: %s", err))
 	}
