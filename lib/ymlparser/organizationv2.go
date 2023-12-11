@@ -264,30 +264,27 @@ func ParseOrganizationV2(filepath string) (AccountGroup, AzureAccountGroup, erro
 		return AccountGroup{}, AzureAccountGroup{}, err
 	}
 
-	// Handle AWS refresh
-	if org.Organization.Accounts != nil {
-		orgClient := awsorgs.New()
+	orgClient := awsorgs.New()
 
-		rootId, err := orgClient.GetRootId()
-		if err != nil {
-			return AccountGroup{}, AzureAccountGroup{}, err
-		}
-		rootName := "root"
-		rootOU := &organizations.OrganizationalUnit{
-			Id:   &rootId,
-			Name: &rootName,
-		}
-		org.Organization.Name = "root"
-		hydrateOU(orgClient, &org.Organization, rootOU)
+	rootId, err := orgClient.GetRootId()
+	if err != nil {
+		return AccountGroup{}, AzureAccountGroup{}, err
+	}
+	rootName := "root"
+	rootOU := &organizations.OrganizationalUnit{
+		Id:   &rootId,
+		Name: &rootName,
+	}
+	org.Organization.Name = "root"
+	hydrateOU(orgClient, &org.Organization, rootOU)
 
-		// Hydrate Group, then fetch all accounts (pointers) and populate ID.
-		allAccounts, err := orgClient.CurrentAccounts(context.TODO())
-		if err != nil {
-			return AccountGroup{}, AzureAccountGroup{}, err
-		}
-		for _, acct := range allAccounts {
-			hydrateAccount(&org.Organization, acct)
-		}
+	// Hydrate Group, then fetch all accounts (pointers) and populate ID.
+	allAccounts, err := orgClient.CurrentAccounts(context.TODO())
+	if err != nil {
+		return AccountGroup{}, AzureAccountGroup{}, err
+	}
+	for _, acct := range allAccounts {
+		hydrateAccount(&org.Organization, acct)
 	}
 
 	azureGroup := org.AzureAccountGroup

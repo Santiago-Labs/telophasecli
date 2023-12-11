@@ -5,12 +5,17 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/managementgroups/armmanagementgroups"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armsubscriptions"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/subscription/armsubscription"
+	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/aws/smithy-go/ptr"
+	"github.com/samsarahq/go/oops"
 )
 
 type Client struct {
@@ -22,7 +27,8 @@ type Client struct {
 func New() (*Client, error) {
 	creds, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
-		return nil, err
+		// If we can't load Azure credentials, assume we don't have azure setup.
+		return nil, nil
 	}
 
 	client := &Client{}
@@ -74,7 +80,33 @@ type CreateSubscriptionArgs struct {
 	InvoiceSectionName string
 }
 
+func (args CreateSubscriptionArgs) Valid() error {
+	if args.SubscriptionAliasName == "" {
+		return fmt.Errorf("missing SubscriptionAliasName")
+	}
+	if args.SubscriptionTenantID == "" {
+		return fmt.Errorf("missing SubscriptionTenantID")
+	}
+	if args.SubscriptionOwnerID == "" {
+		return fmt.Errorf("missing SubscriptionOwnerID")
+	}
+	if args.BillingAccountName == "" {
+		return fmt.Errorf("missing BillingAccountName")
+	}
+	if args.BillingProfileName == "" {
+		return fmt.Errorf("missing BillingProfileName")
+	}
+	if args.InvoiceSectionName == "" {
+		return fmt.Errorf("missing InvoiceSectionName")
+	}
+	return nil
+}
+
 func (c *Client) CreateSubscription(ctx context.Context, args CreateSubscriptionArgs) error {
+	if err := args.Valid(); err != nil {
+		return oops.Wrapf(err, "")
+	}
+
 	workload := armsubscription.WorkloadProduction // important! does not work with WorkloadDevTest
 
 	r, err := c.subscriptionAliasClient.BeginCreate(ctx, args.SubscriptionAliasName, armsubscription.PutAliasRequest{
@@ -94,7 +126,7 @@ func (c *Client) CreateSubscription(ctx context.Context, args CreateSubscription
 		},
 	}, &armsubscription.AliasClientBeginCreateOptions{})
 	if err != nil {
-		return err
+		return oops.Wrapf(err, "")
 	}
 
 	// wait for the operation to complete
@@ -102,9 +134,82 @@ func (c *Client) CreateSubscription(ctx context.Context, args CreateSubscription
 		Frequency: 5 * time.Second,
 	})
 	if err != nil {
-		return err
+		return oops.Wrapf(err, "")
 	}
 	_ = result
 
+	_, err = c.CreateStateStorage(ctx, *result.ID)
+	if err != nil {
+		return oops.Wrapf(err, "")
+	}
+
 	return nil
+}
+
+func createResourceGroup(ctx context.Context, subscriptionId string, credential azcore.TokenCredential) (armresources.ResourceGroupsClientCreateOrUpdateResponse, error) {
+	rgClient, err := armresources.NewResourceGroupsClient(subscriptionId, credential, nil)
+	if err != nil {
+		return armresources.ResourceGroupsClientCreateOrUpdateResponse{}, oops.Wrapf(err, "")
+	}
+
+	name := to.StringPtr("telophasetfstate")
+	param := armresources.ResourceGroup{
+		Location: to.StringPtr("eastus"),
+		Name:     name,
+	}
+
+	output, err := rgClient.CreateOrUpdate(ctx, *name, param, nil)
+	if err != nil {
+		return armresources.ResourceGroupsClientCreateOrUpdateResponse{}, oops.Wrapf(err, "")
+	}
+	return output, nil
+}
+
+// CreateStateStorage creates a resource group and storage account to store the
+// terraform state for the given subscription ID.
+func (c *Client) CreateStateStorage(ctx context.Context, subscriptionID string) (string, error) {
+	cred, err := azidentity.NewDefaultAzureCredential(nil)
+	if err != nil {
+		return "", oops.Errorf("authentication failure: %+v", err)
+	}
+
+	// Call your function to create an Azure resource group.
+	resourceGroup, err := createResourceGroup(ctx, subscriptionID, cred)
+	if err != nil {
+		return "", oops.Errorf("creation of resource group failed: %+v", err)
+	}
+	storageClient, err := armstorage.NewAccountsClient(subscriptionID, cred, nil)
+	if err != nil {
+		return "", oops.Errorf("creation of storage client failed: %+v", err)
+	}
+
+	storageAccountName := "telophasetfstate"
+	n := armstorage.SKUNameStandardLRS
+	kind := armstorage.KindStorageV2
+	properties := armstorage.AccountPropertiesCreateParameters{}
+	parameters := armstorage.AccountCreateParameters{
+		SKU: &armstorage.SKU{
+			Name: &n,
+		},
+		Kind:       &kind,
+		Location:   to.StringPtr("eastus"),
+		Properties: &properties,
+	}
+
+	result, err := storageClient.BeginCreate(ctx,
+		*resourceGroup.Name,
+		storageAccountName,
+		parameters,
+		nil,
+	)
+	if err != nil {
+		return "", oops.Wrapf(err, "")
+	}
+
+	postCreate, err := result.PollUntilDone(ctx, nil)
+	if err != nil {
+		return "", oops.Wrapf(err, "")
+	}
+
+	return *postCreate.Name, nil
 }
