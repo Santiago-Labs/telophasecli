@@ -7,54 +7,72 @@ apply CDK stacks across all your AWS accounts.
 
 We developed this tool because we have experienced the pain of managing multiple
 AWS accounts with Control Tower and Cloudformation Templates. Amazon
-forces you to login to their UI and manage all your infrastructure from within
+forces you to log in to their UI and manage all your infrastructure from within
 the portal where changing accounts while using SSO is a pain. 
 
 We wanted a way to apply our CDK code across many AWS accounts with code and
 with a great UX.
 
 ## Future Development
-Support for multi-cloud organizations with a unified account factory.
-
-Drift detection/prevention
-
-Guardrails around account resources 
-Guardrails around new Accounts similar to Control Tower rules.
+[] Support for multi-cloud organizations with a unified account factory.
+  [x] Azure
+  [] GCP
+[] Drift detection/prevention
+[] Guardrails around account resources 
+[] Guardrails around new Accounts, similar to Control Tower rules.
 
 # Features
 ## Provision AWS accounts via code
 Example `organization.yml`
 ```yml
 Organization:
-    AccountGroups:
-        - Name: Production
-          AccountGroups:
-            - Name: Safety Team
-              AccountGroups:
-                - Name: Firmware Team
-                  Accounts:
-                    - Email: safety+firmware@example.app
-                      AccountName: Safety Firmware
-                - Name: Safety Ingestion
-                  Accounts:
-                    - Email: safety+ingestion@example.app
-                      AccountName: Safety Ingestion Team
-        - Name: Security
-          Accounts:
-            - Email: ethan+audit@example.app
-              AccountName: Audit
-            - Email: ethan+logs@example.app
-              AccountName: Log Archive
-        - Name: Development
-          Accounts:
-            - Email: eng1@example.app
-              AccountName: Engineer 1
-            - Email: eng2@example.app
-              AccountName: Engineer 2
-
+  AccountGroups:
+      - Name: Production
+        AccountGroups:
+          - Name: Safety Team
+            AccountGroups:
+              - Name: Firmware Team
+                Accounts:
+                  - Email: safety+firmware@example.app
+                    AccountName: Safety Firmware
+              - Name: Safety Ingestion
+                Accounts:
+                  - Email: safety+ingestion@example.app
+                    AccountName: Safety Ingestion Team
+      - Name: Security
+        Accounts:
+          - Email: ethan+audit@example.app
+            AccountName: Audit
+          - Email: ethan+logs@example.app
+            AccountName: Log Archive
+      - Name: Development
+        Accounts:
+          - Email: eng1@example.app
+            AccountName: Engineer 1
+          - Email: eng2@example.app
+            AccountName: Engineer 2
 # Adds a new AWS account for a new dev
-+           - Email: eng3@example.app
-+             AccountName: Engineer 3
++         - Email: eng3@example.app
++           AccountName: Engineer 3
+
+
+# Azure accounts differ in that they require top level configuration then a
+# Subscription Name.
+Azure:
+	# az account list | jq '.[] | select(.isDefault == true) | .id'
+  SubscriptionTenantID: 00000000-0000-0000-0000-000000000000
+
+  # Owner Email Address
+  SubscriptionOwnerID: user@company.com
+
+	# az billing account list | jq '.[] | select(.displayName == "<YOUR-BILLING-ACCOUNT-DISPLAY-NAME>") | .name'
+  BillingAccountName: Example Billing Account
+
+	# az billing profile list --account-name <billingAccountName> | jq '.[] | select(.displayName == "<YOUR-BILLING-PROFILE-DISPLAY-NAME>") | .name'
+  BillingProfileName: Example Billing Profile
+
+	# az billing invoice section list --account-name <billingAccountName> --profile-name <billingProfileName> | jq '.[] | select(.displayName == "<YOUR-INVOICE-SECTION-DISPLAY-NAME>") | .name'
+  InvoiceSectionName: Example Invoice Section
 ```
 
 In the above example adding account "Engineer 3" then running:
