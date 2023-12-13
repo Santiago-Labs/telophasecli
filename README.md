@@ -14,12 +14,12 @@ We wanted a way to apply our CDK code across many AWS accounts with code and
 with a great UX.
 
 ## Future Development
-[] Support for multi-cloud organizations with a unified account factory.
-  [x] Azure
-  [] GCP
-[] Drift detection/prevention
-[] Guardrails around account resources 
-[] Guardrails around new Accounts, similar to Control Tower rules.
+- [ ] Support for multi-cloud organizations with a unified account factory.
+  - [x] Azure
+  - [ ] GCP
+- [ ] Drift detection/prevention
+- [ ] Guardrails around account resources 
+- [ ] Guardrails around new Accounts, similar to Control Tower rules.
 
 # Features
 ## Provision AWS accounts via code
