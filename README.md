@@ -59,19 +59,19 @@ Organization:
 # Azure accounts differ in that they require top level configuration then a
 # Subscription Name.
 Azure:
-	# az account list | jq '.[] | select(.isDefault == true) | .id'
+  # az account list | jq '.[] | select(.isDefault == true) | .id'
   SubscriptionTenantID: 00000000-0000-0000-0000-000000000000
 
   # Owner Email Address
   SubscriptionOwnerID: user@company.com
 
-	# az billing account list | jq '.[] | select(.displayName == "<YOUR-BILLING-ACCOUNT-DISPLAY-NAME>") | .name'
+  # az billing account list | jq '.[] | select(.displayName == "<YOUR-BILLING-ACCOUNT-DISPLAY-NAME>") | .name'
   BillingAccountName: Example Billing Account
 
-	# az billing profile list --account-name <billingAccountName> | jq '.[] | select(.displayName == "<YOUR-BILLING-PROFILE-DISPLAY-NAME>") | .name'
+  # az billing profile list --account-name <billingAccountName> | jq '.[] | select(.displayName == "<YOUR-BILLING-PROFILE-DISPLAY-NAME>") | .name'
   BillingProfileName: Example Billing Profile
 
-	# az billing invoice section list --account-name <billingAccountName> --profile-name <billingProfileName> | jq '.[] | select(.displayName == "<YOUR-INVOICE-SECTION-DISPLAY-NAME>") | .name'
+  # az billing invoice section list --account-name <billingAccountName> --profile-name <billingProfileName> | jq '.[] | select(.displayName == "<YOUR-INVOICE-SECTION-DISPLAY-NAME>") | .name'
   InvoiceSectionName: Example Invoice Section
 ```
 
