@@ -345,7 +345,7 @@ func contains(e string, s []string) bool {
 
 func deployTUI(cmd iacCmd, orgsToApply []ymlparser.Account) error {
 	app := tview.NewApplication()
-	tv := tview.NewTextView()
+	tv := tview.NewTextView().SetDynamicColors(true)
 
 	main := tv.
 		SetTextAlign(tview.AlignLeft).SetScrollable(true).
@@ -389,7 +389,7 @@ func deployTUI(cmd iacCmd, orgsToApply []ymlparser.Account) error {
 			tuiIndex.Swap(int64(wrapI))
 			tuiLock.Lock()
 			defer tuiLock.Unlock()
-			main.SetText(currText())
+			main.SetText(tview.TranslateANSI(currText()))
 		})
 
 		wg.Add(1)
@@ -564,7 +564,7 @@ func liveTextSetter(tv *tview.TextView, tails []*func() string) {
 			curr := tv.GetText(true)
 			newText := f()
 			if newText != curr && newText != "" {
-				tv.SetText(f())
+				tv.SetText(tview.TranslateANSI(f()))
 			}
 		}()
 	}
