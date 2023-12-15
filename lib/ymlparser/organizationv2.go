@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/organizations"
 	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/samsarahq/go/oops"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
 	"gopkg.in/yaml.v3"
@@ -55,7 +56,10 @@ type AzureAccountGroup struct {
 }
 
 type Subscription struct {
-	SubscriptionName string `yaml:"Name"`
+	SubscriptionName string   `yaml:"Name"`
+	Account          *Account `yaml:"Account"`
+
+	Stacks []Stack `yaml:"Stacks,omitempty"`
 }
 
 func (grp AccountGroup) AllTags() []string {
@@ -290,10 +294,36 @@ func ParseOrganizationV2(filepath string) (AccountGroup, AzureAccountGroup, erro
 	azureGroup := org.AzureAccountGroup
 	if org.AzureAccountGroup == nil {
 		azureGroup = &AzureAccountGroup{}
+	} else {
+		subsClient, err := azureorgs.New()
+		if err != nil {
+			return AccountGroup{}, AzureAccountGroup{}, oops.Wrapf(err, "")
+		}
+		hydrateSubscriptions(subsClient, azureGroup)
 	}
 
 	return org.Organization, *azureGroup, nil
+}
 
+func hydrateSubscriptions(subsClient *azureorgs.Client, azureGroup *AzureAccountGroup) error {
+	subs, err := subsClient.CurrentSubscriptions(context.TODO())
+	if err != nil {
+		return oops.Wrapf(err, "")
+	}
+
+	for i, sub := range azureGroup.Subscriptions {
+		for _, liveSub := range subs {
+			if sub.SubscriptionName == *liveSub.DisplayName {
+				azureGroup.Subscriptions[i].Account = &Account{
+					SubscriptionID: strings.Split(*liveSub.ID, "/")[2],
+					AccountName:    *liveSub.DisplayName,
+					Stacks:         sub.Stacks,
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func hydrateAccount(group *AccountGroup, acct *organizations.Account) {
@@ -500,4 +530,14 @@ func (az AzureAccountGroup) Diff(subscriptionClient *azureorgs.Client) ([]Resour
 	}
 
 	return operations, nil
+}
+
+func (az AzureAccountGroup) AllDescendentAccounts() []*Account {
+	var accounts []*Account
+
+	for i := range az.Subscriptions {
+		accounts = append(accounts, az.Subscriptions[i].Account)
+	}
+
+	return accounts
 }

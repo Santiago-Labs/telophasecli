@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/santiago-labs/telophasecli/lib/azureorgs"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 )
 
@@ -20,7 +21,7 @@ func TmpPath(acct ymlparser.Account, filePath string) string {
 	hashBytes := hasher.Sum(nil)
 	hashString := hex.EncodeToString(hashBytes)
 
-	return path.Join("telophasedirs", fmt.Sprintf("tf-tmp%s-%s", acct.AccountID, hashString))
+	return path.Join("telophasedirs", fmt.Sprintf("tf-tmp%s-%s", acct.ID(), hashString))
 }
 
 func CopyDir(src string, dst string, acct ymlparser.Account) error {
@@ -56,6 +57,10 @@ func replaceVariablesInFile(srcFile, dstFile string, acct ymlparser.Account) err
 	updatedContent = strings.ReplaceAll(updatedContent, "telophase.account_id", fmt.Sprintf("\"%s\"", acct.AccountID))
 	updatedContent = strings.ReplaceAll(updatedContent, "${telophase.account_name}", acct.AccountName)
 	updatedContent = strings.ReplaceAll(updatedContent, "telophase.account_name", fmt.Sprintf("\"%s\"", acct.AccountName))
+	updatedContent = strings.ReplaceAll(updatedContent, "${telophase.subscription_id}", acct.SubscriptionID)
+	updatedContent = strings.ReplaceAll(updatedContent, "telophase.subscription_id", fmt.Sprintf("\"%s\"", acct.SubscriptionID))
+	updatedContent = strings.ReplaceAll(updatedContent, "${telophase.storage_account_name}", azureorgs.StorageAccountName(acct.SubscriptionID))
+	updatedContent = strings.ReplaceAll(updatedContent, "telophase.storage_account_name", fmt.Sprintf("\"%s\"", azureorgs.StorageAccountName(acct.SubscriptionID)))
 
 	return ioutil.WriteFile(dstFile, []byte(updatedContent), 0644)
 }

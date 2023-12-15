@@ -9,9 +9,11 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/samsarahq/go/oops"
 	"github.com/santiago-labs/telophasecli/lib/awscloudformation"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/awssts"
+	"github.com/santiago-labs/telophasecli/lib/azureiam"
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
 	"github.com/santiago-labs/telophasecli/lib/cdk"
 	"github.com/santiago-labs/telophasecli/lib/cdk/template"
@@ -101,6 +103,13 @@ func (d deployIAC) tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, s
 			*result.Credentials.AccessKeyId,
 			*result.Credentials.SecretAccessKey,
 			*result.Credentials.SessionToken)
+	}
+	if acct.SubscriptionID != "" {
+		resultEnv, err := azureiam.SetEnviron(os.Environ(), acct.SubscriptionID)
+		if err != nil {
+			panic(oops.Wrapf(err, "setting azure subscription id %s", acct.SubscriptionID))
+		}
+		cmd.Env = resultEnv
 	}
 
 	return cmd

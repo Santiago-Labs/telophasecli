@@ -19,9 +19,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/rivo/tview"
+	"github.com/samsarahq/go/oops"
 	"github.com/santiago-labs/telophasecli/lib/awscloudformation"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/awssts"
+	"github.com/santiago-labs/telophasecli/lib/azureiam"
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
 	"github.com/santiago-labs/telophasecli/lib/cdk"
 	"github.com/santiago-labs/telophasecli/lib/cdk/template"
@@ -65,11 +67,16 @@ func runIAC(cmd iacCmd) {
 		}
 	} else {
 		cmd.orgV2Cmd(ctx, orgClient, subsClient)
-		rootGroup, _, err := ymlparser.ParseOrganizationV2(orgFile)
+		rootGroup, azureGroup, err := ymlparser.ParseOrganizationV2(orgFile)
 		if err != nil {
 			panic(fmt.Sprintf("error: %s parsing organization", err))
 		}
 		for _, acct := range rootGroup.AllDescendentAccounts() {
+			if contains(tag, acct.AllTags()) || tag == "" {
+				accountsToApply = append(accountsToApply, *acct)
+			}
+		}
+		for _, acct := range azureGroup.AllDescendentAccounts() {
 			if contains(tag, acct.AllTags()) || tag == "" {
 				accountsToApply = append(accountsToApply, *acct)
 			}
@@ -92,23 +99,27 @@ func runIAC(cmd iacCmd) {
 		go func(acct ymlparser.Account) {
 			colorFunc := colors.DeterministicColorFunc(acct.AccountID)
 			defer wg.Done()
-			if acct.AccountID == "" {
+			if acct.AccountID == "" && acct.SubscriptionID == "" {
 				fmt.Println(colorFunc(fmt.Sprintf("skipping account: %s because it hasn't been provisioned yet", acct.AccountName)))
 				return
 			}
+			var accountRole *sts.AssumeRoleOutput
+			var svc *sts.STS
+			if acct.AccountID != "" {
+				sess := session.Must(session.NewSession(&aws.Config{}))
+				svc := sts.New(sess)
+				fmt.Println("assuming role", colorFunc(acct.AssumeRoleARN()))
+				input := &sts.AssumeRoleInput{
+					RoleArn:         aws.String(acct.AssumeRoleARN()),
+					RoleSessionName: aws.String("telophase-org"),
+				}
 
-			sess := session.Must(session.NewSession(&aws.Config{}))
-			svc := sts.New(sess)
-			fmt.Println("assuming role", colorFunc(acct.AssumeRoleARN()))
-			input := &sts.AssumeRoleInput{
-				RoleArn:         aws.String(acct.AssumeRoleARN()),
-				RoleSessionName: aws.String("telophase-org"),
-			}
-
-			accountRole, err := svc.AssumeRole(input)
-			if err != nil {
-				fmt.Println("Error assuming role:", err)
-				return
+				var err error
+				accountRole, err = svc.AssumeRole(input)
+				if err != nil {
+					fmt.Println("Error assuming role:", err)
+					return
+				}
 			}
 
 			var acctStacks []ymlparser.Stack
@@ -135,7 +146,7 @@ func runIAC(cmd iacCmd) {
 				}
 			}
 
-			coloredAccountID := colorFunc("[Account: " + acct.AccountID + "]")
+			coloredAccountID := colorFunc("[Account: " + acct.ID() + "]")
 
 			if len(acctStacks) == 0 {
 				fmt.Printf("%s No stacks to deploy\n", coloredAccountID)
@@ -328,6 +339,15 @@ func initTf(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparse
 				*result.Credentials.SecretAccessKey,
 				*result.Credentials.SessionToken)
 		}
+
+		if acct.SubscriptionID != "" {
+			resultEnv, err := azureiam.SetEnviron(os.Environ(), acct.SubscriptionID)
+			if err != nil {
+				panic(oops.Wrapf(err, "setting azure subscription id %s", acct.SubscriptionID))
+			}
+
+			cmd.Env = resultEnv
+		}
 		return cmd
 	}
 
@@ -378,7 +398,7 @@ func deployTUI(cmd iacCmd, orgsToApply []ymlparser.Account) error {
 		tails = append(tails, &setter)
 
 		wrapI := i
-		acctId := orgsToApply[wrapI].AccountID
+		acctId := orgsToApply[wrapI].ID()
 		if acctId == "" {
 			acctId = "Not Yet Provisioned"
 		}
@@ -395,20 +415,25 @@ func deployTUI(cmd iacCmd, orgsToApply []ymlparser.Account) error {
 		wg.Add(1)
 		go func(acct ymlparser.Account, file *os.File) {
 			defer wg.Done()
-			if acct.AccountID == "" {
+			if !acct.IsProvisioned() {
 				return
-			}
-			sess := session.Must(session.NewSession(&aws.Config{}))
-			svc := sts.New(sess)
-			input := &sts.AssumeRoleInput{
-				RoleArn:         aws.String(acct.AssumeRoleARN()),
-				RoleSessionName: aws.String("telophase-org"),
 			}
 
-			accountRole, err := svc.AssumeRole(input)
-			if err != nil {
-				fmt.Fprint(file, "Error assuming role:", err)
-				return
+			var accountRole *sts.AssumeRoleOutput
+			var svc *sts.STS
+			if acct.AccountID != "" {
+				sess := session.Must(session.NewSession(&aws.Config{}))
+				svc = sts.New(sess)
+				input := &sts.AssumeRoleInput{
+					RoleArn:         aws.String(acct.AssumeRoleARN()),
+					RoleSessionName: aws.String("telophase-org"),
+				}
+				var err error
+				accountRole, err = svc.AssumeRole(input)
+				if err != nil {
+					fmt.Fprint(file, "Error assuming role:", err)
+					return
+				}
 			}
 
 			var acctStacks []ymlparser.Stack
