@@ -301,6 +301,14 @@ func synthCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlpar
 func initTf(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
 	workingPath := terraform.TmpPath(acct, stack.Path)
 	terraformDir := filepath.Join(workingPath, ".terraform")
+	if terraformDir == "" || !strings.Contains(terraformDir, "telophasedirs") {
+		panic(fmt.Errorf("expected terraform dir to be set"))
+	}
+	// Clean the directory
+	if err := os.RemoveAll(terraformDir); err != nil {
+		panic(fmt.Errorf("failed to remove directory %s: %w", terraformDir, err))
+	}
+
 	if _, err := os.Stat(terraformDir); os.IsNotExist(err) {
 		if err := os.MkdirAll(workingPath, 0755); err != nil {
 			panic(fmt.Errorf("failed to create directory %s: %w", workingPath, err))
