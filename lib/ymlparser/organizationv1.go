@@ -23,10 +23,13 @@ type Organization struct {
 }
 
 type Account struct {
-	Email             string        `yaml:"Email"`
-	AccountName       string        `yaml:"AccountName"`
-	State             string        `yaml:"State,omitempty"`
-	AccountID         string        `yaml:"-"`
+	Email       string `yaml:"Email"`
+	AccountName string `yaml:"AccountName"`
+	State       string `yaml:"State,omitempty"`
+	// AccountID will be populated if this is an AWS Account.
+	AccountID string `yaml:"-"`
+	// SubscriptionID will be populated if this is an Azure Account.
+	SubscriptionID    string        `yaml:"-"`
 	AssumeRoleName    string        `yaml:"AssumeRoleName,omitempty"`
 	Tags              []string      `yaml:"Tags,omitempty"`
 	Stacks            []Stack       `yaml:"Stacks,omitempty"`
@@ -48,6 +51,36 @@ func (a Account) AssumeRoleARN() string {
 	}
 
 	return fmt.Sprintf("arn:aws:iam::%s:role/%s", a.AccountID, assumeRoleName)
+}
+
+func (a Account) ID() string {
+	if a.IsAWS() {
+		return a.AccountID
+	}
+	if a.IsAzure() {
+		return a.SubscriptionID
+	}
+
+	return ""
+}
+
+func (a Account) IsAWS() bool {
+	return a.AccountID != ""
+}
+
+func (a Account) IsAzure() bool {
+	return a.SubscriptionID != ""
+}
+
+func (a Account) IsProvisioned() bool {
+	if a.IsAWS() {
+		return true
+	}
+
+	if a.IsAzure() {
+		return true
+	}
+	return false
 }
 
 func (a Account) AllTags() []string {
