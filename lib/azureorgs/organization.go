@@ -3,6 +3,7 @@ package azureorgs
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
@@ -165,6 +166,15 @@ func createResourceGroup(ctx context.Context, subscriptionId string, credential 
 	return output, nil
 }
 
+// sanitizeSubscriptionID takes a subscription ID and returns a sanitized version removing the dashes.
+func sanitizeSubscriptionID(subscriptionID string) string {
+	return strings.ReplaceAll(subscriptionID, "-", "")[:12]
+}
+
+func StorageAccountName(subscriptionID string) string {
+	return "telophase" + sanitizeSubscriptionID(subscriptionID)
+}
+
 // CreateStateStorage creates a resource group and storage account to store the
 // terraform state for the given subscription ID.
 func (c *Client) CreateStateStorage(ctx context.Context, subscriptionID string) (string, error) {
@@ -183,7 +193,7 @@ func (c *Client) CreateStateStorage(ctx context.Context, subscriptionID string) 
 		return "", oops.Errorf("creation of storage client failed: %+v", err)
 	}
 
-	storageAccountName := "telophasetfstate"
+	storageAccountName := StorageAccountName(subscriptionID)
 	n := armstorage.SKUNameStandardLRS
 	kind := armstorage.KindStorageV2
 	properties := armstorage.AccountPropertiesCreateParameters{}
@@ -209,6 +219,16 @@ func (c *Client) CreateStateStorage(ctx context.Context, subscriptionID string) 
 	postCreate, err := result.PollUntilDone(ctx, nil)
 	if err != nil {
 		return "", oops.Wrapf(err, "")
+	}
+
+	containerClient, err := armstorage.NewBlobContainersClient(subscriptionID, cred, nil)
+	if err != nil {
+		return "", oops.Wrapf(err, "NewBlobContainersClient")
+	}
+
+	_, err = containerClient.Create(ctx, *resourceGroup.Name, storageAccountName, "tfstate", armstorage.BlobContainer{}, nil)
+	if err != nil {
+		return "", oops.Wrapf(err, "containerClient.Create")
 	}
 
 	return *postCreate.Name, nil
