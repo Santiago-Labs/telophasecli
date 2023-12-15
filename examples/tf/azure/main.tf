@@ -7,6 +7,14 @@ terraform {
     }
   }
 
+  backend "azurerm" {
+    subscription_id      = telophase.subscription_id
+    resource_group_name  = "telophasetfstate"
+    storage_account_name = telophase.storage_account_name
+    container_name       = "tfstate"
+    key                  = "terraform.tfstate"
+  }
+
   required_version = ">= 1.1.0"
 }
 
@@ -16,6 +24,6 @@ provider "azurerm" {
 
 resource "azurerm_resource_group" "rg" {
   name     = "myTFResourceGroup"
-  location = "westus2"
+  location = "eastus"
 }
 
