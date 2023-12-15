@@ -70,10 +70,12 @@ func (d deployIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, 
 	}
 	cmd := exec.Command("cdk", cdkArgs...)
 	cmd.Dir = stack.Path
-	cmd.Env = awssts.SetEnviron(os.Environ(),
-		*result.Credentials.AccessKeyId,
-		*result.Credentials.SecretAccessKey,
-		*result.Credentials.SessionToken)
+	if result != nil {
+		cmd.Env = awssts.SetEnviron(os.Environ(),
+			*result.Credentials.AccessKeyId,
+			*result.Credentials.SecretAccessKey,
+			*result.Credentials.SessionToken)
+	}
 
 	return cmd
 }
@@ -94,10 +96,12 @@ func (d deployIAC) tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, s
 	}
 	cmd := exec.Command("terraform", args...)
 	cmd.Dir = workingPath
-	cmd.Env = awssts.SetEnviron(os.Environ(),
-		*result.Credentials.AccessKeyId,
-		*result.Credentials.SecretAccessKey,
-		*result.Credentials.SessionToken)
+	if result != nil {
+		cmd.Env = awssts.SetEnviron(os.Environ(),
+			*result.Credentials.AccessKeyId,
+			*result.Credentials.SecretAccessKey,
+			*result.Credentials.SessionToken)
+	}
 
 	return cmd
 }

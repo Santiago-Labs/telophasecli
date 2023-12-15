@@ -66,10 +66,12 @@ func (d diffIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, st
 	}
 	cmd := exec.Command("cdk", cdkArgs...)
 	cmd.Dir = stack.Path
-	cmd.Env = awssts.SetEnviron(os.Environ(),
-		*result.Credentials.AccessKeyId,
-		*result.Credentials.SecretAccessKey,
-		*result.Credentials.SessionToken)
+	if result != nil {
+		cmd.Env = awssts.SetEnviron(os.Environ(),
+			*result.Credentials.AccessKeyId,
+			*result.Credentials.SecretAccessKey,
+			*result.Credentials.SessionToken)
+	}
 
 	return cmd
 }
@@ -102,10 +104,12 @@ func (d diffIAC) tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, sta
 	}
 	cmd := exec.Command("terraform", args...)
 	cmd.Dir = workingPath
-	cmd.Env = awssts.SetEnviron(os.Environ(),
-		*result.Credentials.AccessKeyId,
-		*result.Credentials.SecretAccessKey,
-		*result.Credentials.SessionToken)
+	if result != nil {
+		cmd.Env = awssts.SetEnviron(os.Environ(),
+			*result.Credentials.AccessKeyId,
+			*result.Credentials.SecretAccessKey,
+			*result.Credentials.SessionToken)
+	}
 
 	return cmd
 }

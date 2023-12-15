@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -258,10 +259,12 @@ func bootstrapCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ym
 	cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName))
 	cmd := exec.Command("cdk", cdkArgs...)
 	cmd.Dir = stack.Path
-	cmd.Env = awssts.SetEnviron(os.Environ(),
-		*result.Credentials.AccessKeyId,
-		*result.Credentials.SecretAccessKey,
-		*result.Credentials.SessionToken)
+	if result != nil {
+		cmd.Env = awssts.SetEnviron(os.Environ(),
+			*result.Credentials.AccessKeyId,
+			*result.Credentials.SecretAccessKey,
+			*result.Credentials.SessionToken)
+	}
 
 	return cmd
 }
@@ -285,10 +288,12 @@ func synthCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlpar
 	}
 	cmd := exec.Command("cdk", cdkArgs...)
 	cmd.Dir = stack.Path
-	cmd.Env = awssts.SetEnviron(os.Environ(),
-		*result.Credentials.AccessKeyId,
-		*result.Credentials.SecretAccessKey,
-		*result.Credentials.SessionToken)
+	if result != nil {
+		cmd.Env = awssts.SetEnviron(os.Environ(),
+			*result.Credentials.AccessKeyId,
+			*result.Credentials.SecretAccessKey,
+			*result.Credentials.SessionToken)
+	}
 
 	return cmd
 }
@@ -307,11 +312,14 @@ func initTf(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparse
 
 		cmd := exec.Command("terraform", "init")
 		cmd.Dir = workingPath
-		cmd.Env = awssts.SetEnviron(os.Environ(),
-			*result.Credentials.AccessKeyId,
-			*result.Credentials.SecretAccessKey,
-			*result.Credentials.SessionToken)
 
+		// If result is nil then we are not using AWS
+		if result != nil {
+			cmd.Env = awssts.SetEnviron(os.Environ(),
+				*result.Credentials.AccessKeyId,
+				*result.Credentials.SecretAccessKey,
+				*result.Credentials.SessionToken)
+		}
 		return cmd
 	}
 
