@@ -9,9 +9,18 @@ import (
 	"os"
 )
 
+func ValidTelophaseToken(token string) bool {
+	if token == "" ||
+		token == "ignore" {
+		return false
+	}
+
+	return true
+}
+
 func UpsertAccount(accountID string, accountName string) {
 	token := os.Getenv("TELOPHASE_TOKEN")
-	if token != "" {
+	if ValidTelophaseToken(token) {
 		reqBody, _ := json.Marshal(map[string]string{
 			"account_id": accountID,
 			"name":       accountName,
@@ -37,7 +46,7 @@ func UpsertAccount(accountID string, accountName string) {
 
 func RecordDeploy(accountID string, accountName string) {
 	token := os.Getenv("TELOPHASE_TOKEN")
-	if token != "" {
+	if ValidTelophaseToken(token) {
 		reqBody, _ := json.Marshal(map[string]string{})
 		client := &http.Client{}
 		req, _ := http.NewRequest("PATCH", fmt.Sprintf("https://api.telophase.dev/cloudAccount/%s", accountID), bytes.NewBuffer(reqBody))

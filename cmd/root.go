@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/santiago-labs/telophasecli/lib/metrics"
+	"github.com/santiago-labs/telophasecli/lib/telophase"
 	"github.com/spf13/cobra"
 )
 
@@ -22,7 +23,7 @@ func Execute() {
 	metrics.RegisterCommand()
 	defer metrics.Close()
 
-	if os.Getenv("TELOPHASE_TOKEN") == "" && os.Getenv("TELOPHASE_TOKEN") != "ignore" {
+	if !telophase.ValidTelophaseToken(os.Getenv("TELOPHASE_TOKEN")) {
 		fmt.Println("(Optional) Signup for Telophase for an even better experience! https://app.telophase.dev. Set TELOPHASE_TOKEN=ignore in your env to hide this message.")
 	}
 
