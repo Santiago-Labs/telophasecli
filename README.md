@@ -73,6 +73,10 @@ Azure:
 
   # az billing invoice section list --account-name <billingAccountName> --profile-name <billingProfileName> | jq '.[] | select(.displayName == "<YOUR-INVOICE-SECTION-DISPLAY-NAME>") | .name'
   InvoiceSectionName: Example Invoice Section
+  Subscriptions:
+    - Name: "Azure subscription 1"
+
+    - Name: "SubscriptionOrgcli"
 ```
 
 In the above example adding account "Engineer 3" then running:
