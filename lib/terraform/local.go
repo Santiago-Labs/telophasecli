@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/samsarahq/go/oops"
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 )
@@ -27,16 +28,20 @@ func TmpPath(acct ymlparser.Account, filePath string) string {
 func CopyDir(src string, dst string, acct ymlparser.Account) error {
 	ignoreDir := "telophasedirs"
 
-	return filepath.Walk(src, func(path string, info fs.FileInfo, err error) error {
+	abs, err := filepath.Abs(src)
+	if err != nil {
+		return oops.Wrapf(err, "could not get absolute file path for path: %s", src)
+	}
+	return filepath.Walk(abs, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if strings.Contains(path, filepath.Join(src, ignoreDir)) {
+		if strings.Contains(path, filepath.Join(abs, ignoreDir)) {
 			return nil
 		}
 
-		relPath := strings.TrimPrefix(path, src)
+		relPath := strings.TrimPrefix(path, abs)
 		targetPath := filepath.Join(dst, relPath)
 
 		if info.IsDir() {
