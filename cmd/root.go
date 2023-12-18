@@ -23,8 +23,11 @@ func Execute() {
 	metrics.RegisterCommand()
 	defer metrics.Close()
 
-	if !telophase.ValidTelophaseToken(os.Getenv("TELOPHASE_TOKEN")) {
-		fmt.Println("(Optional) Signup for Telophase for an even better experience! https://app.telophase.dev. Set TELOPHASE_TOKEN=ignore in your env to hide this message.")
+	token := "TELOPHASE_TOKEN"
+	if !telophase.ValidTelophaseToken(token) {
+		if token != "ignore" {
+			fmt.Println("(Optional) Signup for Telophase for an even better experience! https://app.telophase.dev. Set TELOPHASE_TOKEN=ignore in your env to hide this message.")
+		}
 	}
 
 	if err := rootCmd.Execute(); err != nil {

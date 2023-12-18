@@ -1,7 +1,6 @@
 package azureiam
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path"
@@ -46,8 +45,7 @@ func SetEnviron(currEnv []string,
 
 	cmd := exec.Command("az", "account", "set", "--subscription", subscriptionID)
 	cmd.Env = newEnv
-	if output, err := cmd.CombinedOutput(); err != nil {
-		fmt.Println("got output", string(output))
+	if _, err := cmd.CombinedOutput(); err != nil {
 		return nil, oops.Wrapf(err, "setting default subscription to %s", subscriptionID)
 	}
 
