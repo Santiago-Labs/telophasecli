@@ -52,4 +52,4 @@ Azure:
           Path: "./examples/tf/azure"
 ```
 # Root README
-Check out the [root README](../../README.md) to see telophase's full set of features.
+Check out the [root README](../../../README.md) to see telophase's full set of features.
