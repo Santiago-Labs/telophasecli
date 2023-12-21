@@ -114,7 +114,7 @@ This will create `lidl.telophase.dev` in the `Lidl` account, `walmart.telophase.
 ## Pass outputs across accounts and regions (CDK Only)
 Outputs are parsed from stacks and passed as input context (ie `--context <stack_name>.<output_key>=<output_value>`) to all sibling and child stacks.
 
-Outputs can be passed across accounts and regions!
+Outputs can be passed across accounts and regions! This can be used to solve the infamous “Export Cannot Be Deleted as it is in Use by Stack” error when updating a CDK output.
 
 ### Example: Point subdomain to a hosted zone in another account
 ```yml
