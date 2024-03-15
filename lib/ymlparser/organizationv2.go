@@ -295,9 +295,10 @@ func ParseOrganizationV2(filepath string) (AccountGroup, AzureAccountGroup, erro
 	if org.AzureAccountGroup == nil {
 		azureGroup = &AzureAccountGroup{}
 	} else {
+		fmt.Println("Not nil")
 		subsClient, err := azureorgs.New()
 		if err != nil {
-			return AccountGroup{}, AzureAccountGroup{}, oops.Wrapf(err, "")
+			return AccountGroup{}, AzureAccountGroup{}, oops.Wrapf(err, "azure err")
 		}
 		hydrateSubscriptions(subsClient, azureGroup)
 	}
@@ -502,7 +503,7 @@ func (az AzureAccountGroup) Diff(subscriptionClient *azureorgs.Client) ([]Resour
 	ctx := context.TODO()
 	subscriptions, err := subscriptionClient.CurrentSubscriptions(ctx)
 	if err != nil {
-		return nil, err
+		return nil, oops.Wrapf(err, "CurrentSubscriptions")
 	}
 
 	var operations []ResourceOperation
