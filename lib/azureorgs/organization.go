@@ -35,19 +35,19 @@ func New() (*Client, error) {
 	client := &Client{}
 	subscriptionsClient, err := armsubscriptions.NewClient(creds, nil)
 	if err != nil {
-		return nil, err
+		return nil, oops.Wrapf(err, "armsubscriptionClient")
 	}
 	client.subscriptionClient = subscriptionsClient
 
 	managementClient, err := armmanagementgroups.NewClient(creds, nil)
 	if err != nil {
-		return nil, err
+		return nil, oops.Wrapf(err, "NewClient")
 	}
 	client.managementClient = managementClient
 
 	subAliasClient, err := armsubscription.NewAliasClient(creds, nil)
 	if err != nil {
-		return nil, err
+		return nil, oops.Wrapf(err, "AliasClient")
 	}
 	client.subscriptionAliasClient = subAliasClient
 

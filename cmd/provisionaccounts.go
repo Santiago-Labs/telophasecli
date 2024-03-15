@@ -10,6 +10,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/samsarahq/go/oops"
 
 	"github.com/aws/aws-sdk-go/service/organizations"
 	"github.com/aws/aws-sdk-go/service/sts"
@@ -216,7 +217,7 @@ func orgV2Diff(orgClient awsorgs.Client, subscriptionsClient *azureorgs.Client) 
 
 	azureOps, err := azure.Diff(subscriptionsClient)
 	if err != nil {
-		return nil, err
+		return nil, oops.Wrapf(err, "diffing azure")
 	}
 	for _, op := range ymlparser.FlattenOperations(azureOps) {
 		fmt.Println(op.ToString())
