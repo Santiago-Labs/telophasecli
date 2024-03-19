@@ -44,7 +44,7 @@ This command will read `organization.yml` and **perform**:
 ### `telophasecli account import`
 ```sh
 Usage:
-  telophasecli account [flags]
+  telophasecli account import [flags]
 
 Flags:
   -h, --help         help for account
@@ -56,7 +56,7 @@ This command reads your AWS Organization and outputs `organization.yml`. We do n
 ### `telophasecli account diff`
 ```sh
 Usage:
-  telophasecli account [flags]
+  telophasecli account diff [flags]
 
 Flags:
   -h, --help         help for account
@@ -68,7 +68,7 @@ This command will read `organization.yml` and **output** changes required to you
 ### `telophasecli account deploy`
 ```sh
 Usage:
-  telophasecli account [flags]
+  telophasecli account deploy [flags]
 
 Flags:
   -h, --help         help for account
