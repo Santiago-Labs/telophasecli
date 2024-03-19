@@ -17,6 +17,7 @@ Organization:
             AccountName: Engineer A
 
 ```
+
 The configuration above will create
 1) `Production` Organizational Unit
 2) `Safety Firmware` and `Safety Ingestion Team` accounts in the `Production` OU

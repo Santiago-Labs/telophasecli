@@ -5,7 +5,7 @@
 2. AWS CLI must be configured. See [Authentication](#authentication) below
 
 ### Installation
-```
+```go
 go install github.com/santiago-labs/telophasecli@latest
 ```
 
@@ -37,7 +37,7 @@ Telophase uses a file called `organization.yml` to manage your AWS Organization 
 
 #### Option 1: Import Existing AWS Organization
 Telophase can import your AWS Organization (including OU structure):
-```
+```sh
 telophasecli account import
 ```
 
@@ -45,7 +45,8 @@ This command will output an `organization.yml` file containing all the accounts 
 
 #### Option 2: Start From Scratch
 If you prefer to start fresh and not have Telophase manage any of your existing accounts, create the organization.yml file with the following content:
-```
+
+```yaml
 Organization:
     Name: root
 ```
@@ -55,7 +56,7 @@ Here's a few examples of what you can do. Visit [Features](https://github.com/Sa
 
 #### Example: Create account
 Create an account by adding a new entry to `organization.yml`:
-```
+```yaml
 Organization:
   Name: root
   Accounts:
@@ -66,7 +67,7 @@ Then run `telophasecli account plan` and `telophasecli account apply`
 
 #### Example: Apply Terraform
 You can apply IaC by assigning a stack to the account in `organization.yml`:
-```
+```yaml
 Organization:
   Name: root
   Accounts:

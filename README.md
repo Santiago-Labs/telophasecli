@@ -9,6 +9,12 @@ Telophase is a tool designed to manage AWS Organizations and Azure Subscriptions
 
 Currently, Telophase is a CLI tool only. In the future, we plan to offer a web UI.
 
+## Install
+Go is the only supported installation method. If you'd like another method, please let us know by opening an issue!
+```
+go install github.com/santiago-labs/telophasecli@latest
+```
+
 ## Quick links
 
 - Intro
