@@ -43,7 +43,7 @@ Accounts:
     AccountName:  # (Required) Name of the account.
     Tags:  # (Optional) Telophase label for this account.
     Stacks:  # (Optional) CDK or Terraform stacks to apply to all accounts in this Organization Unit.
-    State:  # (Optional) Can be set to `deleted` to delete an account.
+    State:  # (Optional) Can be set to `deleted` to delete an account. Experimental.
 ```
 
 ##### Example

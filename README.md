@@ -26,9 +26,11 @@ go install github.com/santiago-labs/telophasecli@latest
   - [Pass Outputs Across Stacks](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#pass-outputs-across-accounts-and-regions-cdk-only)
   - [Terminal UI](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#terminal-ui)
 - CLI
-  - [`telophase account`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#account)
-  - [`telophase diff`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#diff)
-  - [`telophase deploy`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#deploy)
+  - [`telophase diff`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#telophasecli-diff)
+  - [`telophase deploy`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#telophasecli-deploy)
+  - [`telophase account import`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#telophasecli-account-import)
+  - [`telophase account diff`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#telophasecli-account-diff)
+  - [`telophase account deploy`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#telophasecli-account-deploy)
 - Organization.yml Reference
   - [Reference](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/organizationyml.md)
 
