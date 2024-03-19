@@ -266,7 +266,7 @@ This will create:
 3) `walmart.telophase.dev` NS records in the `Hosted Zone Owner` account that points to the NS record in the `Walmart` account.
 
 ### Terminal UI
-`telophasecli` TUI is helpful for monitoring operations in parallel
+`telophasecli --tui` TUI is helpful for monitoring operations in parallel
 
 <div>
     <a href="https://www.loom.com/share/f55b9436b50a4861adc84be6e1506dbf">

@@ -67,18 +67,23 @@ func runIAC(cmd iacCmd) {
 		}
 	} else {
 		cmd.orgV2Cmd(ctx, orgClient, subsClient)
-		rootGroup, azureGroup, err := ymlparser.ParseOrganizationV2(orgFile)
+		awsGroup, azureGroup, err := ymlparser.ParseOrganizationV2(orgFile)
 		if err != nil {
 			panic(fmt.Sprintf("error: %s parsing organization", err))
 		}
-		for _, acct := range rootGroup.AllDescendentAccounts() {
-			if contains(tag, acct.AllTags()) || tag == "" {
-				accountsToApply = append(accountsToApply, *acct)
+		if awsGroup != nil {
+			for _, acct := range awsGroup.AllDescendentAccounts() {
+				if contains(tag, acct.AllTags()) || tag == "" {
+					accountsToApply = append(accountsToApply, *acct)
+				}
 			}
 		}
-		for _, acct := range azureGroup.AllDescendentAccounts() {
-			if contains(tag, acct.AllTags()) || tag == "" {
-				accountsToApply = append(accountsToApply, *acct)
+
+		if azureGroup != nil {
+			for _, acct := range azureGroup.AllDescendentAccounts() {
+				if contains(tag, acct.AllTags()) || tag == "" {
+					accountsToApply = append(accountsToApply, *acct)
+				}
 			}
 		}
 	}
@@ -105,9 +110,9 @@ func runIAC(cmd iacCmd) {
 			}
 			var accountRole *sts.AssumeRoleOutput
 			var svc *sts.STS
+			sess := session.Must(session.NewSession(&aws.Config{}))
+			svc = sts.New(sess)
 			if acct.AccountID != "" {
-				sess := session.Must(session.NewSession(&aws.Config{}))
-				svc := sts.New(sess)
 				fmt.Println("assuming role", colorFunc(acct.AssumeRoleARN()))
 				input := &sts.AssumeRoleInput{
 					RoleArn:         aws.String(acct.AssumeRoleARN()),

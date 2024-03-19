@@ -248,31 +248,31 @@ func (grp AccountGroup) AllDescendentGroups() []*AccountGroup {
 
 }
 
-func ParseOrganizationV2(filepath string) (AccountGroup, AzureAccountGroup, error) {
+func ParseOrganizationV2(filepath string) (*AccountGroup, *AzureAccountGroup, error) {
 	if filepath == "" {
-		return AccountGroup{}, AzureAccountGroup{}, errors.New("filepath is empty")
+		return nil, nil, errors.New("filepath is empty")
 	}
 
 	data, err := ioutil.ReadFile(filepath)
 	if err != nil {
-		return AccountGroup{}, AzureAccountGroup{}, fmt.Errorf("err: %s reading file %s", err.Error(), filepath)
+		return nil, nil, fmt.Errorf("err: %s reading file %s", err.Error(), filepath)
 	}
 
 	var org orgDatav2
 
 	if err := yaml.Unmarshal(data, &org); err != nil {
-		return AccountGroup{}, AzureAccountGroup{}, err
+		return nil, nil, err
 	}
 
 	if err := validOrganizationV2(org.Organization); err != nil {
-		return AccountGroup{}, AzureAccountGroup{}, err
+		return nil, nil, err
 	}
 
 	orgClient := awsorgs.New()
 
 	rootId, err := orgClient.GetRootId()
 	if err != nil {
-		return AccountGroup{}, AzureAccountGroup{}, err
+		return nil, nil, err
 	}
 	rootName := "root"
 	rootOU := &organizations.OrganizationalUnit{
@@ -285,24 +285,22 @@ func ParseOrganizationV2(filepath string) (AccountGroup, AzureAccountGroup, erro
 	// Hydrate Group, then fetch all accounts (pointers) and populate ID.
 	allAccounts, err := orgClient.CurrentAccounts(context.TODO())
 	if err != nil {
-		return AccountGroup{}, AzureAccountGroup{}, err
+		return nil, nil, err
 	}
 	for _, acct := range allAccounts {
 		hydrateAccount(&org.Organization, acct)
 	}
 
 	azureGroup := org.AzureAccountGroup
-	if org.AzureAccountGroup == nil {
-		azureGroup = &AzureAccountGroup{}
-	} else {
+	if org.AzureAccountGroup != nil {
 		subsClient, err := azureorgs.New()
 		if err != nil {
-			return AccountGroup{}, AzureAccountGroup{}, oops.Wrapf(err, "")
+			return nil, nil, oops.Wrapf(err, "")
 		}
 		hydrateSubscriptions(subsClient, azureGroup)
 	}
 
-	return org.Organization, *azureGroup, nil
+	return &org.Organization, azureGroup, nil
 }
 
 func hydrateSubscriptions(subsClient *azureorgs.Client, azureGroup *AzureAccountGroup) error {

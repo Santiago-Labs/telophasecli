@@ -1,3 +1,9 @@
+<p align="center">
+  <a href="https://telophase.dev"><img src="https://github.com/Santiago-Labs/telophasecli/assets/3019043/ff5ed6db-9e91-44e7-9feb-bcf4f608bce8" alt="Logo" height=170></a>
+</p>
+<h1 align="center">Telophase</h1>
+<br/>
+
 ## What is Telophase?
 Telophase is a tool designed to manage AWS Organizations and Azure Subscriptions using infrastructure-as-code (IaC) principles. It uses a configuration file, `organization.yml`, as a source of truth and makes calls to your IaC provider (`terraform` or `cdk`) and your cloud provider(s).
 
@@ -14,9 +20,9 @@ Currently, Telophase is a CLI tool only. In the future, we plan to offer a web U
   - [Pass Outputs Across Stacks](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#pass-outputs-across-accounts-and-regions-cdk-only)
   - [Terminal UI](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#terminal-ui)
 - CLI
-  - [`telophase account`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#Account)
-  - [`telophase diff`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#Diff)
-  - [`telophase deploy`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#Deploy)
+  - [`telophase account`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#account)
+  - [`telophase diff`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#diff)
+  - [`telophase deploy`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#deploy)
 - Organization.yml Reference
   - [Reference](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/organizationyml.md)
 
@@ -34,11 +40,11 @@ We are collecting metrics on commands run via PostHog. By default, we collect th
 commands run, but this can be turned off by setting
 `TELOPHASE_METRICS_DISABLED=true`
 
-## Comparisons
-### Telophase vs Control Tower
+### Comparisons
+#### Telophase vs Control Tower
 Manage Accounts via code not a UI. Telophase leaves the controls up to you and your IaC.
 
-### Telophase vs CDK with multiple environments
+#### Telophase vs CDK with multiple environments
 Telophase wraps your usage of CDK so that you can apply the cdk to multiple
 accounts in parallel. Telophase lets you focus on your actual infrastructure and
 not worrying about setting up the right IAM roles for multi account management.

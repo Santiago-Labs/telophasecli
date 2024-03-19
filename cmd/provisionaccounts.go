@@ -209,19 +209,31 @@ func orgV2Diff(orgClient awsorgs.Client, subscriptionsClient *azureorgs.Client) 
 		panic(fmt.Sprintf("error: %s parsing organization", err))
 	}
 
-	operations := org.Diff(orgClient)
-	for _, op := range ymlparser.FlattenOperations(operations) {
-		fmt.Println(op.ToString())
+	var operations []ymlparser.ResourceOperation
+	if org != nil {
+		operations = append(operations, org.Diff(orgClient)...)
+		for _, op := range ymlparser.FlattenOperations(operations) {
+			fmt.Println(op.ToString())
+		}
+		if len(operations) == 0 {
+			fmt.Println("\033[32m No changes to AWS Organization. \033[0m")
+		}
 	}
 
-	azureOps, err := azure.Diff(subscriptionsClient)
-	if err != nil {
-		return nil, err
+	if azure != nil {
+		azureOps, err := azure.Diff(subscriptionsClient)
+		if err != nil {
+			return nil, err
+		}
+		for _, op := range ymlparser.FlattenOperations(azureOps) {
+			fmt.Println(op.ToString())
+		}
+		operations = append(operations, azureOps...)
+
+		if len(azureOps) == 0 {
+			fmt.Println("\033[32m No changes to Azure Subscriptions. \033[0m")
+		}
 	}
-	for _, op := range ymlparser.FlattenOperations(azureOps) {
-		fmt.Println(op.ToString())
-	}
-	operations = append(operations, azureOps...)
 
 	return operations, nil
 }
