@@ -120,6 +120,9 @@ func (c Client) GetOrganizationUnitChildren(ctx context.Context, OUId string) ([
 }
 
 func (c Client) MoveAccount(ctx context.Context, acctId, oldParentId, newParentId string) error {
+	if oldParentId == newParentId {
+		return nil
+	}
 	fmt.Printf("Moving Account: Account ID=%s Old Parent=%s New Parent=%s\n", acctId, oldParentId, newParentId)
 	_, err := c.organizationClient.MoveAccountWithContext(ctx, &organizations.MoveAccountInput{
 		AccountId:           &acctId,

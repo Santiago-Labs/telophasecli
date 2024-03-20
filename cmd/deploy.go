@@ -115,18 +115,6 @@ func (d deployIAC) tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, s
 	return cmd
 }
 
-func (d deployIAC) orgV1Cmd(ctx context.Context, orgClient awsorgs.Client) {
-	newAccounts, _, err := orgV1Diff(orgClient)
-	if err != nil {
-		panic(fmt.Sprintf("error: %s", err))
-	}
-
-	errs := orgClient.CreateAccounts(ctx, newAccounts)
-	if errs != nil {
-		panic(fmt.Sprintf("error creating accounts %v", errs))
-	}
-}
-
 func (d deployIAC) orgV2Cmd(ctx context.Context, orgClient awsorgs.Client, subsClient *azureorgs.Client) {
 	ops, err := orgV2Diff(orgClient, subsClient)
 	if err != nil {

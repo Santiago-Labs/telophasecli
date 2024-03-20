@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"sort"
 	"strings"
 
@@ -538,4 +539,21 @@ func (az AzureAccountGroup) AllDescendentAccounts() []*Account {
 	}
 
 	return accounts
+}
+
+func isOneOf(s string, valid ...string) bool {
+	for _, v := range valid {
+		if s == v {
+			return true
+		}
+	}
+	return false
+}
+
+func fileExists(filename string) bool {
+	_, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return err == nil
 }

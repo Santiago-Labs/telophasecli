@@ -37,7 +37,6 @@ type iacCmd interface {
 	cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack, prevOutputs []*template.CDKOutputs) *exec.Cmd
 	tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd
 	cdkOutputs(cfnClient awscloudformation.Client, acct ymlparser.Account, stack ymlparser.Stack) []*template.CDKOutputs
-	orgV1Cmd(ctx context.Context, orgClient awsorgs.Client) // Deprecated
 	orgV2Cmd(ctx context.Context, orgClient awsorgs.Client, subsClient *azureorgs.Client)
 }
 
@@ -50,40 +49,24 @@ func runIAC(cmd iacCmd) {
 	ctx := context.Background()
 
 	var accountsToApply []ymlparser.Account
-	if ymlparser.IsUsingOrgV1(orgFile) {
-		cmd.orgV1Cmd(ctx, orgClient)
-		org, err := ymlparser.ParseOrganizationV1(orgFile)
-		if err != nil {
-			panic(fmt.Sprintf("error: %s parsing organization", err))
-		}
 
-		if contains(tag, org.ManagementAccount.Tags) || tag == "" {
-			accountsToApply = append(accountsToApply, org.ManagementAccount)
-		}
-		for _, acct := range org.ChildAccounts {
+	cmd.orgV2Cmd(ctx, orgClient, subsClient)
+	awsGroup, azureGroup, err := ymlparser.ParseOrganizationV2(orgFile)
+	if err != nil {
+		panic(fmt.Sprintf("error: %s parsing organization", err))
+	}
+	if awsGroup != nil {
+		for _, acct := range awsGroup.AllDescendentAccounts() {
 			if contains(tag, acct.AllTags()) || tag == "" {
-				accountsToApply = append(accountsToApply, acct)
+				accountsToApply = append(accountsToApply, *acct)
 			}
 		}
-	} else {
-		cmd.orgV2Cmd(ctx, orgClient, subsClient)
-		awsGroup, azureGroup, err := ymlparser.ParseOrganizationV2(orgFile)
-		if err != nil {
-			panic(fmt.Sprintf("error: %s parsing organization", err))
-		}
-		if awsGroup != nil {
-			for _, acct := range awsGroup.AllDescendentAccounts() {
-				if contains(tag, acct.AllTags()) || tag == "" {
-					accountsToApply = append(accountsToApply, *acct)
-				}
-			}
-		}
+	}
 
-		if azureGroup != nil {
-			for _, acct := range azureGroup.AllDescendentAccounts() {
-				if contains(tag, acct.AllTags()) || tag == "" {
-					accountsToApply = append(accountsToApply, *acct)
-				}
+	if azureGroup != nil {
+		for _, acct := range azureGroup.AllDescendentAccounts() {
+			if contains(tag, acct.AllTags()) || tag == "" {
+				accountsToApply = append(accountsToApply, *acct)
 			}
 		}
 	}

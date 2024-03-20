@@ -123,13 +123,6 @@ func (d diffIAC) tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, sta
 	return cmd
 }
 
-func (d diffIAC) orgV1Cmd(ctx context.Context, orgClient awsorgs.Client) {
-	_, _, err := orgV1Diff(orgClient)
-	if err != nil {
-		panic(fmt.Sprintf("error: %s", err))
-	}
-}
-
 func (d diffIAC) orgV2Cmd(ctx context.Context, orgClient awsorgs.Client, subsClient *azureorgs.Client) {
 	_, err := orgV2Diff(orgClient, subsClient)
 	if err != nil {
