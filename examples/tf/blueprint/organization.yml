@@ -1,0 +1,41 @@
+Organization:
+    Name: root
+    AccountGroups:
+        - Name: Security
+          Accounts:
+            - Email: aws+audit@example.com
+              AccountName: Audit
+
+            - Email: aws+logs@example.com
+              AccountName: Log Archive
+
+        - Name: ProductionTenants
+          Accounts:
+            - Email: ethan+example@example.com
+              AccountName: example-app
+              - Path: ./blueprint_terraform
+                Type: Terraform
+              Tags: 
+                - "production"
+
+            - Email: ethan+derp@example.com
+              AccountName: example-app-eu
+              - Path: ./blueprint_terraform
+                Type: Terraform
+              Tags: 
+                - "production"
+
+        - Name: Team SRE 
+          Accounts:
+            - Email: aws+sre1@example.com
+              AccountName: aws-SRE
+              Tags: 
+                - "sre"
+              AssumeRoleOverride: "TelophaseAdminAccess"
+
+            - Email: aws+sre2@example.com
+              AccountName: aws-SRE2 
+              Tags: 
+                - "sre"
+              AssumeRoleOverride: "TelophaseAdminAccess"
+
