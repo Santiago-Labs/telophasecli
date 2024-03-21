@@ -13,6 +13,7 @@ import (
 	"github.com/aws/jsii-runtime-go"
 	"gopkg.in/yaml.v3"
 
+	"github.com/santiago-labs/telophasecli/lib/awssess"
 	"github.com/santiago-labs/telophasecli/lib/cdk/template"
 )
 
@@ -21,7 +22,7 @@ type Client struct {
 }
 
 func New(creds *sts.Credentials) Client {
-	sess := session.Must(session.NewSession(&aws.Config{
+	sess := session.Must(awssess.DefaultSession(&aws.Config{
 		Credentials: credentials.NewStaticCredentials(
 			*creds.AccessKeyId,
 			*creds.SecretAccessKey,

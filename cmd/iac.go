@@ -22,6 +22,7 @@ import (
 	"github.com/samsarahq/go/oops"
 	"github.com/santiago-labs/telophasecli/lib/awscloudformation"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
+	"github.com/santiago-labs/telophasecli/lib/awssess"
 	"github.com/santiago-labs/telophasecli/lib/awssts"
 	"github.com/santiago-labs/telophasecli/lib/azureiam"
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
@@ -93,7 +94,7 @@ func runIAC(cmd iacCmd) {
 			}
 			var accountRole *sts.AssumeRoleOutput
 			var svc *sts.STS
-			sess := session.Must(session.NewSession(&aws.Config{}))
+			sess := session.Must(awssess.DefaultSession())
 			svc = sts.New(sess)
 			if acct.AccountID != "" {
 				fmt.Println("assuming role", colorFunc(acct.AssumeRoleARN()))
@@ -410,7 +411,7 @@ func deployTUI(cmd iacCmd, orgsToApply []ymlparser.Account) error {
 			var accountRole *sts.AssumeRoleOutput
 			var svc *sts.STS
 			if acct.AccountID != "" {
-				sess := session.Must(session.NewSession(&aws.Config{}))
+				sess := session.Must(awssess.DefaultSession())
 				svc = sts.New(sess)
 				input := &sts.AssumeRoleInput{
 					RoleArn:         aws.String(acct.AssumeRoleARN()),

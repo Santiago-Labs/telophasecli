@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/aws/jsii-runtime-go"
+	"github.com/santiago-labs/telophasecli/lib/awssess"
 )
 
 type TerraformStateBucketStackProps struct {
@@ -15,7 +16,7 @@ type TerraformStateBucketStackProps struct {
 }
 
 func fetchAccountID() string {
-	sess := session.Must(session.NewSession())
+	sess := session.Must(awssess.DefaultSession())
 	svc := sts.New(sess)
 	result, err := svc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
 	if err != nil {

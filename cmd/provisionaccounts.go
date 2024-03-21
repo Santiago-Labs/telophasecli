@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
+	"github.com/santiago-labs/telophasecli/lib/awssess"
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
 	"github.com/santiago-labs/telophasecli/lib/telophase"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
@@ -132,7 +133,7 @@ func orgV2Diff(orgClient awsorgs.Client, subscriptionsClient *azureorgs.Client) 
 }
 
 func currentAccountID() (string, error) {
-	stsClient := sts.New(session.Must(session.NewSession()))
+	stsClient := sts.New(session.Must(awssess.DefaultSession()))
 	caller, err := stsClient.GetCallerIdentity(&sts.GetCallerIdentityInput{})
 	if err != nil {
 		return "", err

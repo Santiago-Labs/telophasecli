@@ -1,6 +1,8 @@
 package awssts
 
-import "strings"
+import (
+	"strings"
+)
 
 func SetEnviron(currEnv []string,
 	accessKeyID,
