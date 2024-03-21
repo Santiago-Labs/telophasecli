@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/organizations"
 	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/santiago-labs/telophasecli/lib/awssess"
 	"github.com/santiago-labs/telophasecli/lib/telophase"
 )
 
@@ -18,7 +19,7 @@ type Client struct {
 }
 
 func New() Client {
-	sess := session.Must(session.NewSession())
+	sess := session.Must(awssess.DefaultSession())
 	orgsClient := organizations.New(sess)
 
 	stsClient := sts.New(sess)

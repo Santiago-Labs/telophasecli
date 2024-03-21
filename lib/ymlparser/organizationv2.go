@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/samsarahq/go/oops"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
+	"github.com/santiago-labs/telophasecli/lib/awssess"
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
 	"gopkg.in/yaml.v3"
 )
@@ -86,7 +87,7 @@ func (grp AccountGroup) Diff(orgClient awsorgs.Client) []ResourceOperation {
 	// and finally (re)parenting groups and accounts.
 	var operations []ResourceOperation
 
-	stsClient := sts.New(session.Must(session.NewSession()))
+	stsClient := sts.New(session.Must(awssess.DefaultSession()))
 	caller, err := stsClient.GetCallerIdentity(&sts.GetCallerIdentityInput{})
 	if err != nil {
 		panic(err)
@@ -285,7 +286,7 @@ func ParseOrganizationV2(filepath string) (*AccountGroup, *AzureAccountGroup, er
 	// Hydrate Group, then fetch all accounts (pointers) and populate ID.
 	allAccounts, err := orgClient.CurrentAccounts(context.TODO())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, oops.Wrapf(err, "CurrentAccounts")
 	}
 	for _, acct := range allAccounts {
 		hydrateAccount(&org.Organization, acct)
