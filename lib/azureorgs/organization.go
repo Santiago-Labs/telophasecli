@@ -168,6 +168,10 @@ func createResourceGroup(ctx context.Context, subscriptionId string, credential 
 
 // sanitizeSubscriptionID takes a subscription ID and returns a sanitized version removing the dashes.
 func sanitizeSubscriptionID(subscriptionID string) string {
+	if len(subscriptionID) != 12 {
+		return subscriptionID
+	}
+
 	return strings.ReplaceAll(subscriptionID, "-", "")[:12]
 }
 
