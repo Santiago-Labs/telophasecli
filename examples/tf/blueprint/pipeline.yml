@@ -1,0 +1,14 @@
+steps:
+  - label: "Terraform Plan"
+  # This will output:
+  # 1. Changes required to AWS Organization.
+  # 2. Output of terraform plan.
+  # This will not output the output of a terraform plan if the account has not
+  # been provisioned.
+  - command: "telophasecli diff"
+
+  - wait: ~
+  - block: "unblock to apply"
+
+  - label: "Apply new Accounts and Terraform"
+  - command: "telophasecli deploy"
