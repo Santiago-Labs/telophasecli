@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/aws/aws-cdk-go/awscdk"
 	"github.com/aws/aws-cdk-go/awscdk/awss3"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/aws/jsii-runtime-go"
-	"github.com/santiago-labs/telophasecli/lib/awssess"
 )
 
 type TerraformStateBucketStackProps struct {
@@ -16,7 +17,13 @@ type TerraformStateBucketStackProps struct {
 }
 
 func fetchAccountID() string {
-	sess := session.Must(awssess.DefaultSession())
+	cfg := aws.NewConfig()
+	if os.Getenv("LOCALSTACK") != "" {
+		cfg.Endpoint = aws.String("http://localhost:4566")
+	}
+	sess := session.Must(session.NewSession(
+		cfg,
+	))
 	svc := sts.New(sess)
 	result, err := svc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
 	if err != nil {
@@ -44,7 +51,7 @@ func NewTerraformStateBucketStack(scope awscdk.Construct, id string, props *Terr
 func main() {
 	app := awscdk.NewApp(nil)
 
-	NewTerraformStateBucketStack(app, "TerraformStateBucketStack", &TerraformStateBucketStackProps{
+	NewTerraformStateBucketStack(app, "TerraformStateBucketStackExample", &TerraformStateBucketStackProps{
 		awscdk.StackProps{
 			Env: env(),
 		},
