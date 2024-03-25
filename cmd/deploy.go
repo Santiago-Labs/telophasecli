@@ -17,6 +17,7 @@ import (
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
 	"github.com/santiago-labs/telophasecli/lib/cdk"
 	"github.com/santiago-labs/telophasecli/lib/cdk/template"
+	"github.com/santiago-labs/telophasecli/lib/localstack"
 	"github.com/santiago-labs/telophasecli/lib/terraform"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 
@@ -70,7 +71,7 @@ func (d deployIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, 
 	} else {
 		cdkArgs = append(cdkArgs, strings.Split(stack.Name, ",")...)
 	}
-	cmd := exec.Command("cdk", cdkArgs...)
+	cmd := exec.Command(localstack.CdkCmd(), cdkArgs...)
 	cmd.Dir = stack.Path
 	if result != nil {
 		cmd.Env = awssts.SetEnviron(os.Environ(),
@@ -96,7 +97,7 @@ func (d deployIAC) tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, s
 	args := []string{
 		"apply", "-auto-approve",
 	}
-	cmd := exec.Command("terraform", args...)
+	cmd := exec.Command(localstack.TfCmd(), args...)
 	cmd.Dir = workingPath
 	if result != nil {
 		cmd.Env = awssts.SetEnviron(os.Environ(),

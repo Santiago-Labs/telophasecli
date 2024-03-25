@@ -29,6 +29,7 @@ import (
 	"github.com/santiago-labs/telophasecli/lib/cdk"
 	"github.com/santiago-labs/telophasecli/lib/cdk/template"
 	"github.com/santiago-labs/telophasecli/lib/colors"
+	"github.com/santiago-labs/telophasecli/lib/localstack"
 	"github.com/santiago-labs/telophasecli/lib/telophase"
 	"github.com/santiago-labs/telophasecli/lib/terraform"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
@@ -274,7 +275,7 @@ func bootstrapCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ym
 	outPath := cdk.TmpPath(acct, stack.Path)
 	cdkArgs := []string{"bootstrap", "--output", outPath}
 	cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName))
-	cmd := exec.Command("cdk", cdkArgs...)
+	cmd := exec.Command(localstack.CdkCmd(), cdkArgs...)
 	cmd.Dir = stack.Path
 	if result != nil {
 		cmd.Env = awssts.SetEnviron(os.Environ(),
@@ -303,7 +304,7 @@ func synthCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlpar
 			}
 		}
 	}
-	cmd := exec.Command("cdk", cdkArgs...)
+	cmd := exec.Command(localstack.CdkCmd(), cdkArgs...)
 	cmd.Dir = stack.Path
 	if result != nil {
 		cmd.Env = awssts.SetEnviron(os.Environ(),
@@ -335,7 +336,7 @@ func initTf(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparse
 			panic(fmt.Errorf("failed to copy files from %s to %s: %w", stack.Path, workingPath, err))
 		}
 
-		cmd := exec.Command("terraform", "init")
+		cmd := exec.Command(localstack.TfCmd(), "init")
 		cmd.Dir = workingPath
 
 		// If result is nil then we are not using AWS
