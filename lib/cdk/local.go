@@ -13,11 +13,12 @@ import (
 
 	"github.com/santiago-labs/telophasecli/lib/awscloudformation"
 	"github.com/santiago-labs/telophasecli/lib/cdk/template"
+	"github.com/santiago-labs/telophasecli/lib/localstack"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 )
 
 func getStackNames(stack ymlparser.Stack) ([]string, error) {
-	cmd := exec.Command("cdk", "ls")
+	cmd := exec.Command(localstack.CdkCmd(), "ls")
 	output, err := cmd.Output()
 	if err != nil {
 		return []string{}, err
