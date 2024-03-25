@@ -105,7 +105,7 @@ func runIAC(cmd iacCmd) {
 				}
 
 				var err error
-				accountRole, err = svc.AssumeRole(input)
+				accountRole, err = awssess.AssumeRole(svc, input)
 				if err != nil {
 					fmt.Println("Error assuming role:", err)
 					return
@@ -155,7 +155,7 @@ func runIAC(cmd iacCmd) {
 						RoleSessionName: aws.String("telophase-org"),
 					}
 
-					stackRole, err = svc.AssumeRole(input)
+					stackRole, err = awssess.AssumeRole(svc, input)
 					if err != nil {
 						fmt.Println("Error assuming role:", err)
 						return
@@ -419,7 +419,7 @@ func deployTUI(cmd iacCmd, orgsToApply []ymlparser.Account) error {
 					RoleSessionName: aws.String("telophase-org"),
 				}
 				var err error
-				accountRole, err = svc.AssumeRole(input)
+				accountRole, err = awssess.AssumeRole(svc, input)
 				if err != nil {
 					fmt.Fprint(file, "Error assuming role:", err)
 					return
@@ -467,7 +467,7 @@ func deployTUI(cmd iacCmd, orgsToApply []ymlparser.Account) error {
 						RoleSessionName: aws.String("telophase-org"),
 					}
 
-					stackRole, err = svc.AssumeRole(input)
+					stackRole, err = awssess.AssumeRole(svc, input)
 					if err != nil {
 						fmt.Println("Error assuming role:", err)
 						return

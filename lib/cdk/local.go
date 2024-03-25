@@ -61,6 +61,9 @@ func StackLocalOutput(cfnClient awscloudformation.Client, acct ymlparser.Account
 			return nil, err
 		}
 		for _, stackName := range names {
+			if stackName == "" {
+				continue
+			}
 			specificStack := ymlparser.Stack{
 				Path:            stack.Path,
 				RoleOverrideARN: stack.RoleOverrideARN,
