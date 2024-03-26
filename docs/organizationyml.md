@@ -96,7 +96,7 @@ CDK and Terraform stacks can be assigned to `Account`s and `AccountGroup`s. Stac
 
 ```yaml
 Stacks:
-  - Path:  # (Required) Path to the CDK or Terraform project.
+  - Path:  # (Required) Path to CDK or Terraform project. This must be a directory.
     Type:  # (Required) "CDK" or "Terraform".
     Name:  # (Optional) Apply only CDK stack with this name. By default, all CDK stacks are applied. (CDK Only)
     RoleOverrideARN:  # (Optional) Force CDK and Terraform to us a specific role when applying a stack. The default role is the account's `AssumeRoleName`.

@@ -172,6 +172,9 @@ func sanitizeSubscriptionID(subscriptionID string) string {
 }
 
 func StorageAccountName(subscriptionID string) string {
+	if subscriptionID == "" {
+		return ""
+	}
 	return "telophase" + sanitizeSubscriptionID(subscriptionID)
 }
 
