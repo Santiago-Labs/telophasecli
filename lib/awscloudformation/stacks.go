@@ -71,6 +71,10 @@ func (c Client) FetchStackOutputs(ctx context.Context, stackName string) ([]map[
 }
 
 func (c Client) FetchTemplateOutputs(ctx context.Context, stackName string) (*template.CDKOutputs, error) {
+	if stackName == "" {
+		return &template.CDKOutputs{}, nil
+	}
+
 	var templateOutputs template.CDKOutputs
 	template, err := c.client.GetTemplateWithContext(ctx, &cloudformation.GetTemplateInput{
 		StackName: jsii.String(stackName),
