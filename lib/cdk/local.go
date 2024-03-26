@@ -18,16 +18,28 @@ import (
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 )
 
-func getStackNames(stack ymlparser.Stack) ([]string, error) {
-	cmd := exec.Command(localstack.CdkCmd(), "ls")
+func getStackNames(acct ymlparser.Account, stack ymlparser.Stack) ([]string, error) {
+	cmd := exec.Command(localstack.CdkCmd(), "ls", "--output", TmpPath(acct, stack.Name))
 	cmd.Dir = stack.Path
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return []string{}, oops.Wrapf(err, "%s ls path: (%s)", localstack.CdkCmd(), stack.Path)
+		return []string{}, oops.Wrapf(err, "%s ls path: (%s), output: (%s)", localstack.CdkCmd(), stack.Path, output)
 	}
 
+	// cdk ls can result in a few empty lines. Make sure we remove those to avoid returning a stack with an empty name.
 	outputStr := string(output)
-	return strings.Split(outputStr, "\n"), nil
+	results := strings.Split(outputStr, "\n")
+	var stackNames []string
+	for _, result := range results {
+		trimmed := strings.TrimSpace(result)
+		if trimmed == "" {
+			continue
+		}
+
+		stackNames = append(stackNames, trimmed)
+	}
+
+	return stackNames, nil
 }
 
 func templateOutput(cfnClient awscloudformation.Client, acct ymlparser.Account, stack ymlparser.Stack) (*template.CDKOutputs, error) {
@@ -58,7 +70,7 @@ func StackLocalOutput(cfnClient awscloudformation.Client, acct ymlparser.Account
 	var stackTemplateOutputs []*template.CDKOutputs
 
 	if stack.Name == "" || stack.Name == "*" {
-		names, err := getStackNames(stack)
+		names, err := getStackNames(acct, stack)
 		if err != nil {
 			return nil, oops.Wrapf(err, "getting stack names")
 		}
