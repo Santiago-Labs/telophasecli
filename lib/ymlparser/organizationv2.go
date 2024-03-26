@@ -25,13 +25,14 @@ type orgDatav2 struct {
 }
 
 type AccountGroup struct {
-	ID          *string         `yaml:"-"`
-	Name        string          `yaml:"Name,omitempty"`
-	ChildGroups []*AccountGroup `yaml:"AccountGroups,omitempty"`
-	Tags        []string        `yaml:"Tags,omitempty"`
-	Accounts    []*Account      `yaml:"Accounts,omitempty"`
-	Stacks      []Stack         `yaml:"Stacks,omitempty"`
-	Parent      *AccountGroup   `yaml:"-"`
+	ID                     *string         `yaml:"-"`
+	Name                   string          `yaml:"Name,omitempty"`
+	ChildGroups            []*AccountGroup `yaml:"AccountGroups,omitempty"`
+	Tags                   []string        `yaml:"Tags,omitempty"`
+	Accounts               []*Account      `yaml:"Accounts,omitempty"`
+	BaselineStacks         []Stack         `yaml:"Stacks,omitempty"`
+	ServiceControlPolicies []Stack         `yaml:"ServiceControlPolicies,omitempty"`
+	Parent                 *AccountGroup   `yaml:"-"`
 }
 
 type AzureAccountGroup struct {
@@ -61,7 +62,7 @@ type Subscription struct {
 	SubscriptionName string   `yaml:"Name"`
 	Account          *Account `yaml:"Account"`
 
-	Stacks []Stack `yaml:"Stacks,omitempty"`
+	BaselineStacks []Stack `yaml:"Stacks,omitempty"`
 }
 
 func (grp AccountGroup) AllTags() []string {
@@ -73,12 +74,12 @@ func (grp AccountGroup) AllTags() []string {
 	return tags
 }
 
-func (grp AccountGroup) AllStacks() []Stack {
+func (grp AccountGroup) AllBaselineStacks() []Stack {
 	var stacks []Stack
 	if grp.Parent != nil {
-		stacks = append(stacks, grp.Parent.AllStacks()...)
+		stacks = append(stacks, grp.Parent.AllBaselineStacks()...)
 	}
-	stacks = append(stacks, grp.Stacks...)
+	stacks = append(stacks, grp.BaselineStacks...)
 	return stacks
 }
 
@@ -317,7 +318,7 @@ func hydrateSubscriptions(subsClient *azureorgs.Client, azureGroup *AzureAccount
 				azureGroup.Subscriptions[i].Account = &Account{
 					SubscriptionID: strings.Split(*liveSub.ID, "/")[2],
 					AccountName:    *liveSub.DisplayName,
-					Stacks:         sub.Stacks,
+					BaselineStacks: sub.BaselineStacks,
 				}
 			}
 		}
