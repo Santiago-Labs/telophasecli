@@ -15,7 +15,6 @@ import (
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/awssess"
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
-	"github.com/santiago-labs/telophasecli/lib/telophase"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 )
 
@@ -143,18 +142,9 @@ func currentAccountID() (string, error) {
 }
 
 func importOrgV2(orgClient awsorgs.Client) error {
-	accounts, err := orgClient.CurrentAccounts(context.Background())
-	if err != nil {
-		return fmt.Errorf("error: %s getting current accounts", err)
-	}
-
 	managingAccountID, err := currentAccountID()
 	if err != nil {
 		return err
-	}
-
-	for _, acct := range accounts {
-		telophase.UpsertAccount(*acct.Id, *acct.Name)
 	}
 
 	rootId, err := orgClient.GetRootId()

@@ -30,7 +30,6 @@ import (
 	"github.com/santiago-labs/telophasecli/lib/cdk/template"
 	"github.com/santiago-labs/telophasecli/lib/colors"
 	"github.com/santiago-labs/telophasecli/lib/localstack"
-	"github.com/santiago-labs/telophasecli/lib/telophase"
 	"github.com/santiago-labs/telophasecli/lib/terraform"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 )
@@ -113,27 +112,10 @@ func runIAC(cmd iacCmd) {
 			}
 
 			var acctStacks []ymlparser.Stack
-			if cdkPath == "" && tfPath == "" {
-				if stacks != "" && stacks != "*" {
-					acctStacks = append(acctStacks, acct.FilterStacks(stacks)...)
-				} else {
-					acctStacks = append(acctStacks, acct.AllStacks()...)
-				}
+			if stacks != "" && stacks != "*" {
+				acctStacks = append(acctStacks, acct.FilterBaselineStacks(stacks)...)
 			} else {
-				if cdkPath != "" {
-					acctStacks = append(acctStacks, ymlparser.Stack{
-						Path: cdkPath,
-						Name: stacks,
-						Type: "CDK",
-					})
-				}
-				if tfPath != "" {
-					acctStacks = append(acctStacks, ymlparser.Stack{
-						Path: tfPath,
-						Name: stacks,
-						Type: "Terraform",
-					})
-				}
+				acctStacks = append(acctStacks, acct.AllBaselineStacks()...)
 			}
 
 			coloredAccountID := colorFunc("[Account: " + acct.ID() + "]")
@@ -181,8 +163,6 @@ func runIAC(cmd iacCmd) {
 					if err := runCmd(deployCDKCmd, acct, coloredAccountID); err != nil {
 						fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 						return
-					} else {
-						telophase.RecordDeploy(acct.AccountID, acct.AccountName)
 					}
 					cdkOutputs = append(cdkOutputs, cmd.cdkOutputs(cfnClient, acct, stack)...)
 
@@ -198,8 +178,6 @@ func runIAC(cmd iacCmd) {
 					if err := runCmd(deployTFCmd, acct, coloredAccountID); err != nil {
 						fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 						return
-					} else {
-						telophase.RecordDeploy(acct.AccountID, acct.AccountName)
 					}
 				} else {
 					panic(fmt.Errorf("unsupported stack type: %s", stack.Type))
@@ -427,27 +405,10 @@ func deployTUI(cmd iacCmd, orgsToApply []ymlparser.Account) error {
 			}
 
 			var acctStacks []ymlparser.Stack
-			if cdkPath == "" && tfPath == "" {
-				if stacks != "" && stacks != "*" {
-					acctStacks = append(acctStacks, acct.FilterStacks(stacks)...)
-				} else {
-					acctStacks = append(acctStacks, acct.AllStacks()...)
-				}
+			if stacks != "" && stacks != "*" {
+				acctStacks = append(acctStacks, acct.FilterBaselineStacks(stacks)...)
 			} else {
-				if cdkPath != "" {
-					acctStacks = append(acctStacks, ymlparser.Stack{
-						Path: cdkPath,
-						Name: stacks,
-						Type: "CDK",
-					})
-				}
-				if tfPath != "" {
-					acctStacks = append(acctStacks, ymlparser.Stack{
-						Path: tfPath,
-						Name: stacks,
-						Type: "Terraform",
-					})
-				}
+				acctStacks = append(acctStacks, acct.AllBaselineStacks()...)
 			}
 
 			if len(acctStacks) == 0 {
@@ -491,8 +452,6 @@ func deployTUI(cmd iacCmd, orgsToApply []ymlparser.Account) error {
 					deployCDKCmd := cmd.cdkCmd(stackRole, acct, stack, cdkOutputs)
 					if err := runCmdWriter(deployCDKCmd, acct, file); err != nil {
 						return
-					} else {
-						telophase.RecordDeploy(acct.AccountID, acct.AccountName)
 					}
 					cdkOutputs = append(cdkOutputs, cmd.cdkOutputs(cfnClient, acct, stack)...)
 				} else if stack.Type == "Terraform" {
@@ -505,8 +464,6 @@ func deployTUI(cmd iacCmd, orgsToApply []ymlparser.Account) error {
 					deployTFCmd := cmd.tfCmd(stackRole, acct, stack)
 					if err := runCmdWriter(deployTFCmd, acct, file); err != nil {
 						return
-					} else {
-						telophase.RecordDeploy(acct.AccountID, acct.AccountName)
 					}
 				} else {
 					panic(fmt.Errorf("unsupported stack type: %s", stack.Type))

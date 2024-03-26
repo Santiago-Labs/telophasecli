@@ -5,12 +5,10 @@ Usage:
   telophasecli diff [flags]
 
 Flags:
-      --cdk-path string   Path to your CDK code
   -h, --help              help for diff
       --org string        Path to the organization.yml file (default "organization.yml")
       --stacks string     Filter stacks to deploy
       --tag string        Filter accounts and account groups to deploy.
-      --tf-path string    Path to your TF code
       --tui               use the TUI for diff
 ```
 
@@ -26,12 +24,10 @@ Usage:
   telophasecli deploy [flags]
 
 Flags:
-      --cdk-path string   Path to your CDK code
   -h, --help              help for deploy
       --org string        Path to the organization.yml file (default "organization.yml")
       --stacks string     Filter stacks to deploy
       --tag string        Filter accounts and account groups to deploy
-      --tf-path string    Path to your Terraform code
       --tui               use the TUI for deploy
 ```
 
@@ -51,7 +47,7 @@ Flags:
       --org string   Path to the organization.yml file (default "organization.yml")
 ```
 
-This command reads your AWS Organization and outputs `organization.yml`. We do not yet support import Azure Subscriptions.
+This command reads your AWS Organization and outputs `organization.yml`. It must be run in your AWS Management Account. We do not yet support importing Azure Subscriptions.
 
 ### `telophasecli account diff`
 ```sh

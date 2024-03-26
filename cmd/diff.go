@@ -27,8 +27,6 @@ import (
 
 func init() {
 	rootCmd.AddCommand(diffCmd)
-	diffCmd.Flags().StringVar(&cdkPath, "cdk-path", "", "Path to your CDK code")
-	diffCmd.Flags().StringVar(&tfPath, "tf-path", "", "Path to your TF code")
 	diffCmd.Flags().StringVar(&stacks, "stacks", "", "Filter stacks to deploy")
 	diffCmd.Flags().StringVar(&tag, "tag", "", "Filter accounts and account groups to deploy.")
 	diffCmd.Flags().StringVar(&orgFile, "org", "organization.yml", "Path to the organization.yml file")

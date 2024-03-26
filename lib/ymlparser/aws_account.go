@@ -12,12 +12,13 @@ type Account struct {
 	// AccountID will be populated if this is an AWS Account.
 	AccountID string `yaml:"-"`
 	// SubscriptionID will be populated if this is an Azure Account.
-	SubscriptionID    string        `yaml:"-"`
-	AssumeRoleName    string        `yaml:"AssumeRoleName,omitempty"`
-	Tags              []string      `yaml:"Tags,omitempty"`
-	Stacks            []Stack       `yaml:"Stacks,omitempty"`
-	ManagementAccount bool          `yaml:"ManagementAccount,omitempty"`
-	Parent            *AccountGroup `yaml:"-"`
+	SubscriptionID         string        `yaml:"-"`
+	AssumeRoleName         string        `yaml:"AssumeRoleName,omitempty"`
+	Tags                   []string      `yaml:"Tags,omitempty"`
+	BaselineStacks         []Stack       `yaml:"Stacks,omitempty"`
+	ServiceControlPolicies []Stack       `yaml:"ServiceControlPolicies,omitempty"`
+	ManagementAccount      bool          `yaml:"ManagementAccount,omitempty"`
+	Parent                 *AccountGroup `yaml:"-"`
 }
 
 type Stack struct {
@@ -75,19 +76,44 @@ func (a Account) AllTags() []string {
 	return tags
 }
 
-func (a Account) AllStacks() []Stack {
+func (a Account) AllBaselineStacks() []Stack {
 	var stacks []Stack
 	if a.Parent != nil {
-		stacks = append(stacks, a.Parent.AllStacks()...)
+		stacks = append(stacks, a.Parent.AllBaselineStacks()...)
 	}
-	stacks = append(stacks, a.Stacks...)
+	stacks = append(stacks, a.BaselineStacks...)
 	return stacks
 }
 
-func (a Account) FilterStacks(stackNames string) []Stack {
+func (a Account) FilterBaselineStacks(stackNames string) []Stack {
 	var matchingStacks []Stack
 	targetStackNames := strings.Split(stackNames, ",")
-	for _, stack := range a.AllStacks() {
+	for _, stack := range a.AllBaselineStacks() {
+		acctStackNames := strings.Split(stack.Name, ",")
+		var matchingStackNames []string
+		for _, name := range acctStackNames {
+			for _, targetName := range targetStackNames {
+				if strings.TrimSpace(name) == strings.TrimSpace(targetName) {
+					matchingStackNames = append(matchingStackNames, name)
+					break
+				}
+			}
+		}
+		if len(matchingStackNames) > 0 {
+			matchingStacks = append(matchingStacks, Stack{
+				Path: stack.Path,
+				Type: stack.Type,
+				Name: strings.Join(matchingStackNames, ","),
+			})
+		}
+	}
+	return matchingStacks
+}
+
+func (a Account) FilterServiceControlPolicies(stackNames string) []Stack {
+	var matchingStacks []Stack
+	targetStackNames := strings.Split(stackNames, ",")
+	for _, stack := range a.ServiceControlPolicies {
 		acctStackNames := strings.Split(stack.Name, ",")
 		var matchingStackNames []string
 		for _, name := range acctStackNames {
