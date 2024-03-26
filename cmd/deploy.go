@@ -26,10 +26,8 @@ import (
 )
 
 var (
-	cdkPath string
-	tfPath  string
-	tag     string
-	stacks  string
+	tag    string
+	stacks string
 
 	// TUI
 	useTUI   bool
@@ -39,8 +37,6 @@ var (
 
 func init() {
 	rootCmd.AddCommand(compileCmd)
-	compileCmd.Flags().StringVar(&cdkPath, "cdk-path", "", "Path to your CDK code")
-	compileCmd.Flags().StringVar(&tfPath, "tf-path", "", "Path to your Terraform code")
 	compileCmd.Flags().StringVar(&stacks, "stacks", "", "Filter stacks to deploy")
 	compileCmd.Flags().StringVar(&tag, "tag", "", "Filter accounts and account groups to deploy")
 	compileCmd.Flags().StringVar(&orgFile, "org", "organization.yml", "Path to the organization.yml file")

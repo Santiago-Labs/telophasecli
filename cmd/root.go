@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/santiago-labs/telophasecli/lib/metrics"
-	"github.com/santiago-labs/telophasecli/lib/telophase"
 	"github.com/spf13/cobra"
 )
 
@@ -22,13 +21,6 @@ func Execute() {
 	metrics.Init()
 	metrics.RegisterCommand()
 	defer metrics.Close()
-
-	token := "TELOPHASE_TOKEN"
-	if !telophase.ValidTelophaseToken(token) {
-		if token != "ignore" {
-			fmt.Println("(Optional) Signup for Telophase for an even better experience! https://app.telophase.dev. Set TELOPHASE_TOKEN=ignore in your env to hide this message.")
-		}
-	}
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Whoops. There was an error while executing your CLI '%s'", err)

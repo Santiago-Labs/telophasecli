@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/organizations"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/santiago-labs/telophasecli/lib/awssess"
-	"github.com/santiago-labs/telophasecli/lib/telophase"
 )
 
 type Client struct {
@@ -241,7 +240,6 @@ func (c Client) CreateAccounts(ctx context.Context, accts []*organizations.Accou
 				requestToAccount[requestId].Id = currStatus.CreateAccountStatus.AccountId
 				fmt.Printf("Successfully created account %s.\n", accountName)
 				requestsInProgress -= 1
-				telophase.UpsertAccount(*currStatus.CreateAccountStatus.AccountId, accountName)
 			}
 		}
 	}
