@@ -11,6 +11,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/samsarahq/go/oops"
 	"github.com/santiago-labs/telophasecli/lib/awscloudformation"
 	"github.com/santiago-labs/telophasecli/lib/cdk/template"
 	"github.com/santiago-labs/telophasecli/lib/localstack"
@@ -19,9 +20,10 @@ import (
 
 func getStackNames(stack ymlparser.Stack) ([]string, error) {
 	cmd := exec.Command(localstack.CdkCmd(), "ls")
+	cmd.Dir = stack.Path
 	output, err := cmd.Output()
 	if err != nil {
-		return []string{}, err
+		return []string{}, oops.Wrapf(err, "%s ls path: (%s)", localstack.CdkCmd(), stack.Path)
 	}
 
 	outputStr := string(output)
@@ -38,12 +40,12 @@ func templateOutput(cfnClient awscloudformation.Client, acct ymlparser.Account, 
 	}
 	rawFile, err := os.ReadFile(fmt.Sprintf("%s%s/%s.template.json", stackPathPrefix, tmpPath, stack.Name))
 	if err != nil {
-		return nil, err
+		return nil, oops.Wrapf(err, "read template")
 	}
 
 	err = json.Unmarshal(rawFile, &localTemplate)
 	if err != nil {
-		return nil, err
+		return nil, oops.Wrapf(err, "unmarshal template")
 	}
 
 	// We have to manually set the name because its not in the stack template.
@@ -58,7 +60,7 @@ func StackLocalOutput(cfnClient awscloudformation.Client, acct ymlparser.Account
 	if stack.Name == "" || stack.Name == "*" {
 		names, err := getStackNames(stack)
 		if err != nil {
-			return nil, err
+			return nil, oops.Wrapf(err, "getting stack names")
 		}
 		for _, stackName := range names {
 			if stackName == "" {
@@ -72,14 +74,14 @@ func StackLocalOutput(cfnClient awscloudformation.Client, acct ymlparser.Account
 			}
 			output, err := templateOutput(cfnClient, acct, specificStack)
 			if err != nil {
-				return nil, err
+				return nil, oops.Wrapf(err, "error getting local outputs from stack: %s", stackName)
 			}
 			stackTemplateOutputs = append(stackTemplateOutputs, output)
 		}
 	} else {
 		output, err := templateOutput(cfnClient, acct, stack)
 		if err != nil {
-			return nil, err
+			return nil, oops.Wrapf(err, "error getting templateOutput")
 		}
 		stackTemplateOutputs = append(stackTemplateOutputs, output)
 	}
@@ -90,13 +92,13 @@ func StackLocalOutput(cfnClient awscloudformation.Client, acct ymlparser.Account
 func StackRemoteOutput(cfnClient awscloudformation.Client, acct ymlparser.Account, stack ymlparser.Stack) ([]*template.CDKOutputs, error) {
 	localOutputs, err := StackLocalOutput(cfnClient, acct, stack)
 	if err != nil {
-		return []*template.CDKOutputs{}, err
+		return []*template.CDKOutputs{}, oops.Wrapf(err, "error getting local outputs")
 	}
 
 	// Mark deployed outputs that have changed
 	deployedTemplateOutputs, err := cfnClient.FetchTemplateOutputs(context.TODO(), stack.Name)
 	if err != nil {
-		return nil, err
+		return nil, oops.Wrapf(err, "FetchTemplateOutputs stack (%s)", stack.Name)
 	}
 
 	for idx, output := range localOutputs {
@@ -104,7 +106,7 @@ func StackRemoteOutput(cfnClient awscloudformation.Client, acct ymlparser.Accoun
 
 		outputVals, err := cfnClient.FetchStackOutputs(context.TODO(), output.StackName)
 		if err != nil {
-			return []*template.CDKOutputs{}, err
+			return []*template.CDKOutputs{}, oops.Wrapf(err, "getting output: %s", output.StackName)
 		}
 
 		for _, outValue := range outputVals {
