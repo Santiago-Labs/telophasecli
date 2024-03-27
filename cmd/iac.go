@@ -3,14 +3,12 @@ package cmd
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -20,14 +18,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/rivo/tview"
 	"github.com/samsarahq/go/oops"
-	"github.com/santiago-labs/telophasecli/lib/awscloudformation"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/awssess"
 	"github.com/santiago-labs/telophasecli/lib/awssts"
 	"github.com/santiago-labs/telophasecli/lib/azureiam"
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
-	"github.com/santiago-labs/telophasecli/lib/cdk"
-	"github.com/santiago-labs/telophasecli/lib/cdk/template"
 	"github.com/santiago-labs/telophasecli/lib/colors"
 	"github.com/santiago-labs/telophasecli/lib/localstack"
 	"github.com/santiago-labs/telophasecli/lib/terraform"
@@ -35,9 +30,8 @@ import (
 )
 
 type iacCmd interface {
-	cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack, prevOutputs []*template.CDKOutputs) *exec.Cmd
+	cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd
 	tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd
-	cdkOutputs(cfnClient awscloudformation.Client, acct ymlparser.Account, stack ymlparser.Stack) []*template.CDKOutputs
 	orgV2Cmd(ctx context.Context, orgClient awsorgs.Client, subsClient *azureorgs.Client)
 }
 
@@ -124,7 +118,6 @@ func runIAC(cmd iacCmd) {
 				fmt.Printf("%s No stacks to deploy\n", coloredAccountID)
 				return
 			}
-			var cdkOutputs []*template.CDKOutputs
 
 			var bootstrappedCDK bool
 			for _, stack := range acctStacks {
@@ -144,7 +137,6 @@ func runIAC(cmd iacCmd) {
 					}
 				}
 				if stack.Type == "CDK" {
-					cfnClient := awscloudformation.New(stackRole.Credentials)
 					if !bootstrappedCDK {
 						bootstrapCDK := bootstrapCDK(stackRole, acct, stack)
 						if err := runCmd(bootstrapCDK, acct, coloredAccountID); err != nil {
@@ -154,17 +146,16 @@ func runIAC(cmd iacCmd) {
 						bootstrappedCDK = true
 					}
 
-					synthCDK := synthCDK(stackRole, acct, stack, cdkOutputs)
+					synthCDK := synthCDK(stackRole, acct, stack)
 					if err := runCmd(synthCDK, acct, coloredAccountID); err != nil {
 						fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 						return
 					}
-					deployCDKCmd := cmd.cdkCmd(stackRole, acct, stack, cdkOutputs)
+					deployCDKCmd := cmd.cdkCmd(stackRole, acct, stack)
 					if err := runCmd(deployCDKCmd, acct, coloredAccountID); err != nil {
 						fmt.Printf("[ERROR] %s %v\n", coloredAccountID, err)
 						return
 					}
-					cdkOutputs = append(cdkOutputs, cmd.cdkOutputs(cfnClient, acct, stack)...)
 
 				} else if stack.Type == "Terraform" {
 					initTFCmd := initTf(stackRole, acct, stack)
@@ -233,9 +224,7 @@ func runCmd(cmd *exec.Cmd, acct ymlparser.Account, coloredAccountID string) erro
 }
 
 func bootstrapCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
-	outPath := cdk.TmpPath(acct, stack.Path)
-	cdkArgs := []string{"bootstrap", "--output", outPath}
-	cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName))
+	cdkArgs := []string{"bootstrap", "--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName)}
 	cmd := exec.Command(localstack.CdkCmd(), cdkArgs...)
 	cmd.Dir = stack.Path
 	if result != nil {
@@ -248,23 +237,8 @@ func bootstrapCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ym
 	return cmd
 }
 
-func synthCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack, prevOutputs []*template.CDKOutputs) *exec.Cmd {
-	outPath := cdk.TmpPath(acct, stack.Path)
-	cdkArgs := []string{"synth", "--output", outPath}
-	cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName))
-	for _, prevOutput := range prevOutputs {
-		for key, val := range prevOutput.Outputs {
-			if reflect.TypeOf(val["Value"]).Kind() == reflect.Map {
-				serializedVal, err := json.Marshal(val)
-				if err != nil {
-					panic(err)
-				}
-				cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("%s.%s=%s", prevOutput.StackName, key, serializedVal))
-			} else {
-				cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("%s.%s=%s", prevOutput.StackName, key, val["Value"]))
-			}
-		}
-	}
+func synthCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
+	cdkArgs := []string{"synth", "--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName)}
 	cmd := exec.Command(localstack.CdkCmd(), cdkArgs...)
 	cmd.Dir = stack.Path
 	if result != nil {
@@ -416,7 +390,6 @@ func deployTUI(cmd iacCmd, orgsToApply []ymlparser.Account) error {
 				return
 			}
 
-			var cdkOutputs []*template.CDKOutputs
 			var bootstrappedCDK bool
 			for _, stack := range acctStacks {
 				fmt.Fprintf(file, "executing stack: %s (empty means all) \n", stack.Name)
@@ -435,7 +408,6 @@ func deployTUI(cmd iacCmd, orgsToApply []ymlparser.Account) error {
 					}
 				}
 				if stack.Type == "CDK" {
-					cfnClient := awscloudformation.New(stackRole.Credentials)
 					if !bootstrappedCDK {
 						bootstrapCDK := bootstrapCDK(stackRole, acct, stack)
 						if err := runCmdWriter(bootstrapCDK, acct, file); err != nil {
@@ -444,16 +416,15 @@ func deployTUI(cmd iacCmd, orgsToApply []ymlparser.Account) error {
 						bootstrappedCDK = true
 					}
 
-					synthCDK := synthCDK(stackRole, acct, stack, cdkOutputs)
+					synthCDK := synthCDK(stackRole, acct, stack)
 					if err := runCmdWriter(synthCDK, acct, file); err != nil {
 						return
 					}
 
-					deployCDKCmd := cmd.cdkCmd(stackRole, acct, stack, cdkOutputs)
+					deployCDKCmd := cmd.cdkCmd(stackRole, acct, stack)
 					if err := runCmdWriter(deployCDKCmd, acct, file); err != nil {
 						return
 					}
-					cdkOutputs = append(cdkOutputs, cmd.cdkOutputs(cfnClient, acct, stack)...)
 				} else if stack.Type == "Terraform" {
 					initTFCmd := initTf(stackRole, acct, stack)
 					if initTFCmd != nil {
