@@ -12,6 +12,7 @@ import (
 	"github.com/santiago-labs/telophasecli/lib/awssts"
 	"github.com/santiago-labs/telophasecli/lib/azureiam"
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
+	"github.com/santiago-labs/telophasecli/lib/cdk"
 	"github.com/santiago-labs/telophasecli/lib/localstack"
 	"github.com/santiago-labs/telophasecli/lib/terraform"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
@@ -39,7 +40,11 @@ var diffCmd = &cobra.Command{
 type diffIAC struct{}
 
 func (d diffIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
-	cdkArgs := []string{"diff", "--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName)}
+	cdkArgs := []string{
+		"diff",
+		"--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName),
+		"--output", cdk.TmpPath(acct, stack.Path),
+	}
 	if stack.Name == "" {
 		cdkArgs = append(cdkArgs, "--all")
 	} else {

@@ -23,6 +23,7 @@ import (
 	"github.com/santiago-labs/telophasecli/lib/awssts"
 	"github.com/santiago-labs/telophasecli/lib/azureiam"
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
+	"github.com/santiago-labs/telophasecli/lib/cdk"
 	"github.com/santiago-labs/telophasecli/lib/colors"
 	"github.com/santiago-labs/telophasecli/lib/localstack"
 	"github.com/santiago-labs/telophasecli/lib/terraform"
@@ -224,7 +225,11 @@ func runCmd(cmd *exec.Cmd, acct ymlparser.Account, coloredAccountID string) erro
 }
 
 func bootstrapCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
-	cdkArgs := []string{"bootstrap", "--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName)}
+	cdkArgs := []string{
+		"bootstrap",
+		"--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName),
+		"--output", cdk.TmpPath(acct, stack.Path),
+	}
 	cmd := exec.Command(localstack.CdkCmd(), cdkArgs...)
 	cmd.Dir = stack.Path
 	if result != nil {
@@ -238,7 +243,11 @@ func bootstrapCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ym
 }
 
 func synthCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
-	cdkArgs := []string{"synth", "--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName)}
+	cdkArgs := []string{
+		"synth",
+		"--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName),
+		"--output", cdk.TmpPath(acct, stack.Path),
+	}
 	cmd := exec.Command(localstack.CdkCmd(), cdkArgs...)
 	cmd.Dir = stack.Path
 	if result != nil {

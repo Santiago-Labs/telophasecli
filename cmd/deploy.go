@@ -14,6 +14,7 @@ import (
 	"github.com/santiago-labs/telophasecli/lib/awssts"
 	"github.com/santiago-labs/telophasecli/lib/azureiam"
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
+	"github.com/santiago-labs/telophasecli/lib/cdk"
 	"github.com/santiago-labs/telophasecli/lib/localstack"
 	"github.com/santiago-labs/telophasecli/lib/terraform"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
@@ -51,7 +52,7 @@ var compileCmd = &cobra.Command{
 type deployIAC struct{}
 
 func (d deployIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
-	cdkArgs := []string{"deploy", "--require-approval", "never"}
+	cdkArgs := []string{"deploy", "--require-approval", "never", "--output", cdk.TmpPath(acct, stack.Path)}
 	cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName))
 	if stack.Name == "" {
 		cdkArgs = append(cdkArgs, "--all")
