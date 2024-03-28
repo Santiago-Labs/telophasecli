@@ -20,7 +20,7 @@ type stdOut struct {
 	coloredId map[string]string
 }
 
-func (s stdOut) ColoredId(acct ymlparser.Account) string {
+func (s *stdOut) ColoredId(acct ymlparser.Account) string {
 	coloredId, ok := s.coloredId[acct.ID()]
 	if !ok {
 		colorFunc := colors.DeterministicColorFunc(acct.AccountID)
@@ -32,7 +32,7 @@ func (s stdOut) ColoredId(acct ymlparser.Account) string {
 
 // runCmd takes the command and acct and runs it while prepending the
 // coloredAccountID from stderr and stdout and printing it.
-func (s stdOut) RunCmd(cmd *exec.Cmd, acct ymlparser.Account) error {
+func (s *stdOut) RunCmd(cmd *exec.Cmd, acct ymlparser.Account) error {
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("[ERROR] %s %v", s.ColoredId(acct), err)
@@ -73,8 +73,8 @@ func (s stdOut) RunCmd(cmd *exec.Cmd, acct ymlparser.Account) error {
 	return nil
 }
 
-func (s stdOut) Print(msg string, acct ymlparser.Account) {
+func (s *stdOut) Print(msg string, acct ymlparser.Account) {
 	fmt.Printf("%s %v\n", s.ColoredId(acct), msg)
 }
 
-func (s stdOut) PostProcess() {}
+func (s *stdOut) PostProcess() {}
