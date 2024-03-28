@@ -30,7 +30,7 @@ func (s *stdOut) ColoredId(acct ymlparser.Account) string {
 	return coloredId
 }
 
-// runCmd takes the command and acct and runs it while prepending the
+// RunCmd takes the command and acct and runs it while prepending the
 // coloredAccountID from stderr and stdout and printing it.
 func (s *stdOut) RunCmd(cmd *exec.Cmd, acct ymlparser.Account) error {
 	stdoutPipe, err := cmd.StdoutPipe()

@@ -42,7 +42,6 @@ var compileCmd = &cobra.Command{
 	Use:   "deploy",
 	Short: "deploy - Deploy a CDK and/or TF stacks to your AWS account(s). Accounts in organization.yml will be created if they do not exist.",
 	Run: func(cmd *cobra.Command, args []string) {
-
 		orgClient := awsorgs.New()
 		subsClient, err := azureorgs.New()
 		if err != nil {

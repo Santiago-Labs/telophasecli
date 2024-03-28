@@ -34,6 +34,7 @@ func runIAC(cmd iacCmd, accountsToApply []ymlparser.Account, consoleUI runner.Co
 		go func(acct ymlparser.Account) {
 			defer wg.Done()
 			if !acct.IsProvisioned() {
+				consoleUI.Print(fmt.Sprintf("skipping account: %s because it hasn't been provisioned yet", acct.AccountName), acct)
 				return
 			}
 
