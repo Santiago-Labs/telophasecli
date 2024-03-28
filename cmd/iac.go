@@ -16,6 +16,7 @@ import (
 	"github.com/santiago-labs/telophasecli/lib/awssess"
 	"github.com/santiago-labs/telophasecli/lib/awssts"
 	"github.com/santiago-labs/telophasecli/lib/azureiam"
+	"github.com/santiago-labs/telophasecli/lib/cdk"
 	"github.com/santiago-labs/telophasecli/lib/localstack"
 	"github.com/santiago-labs/telophasecli/lib/terraform"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
@@ -122,7 +123,7 @@ func authAWS(acct ymlparser.Account, stack ymlparser.Stack, consoleUI runner.Con
 		return awssess.AssumeRole(svc, input)
 	}
 
-	consoleUI.Print("Assuming role", acct)
+	consoleUI.Print(fmt.Sprintf("Assuming role: %s", acct.AssumeRoleARN()), acct)
 	input := &sts.AssumeRoleInput{
 		RoleArn:         aws.String(acct.AssumeRoleARN()),
 		RoleSessionName: aws.String("telophase-org"),

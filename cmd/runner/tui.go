@@ -48,7 +48,7 @@ func NewTUI() ConsoleUI {
 	}
 }
 
-func (t tui) createIfNotExists(acct ymlparser.Account) {
+func (t *tui) createIfNotExists(acct ymlparser.Account) {
 	var acctId = acct.ID()
 	if acctId == "" {
 		acctId = "Not yet provisioned"
@@ -91,7 +91,7 @@ func (t tui) createIfNotExists(acct ymlparser.Account) {
 	t.files[acct.ID()] = file
 }
 
-func (t tui) RunCmd(cmd *exec.Cmd, acct ymlparser.Account) error {
+func (t *tui) RunCmd(cmd *exec.Cmd, acct ymlparser.Account) error {
 	t.createIfNotExists(acct)
 	cmd.Stderr = t.files[acct.ID()]
 	cmd.Stdout = t.files[acct.ID()]
@@ -106,7 +106,7 @@ func (t tui) RunCmd(cmd *exec.Cmd, acct ymlparser.Account) error {
 	return nil
 }
 
-func (t tui) PostProcess() {
+func (t *tui) PostProcess() {
 	t.list.AddItem("Quit", "Press to exit", 'q', func() {
 		t.app.Stop()
 	})
@@ -149,7 +149,7 @@ func runeIndex(i int) rune {
 }
 
 // liveTextSetter updates the current tui view with the current tail's text.
-func (t tui) liveTextSetter() {
+func (t *tui) liveTextSetter() {
 	for {
 		func() {
 			time.Sleep(200 * time.Millisecond)
