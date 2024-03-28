@@ -43,11 +43,6 @@ go install github.com/santiago-labs/telophasecli@latest
 - [ ] Guardrails around account resources 
 - [ ] Guardrails around new Accounts, similar to Control Tower rules.
 
-### Metrics Collection
-We are collecting metrics on commands run via PostHog. By default, we collect the
-commands run, but this can be turned off by setting
-`TELOPHASE_METRICS_DISABLED=true`
-
 ### Comparisons
 #### Telophase vs Control Tower
 Manage Accounts via code not a UI. Telophase leaves the controls up to you and your IaC.

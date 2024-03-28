@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"strings"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -36,12 +35,7 @@ func Init() {
 }
 
 func isEnabled() bool {
-	env := strings.ToLower(os.Getenv("TELOPHASE_METRICS_DISABLED"))
-	if env == "true" || env == "t" {
-		return false
-	}
-
-	return true
+	return false
 }
 
 func Close() {
