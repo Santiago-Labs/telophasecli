@@ -1,13 +1,13 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 
 	"github.com/samsarahq/go/oops"
+	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/awssts"
 	"github.com/santiago-labs/telophasecli/lib/azureiam"
@@ -33,7 +33,50 @@ var diffCmd = &cobra.Command{
 	Use:   "diff",
 	Short: "diff - Show accounts to create/update and CDK and/or TF changes for each account.",
 	Run: func(cmd *cobra.Command, args []string) {
-		runIAC(diffIAC{})
+		orgClient := awsorgs.New()
+		subsClient, err := azureorgs.New()
+		if err != nil {
+			panic(fmt.Sprintf("error: %s", err))
+		}
+
+		var accountsToApply []ymlparser.Account
+
+		_, diffErr := orgV2Diff(orgClient, subsClient)
+		if diffErr != nil {
+			panic(fmt.Sprintf("error: %s", diffErr))
+		}
+
+		awsGroup, azureGroup, err := ymlparser.ParseOrganizationV2(orgFile)
+		if err != nil {
+			panic(fmt.Sprintf("error: %s parsing organization", err))
+		}
+		if awsGroup != nil {
+			for _, acct := range awsGroup.AllDescendentAccounts() {
+				if contains(tag, acct.AllTags()) || tag == "" {
+					accountsToApply = append(accountsToApply, *acct)
+				}
+			}
+		}
+
+		if azureGroup != nil {
+			for _, acct := range azureGroup.AllDescendentAccounts() {
+				if contains(tag, acct.AllTags()) || tag == "" {
+					accountsToApply = append(accountsToApply, *acct)
+				}
+			}
+		}
+
+		if len(accountsToApply) == 0 {
+			fmt.Println("No accounts to deploy")
+		}
+
+		var consoleUI runner.ConsoleUI
+		if useTUI {
+			consoleUI = runner.NewTUI()
+		} else {
+			consoleUI = runner.NewSTDOut()
+		}
+		runIAC(diffIAC{}, accountsToApply, consoleUI)
 	},
 }
 
@@ -84,11 +127,4 @@ func (d diffIAC) tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, sta
 	}
 
 	return cmd
-}
-
-func (d diffIAC) orgV2Cmd(ctx context.Context, orgClient awsorgs.Client, subsClient *azureorgs.Client) {
-	_, err := orgV2Diff(orgClient, subsClient)
-	if err != nil {
-		panic(fmt.Sprintf("error: %s", err))
-	}
 }

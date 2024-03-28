@@ -6,10 +6,9 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"sync"
-	"sync/atomic"
 
 	"github.com/samsarahq/go/oops"
+	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/awssts"
 	"github.com/santiago-labs/telophasecli/lib/azureiam"
@@ -28,9 +27,7 @@ var (
 	stacks string
 
 	// TUI
-	useTUI   bool
-	tuiIndex atomic.Int64
-	tuiLock  sync.Mutex
+	useTUI bool
 )
 
 func init() {
@@ -45,7 +42,54 @@ var compileCmd = &cobra.Command{
 	Use:   "deploy",
 	Short: "deploy - Deploy a CDK and/or TF stacks to your AWS account(s). Accounts in organization.yml will be created if they do not exist.",
 	Run: func(cmd *cobra.Command, args []string) {
-		runIAC(deployIAC{})
+		orgClient := awsorgs.New()
+		subsClient, err := azureorgs.New()
+		if err != nil {
+			panic(fmt.Sprintf("error: %s", err))
+		}
+		ctx := context.Background()
+
+		var accountsToApply []ymlparser.Account
+
+		ops, err := orgV2Diff(orgClient, subsClient)
+		if err != nil {
+			panic(fmt.Sprintf("error: %s", err))
+		}
+
+		for _, op := range ops {
+			op.Call(ctx, orgClient)
+		}
+		awsGroup, azureGroup, err := ymlparser.ParseOrganizationV2(orgFile)
+		if err != nil {
+			panic(fmt.Sprintf("error: %s parsing organization", err))
+		}
+		if awsGroup != nil {
+			for _, acct := range awsGroup.AllDescendentAccounts() {
+				if contains(tag, acct.AllTags()) || tag == "" {
+					accountsToApply = append(accountsToApply, *acct)
+				}
+			}
+		}
+
+		if azureGroup != nil {
+			for _, acct := range azureGroup.AllDescendentAccounts() {
+				if contains(tag, acct.AllTags()) || tag == "" {
+					accountsToApply = append(accountsToApply, *acct)
+				}
+			}
+		}
+
+		if len(accountsToApply) == 0 {
+			fmt.Println("No accounts to deploy")
+		}
+
+		var consoleUI runner.ConsoleUI
+		if useTUI {
+			consoleUI = runner.NewTUI()
+		} else {
+			consoleUI = runner.NewSTDOut()
+		}
+		runIAC(deployIAC{}, accountsToApply, consoleUI)
 	},
 }
 
@@ -93,15 +137,4 @@ func (d deployIAC) tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, s
 	}
 
 	return cmd
-}
-
-func (d deployIAC) orgV2Cmd(ctx context.Context, orgClient awsorgs.Client, subsClient *azureorgs.Client) {
-	ops, err := orgV2Diff(orgClient, subsClient)
-	if err != nil {
-		panic(fmt.Sprintf("error: %s", err))
-	}
-
-	for _, op := range ops {
-		op.Call(ctx, orgClient)
-	}
 }
