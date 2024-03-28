@@ -7,6 +7,9 @@ Organization:
           # state for every production tenant.
           - Type: "CDK"
             Path: "./s3-remote-state"
+          - Type: "Terraform"
+            Path: "./tf/ci_iam"
+            Name: "Default IAM Roles for CI"
         Tags:
           - "production"
         Accounts:
@@ -25,8 +28,6 @@ Organization:
           # state for every production tenant.
           - Type: "CDK"
             Path: "./s3-remote-state"
-          # - Type: "Terraform"
-          #   Path: "./examples/tf/azure"
         Tags:
           - "dev"
         Accounts:
