@@ -1,4 +1,4 @@
-package ymlparser
+package resourceoperation
 
 import (
 	"bytes"
@@ -9,12 +9,13 @@ import (
 	"github.com/fatih/color"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
+	"github.com/santiago-labs/telophasecli/resource"
 )
 
 type AzureSubscriptionOperation struct {
 	Operation           int
-	Subscription        *Subscription
-	AzureGroup          AzureAccountGroup
+	Subscription        *resource.Subscription
+	AzureGroup          resource.AzureAccountGroup
 	DependentOperations []ResourceOperation
 }
 

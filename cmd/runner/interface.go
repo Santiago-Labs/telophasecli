@@ -3,11 +3,11 @@ package runner
 import (
 	"os/exec"
 
-	"github.com/santiago-labs/telophasecli/lib/ymlparser"
+	"github.com/santiago-labs/telophasecli/resource"
 )
 
 type ConsoleUI interface {
-	Print(string, ymlparser.Account)
-	RunCmd(*exec.Cmd, ymlparser.Account) error
+	Print(string, resource.Account)
+	RunCmd(*exec.Cmd, resource.Account) error
 	PostProcess()
 }

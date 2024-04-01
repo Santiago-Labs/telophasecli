@@ -19,26 +19,26 @@ import (
 	"github.com/santiago-labs/telophasecli/lib/cdk"
 	"github.com/santiago-labs/telophasecli/lib/localstack"
 	"github.com/santiago-labs/telophasecli/lib/terraform"
-	"github.com/santiago-labs/telophasecli/lib/ymlparser"
+	"github.com/santiago-labs/telophasecli/resource"
 )
 
 type iacCmd interface {
-	cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd
-	tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd
+	cdkCmd(result *sts.AssumeRoleOutput, acct resource.Account, stack resource.Stack) *exec.Cmd
+	tfCmd(result *sts.AssumeRoleOutput, acct resource.Account, stack resource.Stack) *exec.Cmd
 }
 
-func runIAC(cmd iacCmd, accountsToApply []ymlparser.Account, consoleUI runner.ConsoleUI) {
+func runIAC(cmd iacCmd, accountsToApply []resource.Account, consoleUI runner.ConsoleUI) {
 	var wg sync.WaitGroup
 	for i := range accountsToApply {
 		wg.Add(1)
-		go func(acct ymlparser.Account) {
+		go func(acct resource.Account) {
 			defer wg.Done()
 			if !acct.IsProvisioned() {
 				consoleUI.Print(fmt.Sprintf("skipping account: %s because it hasn't been provisioned yet", acct.AccountName), acct)
 				return
 			}
 
-			var acctStacks []ymlparser.Stack
+			var acctStacks []resource.Stack
 			if stacks != "" && stacks != "*" {
 				acctStacks = append(acctStacks, acct.FilterBaselineStacks(stacks)...)
 			} else {
@@ -109,7 +109,7 @@ func runIAC(cmd iacCmd, accountsToApply []ymlparser.Account, consoleUI runner.Co
 	wg.Wait()
 }
 
-func authAWS(acct ymlparser.Account, stack ymlparser.Stack, consoleUI runner.ConsoleUI) (*sts.AssumeRoleOutput, error) {
+func authAWS(acct resource.Account, stack resource.Stack, consoleUI runner.ConsoleUI) (*sts.AssumeRoleOutput, error) {
 	var svc *sts.STS
 	sess := session.Must(awssess.DefaultSession())
 	svc = sts.New(sess)
@@ -133,7 +133,7 @@ func authAWS(acct ymlparser.Account, stack ymlparser.Stack, consoleUI runner.Con
 	return awssess.AssumeRole(svc, input)
 }
 
-func bootstrapCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
+func bootstrapCDK(result *sts.AssumeRoleOutput, acct resource.Account, stack resource.Stack) *exec.Cmd {
 	cdkArgs := []string{
 		"bootstrap",
 		"--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName),
@@ -151,7 +151,7 @@ func bootstrapCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ym
 	return cmd
 }
 
-func synthCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
+func synthCDK(result *sts.AssumeRoleOutput, acct resource.Account, stack resource.Stack) *exec.Cmd {
 	cdkArgs := []string{
 		"synth",
 		"--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName),
@@ -169,7 +169,7 @@ func synthCDK(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlpar
 	return cmd
 }
 
-func initTf(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
+func initTf(result *sts.AssumeRoleOutput, acct resource.Account, stack resource.Stack) *exec.Cmd {
 	workingPath := terraform.TmpPath(acct, stack.Path)
 	terraformDir := filepath.Join(workingPath, ".terraform")
 	if terraformDir == "" || !strings.Contains(terraformDir, "telophasedirs") {

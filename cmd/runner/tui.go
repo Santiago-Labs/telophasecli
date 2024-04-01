@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/rivo/tview"
-	"github.com/santiago-labs/telophasecli/lib/ymlparser"
+	"github.com/santiago-labs/telophasecli/resource"
 )
 
 var tuiIndex atomic.Int64
@@ -48,7 +48,7 @@ func NewTUI() ConsoleUI {
 	}
 }
 
-func (t *tui) createIfNotExists(acct ymlparser.Account) {
+func (t *tui) createIfNotExists(acct resource.Account) {
 	var acctId = acct.ID()
 	if acctId == "" {
 		acctId = "Not yet provisioned"
@@ -91,7 +91,7 @@ func (t *tui) createIfNotExists(acct ymlparser.Account) {
 	t.files[acct.ID()] = file
 }
 
-func (t *tui) RunCmd(cmd *exec.Cmd, acct ymlparser.Account) error {
+func (t *tui) RunCmd(cmd *exec.Cmd, acct resource.Account) error {
 	t.createIfNotExists(acct)
 	cmd.Stderr = t.files[acct.ID()]
 	cmd.Stdout = t.files[acct.ID()]
@@ -131,7 +131,7 @@ func (t *tui) PostProcess() {
 
 }
 
-func (t tui) Print(msg string, acct ymlparser.Account) {
+func (t tui) Print(msg string, acct resource.Account) {
 	t.createIfNotExists(acct)
 	fmt.Fprint(t.files[acct.ID()], msg)
 }

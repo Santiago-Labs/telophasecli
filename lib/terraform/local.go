@@ -13,10 +13,10 @@ import (
 
 	"github.com/samsarahq/go/oops"
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
-	"github.com/santiago-labs/telophasecli/lib/ymlparser"
+	"github.com/santiago-labs/telophasecli/resource"
 )
 
-func TmpPath(acct ymlparser.Account, filePath string) string {
+func TmpPath(acct resource.Account, filePath string) string {
 	hasher := sha256.New()
 	hasher.Write([]byte(filePath))
 	hashBytes := hasher.Sum(nil)
@@ -25,7 +25,7 @@ func TmpPath(acct ymlparser.Account, filePath string) string {
 	return path.Join("telophasedirs", fmt.Sprintf("tf-tmp%s-%s", acct.ID(), hashString))
 }
 
-func CopyDir(src string, dst string, acct ymlparser.Account) error {
+func CopyDir(src string, dst string, acct resource.Account) error {
 	ignoreDir := "telophasedirs"
 
 	abs, err := filepath.Abs(src)
@@ -52,7 +52,7 @@ func CopyDir(src string, dst string, acct ymlparser.Account) error {
 	})
 }
 
-func replaceVariablesInFile(srcFile, dstFile string, acct ymlparser.Account) error {
+func replaceVariablesInFile(srcFile, dstFile string, acct resource.Account) error {
 	content, err := ioutil.ReadFile(srcFile)
 	if err != nil {
 		return err

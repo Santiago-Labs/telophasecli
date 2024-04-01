@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/santiago-labs/telophasecli/lib/ymlparser"
+	"github.com/santiago-labs/telophasecli/resource"
 )
 
-func TmpPath(acct ymlparser.Account, filePath string) string {
+func TmpPath(acct resource.Account, filePath string) string {
 	hasher := sha256.New()
 	hasher.Write([]byte(filePath))
 	hashBytes := hasher.Sum(nil)
