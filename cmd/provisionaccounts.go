@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/spf13/cobra"
 
+	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/awssess"
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
@@ -68,6 +69,13 @@ var accountProvision = &cobra.Command{
 			panic(fmt.Sprintf("error creating azure client err: %s" + err.Error()))
 		}
 
+		var consoleUI runner.ConsoleUI
+		if useTUI {
+			consoleUI = runner.NewTUI()
+		} else {
+			consoleUI = runner.NewSTDOut()
+		}
+
 		ctx := context.Background()
 		if args[0] == "import" {
 			if err := importOrgV2(orgClient); err != nil {
@@ -75,21 +83,19 @@ var accountProvision = &cobra.Command{
 			}
 		}
 
+		rootAWSGroup, rootAzureGroup, err := ymlparser.ParseOrganizationV2(orgFile)
+		if err != nil {
+			panic(fmt.Sprintf("error: %s parsing organization", err))
+		}
 		if args[0] == "diff" {
-			_, err := orgV2Diff(orgClient, subscriptionClient)
-			if err != nil {
-				panic(fmt.Sprintf("error: %s", err))
-			}
+			orgV2Diff(ctx, consoleUI, orgClient, *subscriptionClient, rootAWSGroup, rootAzureGroup)
 		}
 
 		if args[0] == "deploy" {
-			operations, err := orgV2Diff(orgClient, subscriptionClient)
-			if err != nil {
-				panic(fmt.Sprintf("error: %s", err))
-			}
+			operations := orgV2Diff(ctx, consoleUI, orgClient, *subscriptionClient, rootAWSGroup, rootAzureGroup)
 
 			for _, op := range operations {
-				err := op.Call(ctx, orgClient)
+				err := op.Call(ctx)
 				if err != nil {
 					panic(fmt.Sprintf("error: %s", err))
 				}
@@ -98,15 +104,18 @@ var accountProvision = &cobra.Command{
 	},
 }
 
-func orgV2Diff(orgClient awsorgs.Client, subscriptionsClient *azureorgs.Client) (ops []resourceoperation.ResourceOperation, err error) {
-	org, azure, err := ymlparser.ParseOrganizationV2(orgFile)
-	if err != nil {
-		panic(fmt.Sprintf("error: %s parsing organization", err))
-	}
+func orgV2Diff(
+	ctx context.Context,
+	outputUI runner.ConsoleUI,
+	orgClient awsorgs.Client,
+	subscriptionsClient azureorgs.Client,
+	rootAWSGroup *resource.AccountGroup,
+	rootAzureGroup *resource.AzureAccountGroup,
+) []resourceoperation.ResourceOperation {
 
 	var operations []resourceoperation.ResourceOperation
-	if org != nil {
-		operations = append(operations, resourceoperation.AccountGroupDiff(org, orgClient)...)
+	if rootAWSGroup != nil {
+		operations = append(operations, resourceoperation.CollectOrganizationUnitOps(ctx, outputUI, orgClient, rootAWSGroup)...)
 		for _, op := range resourceoperation.FlattenOperations(operations) {
 			fmt.Println(op.ToString())
 		}
@@ -115,22 +124,19 @@ func orgV2Diff(orgClient awsorgs.Client, subscriptionsClient *azureorgs.Client) 
 		}
 	}
 
-	if azure != nil {
-		azureOps, err := resourceoperation.AzureAccountGroupDiff(azure, subscriptionsClient)
-		if err != nil {
-			return nil, err
-		}
-		for _, op := range resourceoperation.FlattenOperations(azureOps) {
+	if rootAzureGroup != nil {
+		azureOps := resourceoperation.CollectAzureAcctGroupOps(ctx, outputUI, subscriptionsClient, rootAzureGroup)
+		for _, op := range resourceoperation.FlattenOperations(operations) {
 			fmt.Println(op.ToString())
 		}
-		operations = append(operations, azureOps...)
-
 		if len(azureOps) == 0 {
 			fmt.Println("\033[32m No changes to Azure Subscriptions. \033[0m")
 		}
+
+		operations = append(operations, azureOps...)
 	}
 
-	return operations, nil
+	return operations
 }
 
 func currentAccountID() (string, error) {
@@ -157,7 +163,7 @@ func importOrgV2(orgClient awsorgs.Client) error {
 		return fmt.Errorf("no root ID found")
 	}
 
-	rootGroup, err := resourceoperation.FetchGroupAndDescendents(context.TODO(), orgClient, rootId, managingAccountID)
+	rootGroup, err := orgClient.FetchGroupAndDescendents(context.TODO(), rootId, managingAccountID)
 	if err != nil {
 		return err
 	}

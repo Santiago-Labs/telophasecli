@@ -3,6 +3,7 @@ package awsorgs
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -11,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/organizations"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/santiago-labs/telophasecli/lib/awssess"
+	"github.com/santiago-labs/telophasecli/resource"
 )
 
 type Client struct {
@@ -294,4 +296,62 @@ func (c Client) ListAccountsForParent(parentID string) ([]*organizations.Account
 	})
 
 	return accounts, err
+}
+
+func (c Client) FetchGroupAndDescendents(ctx context.Context, ouID, mgmtAccountID string) (resource.AccountGroup, error) {
+	var group resource.AccountGroup
+
+	var providerGroup *organizations.OrganizationalUnit
+
+	// we treat the root group as an OU, but AWS does not consider root as an OU.
+	if strings.HasPrefix(ouID, "r-") {
+		name := "root"
+		providerGroup = &organizations.OrganizationalUnit{
+			Id:   &ouID,
+			Name: &name,
+		}
+	} else {
+		var err error
+		providerGroup, err = c.GetOrganizationUnit(ctx, ouID)
+		if err != nil {
+			return group, err
+		}
+	}
+
+	group.ID = &ouID
+	group.Name = *providerGroup.Name
+
+	groupAccounts, err := c.CurrentAccountsForParent(ctx, *group.ID)
+	if err != nil {
+		return group, err
+	}
+
+	for _, providerAcct := range groupAccounts {
+		acct := resource.Account{
+			AccountID:   *providerAcct.Id,
+			Email:       *providerAcct.Email,
+			Parent:      &group,
+			AccountName: *providerAcct.Name,
+		}
+		if providerAcct.Id == &mgmtAccountID {
+			acct.ManagementAccount = true
+		}
+		group.Accounts = append(group.Accounts, &acct)
+	}
+
+	children, err := c.GetOrganizationUnitChildren(ctx, ouID)
+	if err != nil {
+		return group, err
+	}
+
+	for _, providerChild := range children {
+		child, err := c.FetchGroupAndDescendents(ctx, *providerChild.Id, mgmtAccountID)
+		if err != nil {
+			return group, err
+		}
+		child.Parent = &group
+		group.ChildGroups = append(group.ChildGroups, &child)
+	}
+
+	return group, nil
 }

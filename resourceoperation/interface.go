@@ -2,12 +2,21 @@ package resourceoperation
 
 import (
 	"context"
+)
 
-	"github.com/santiago-labs/telophasecli/lib/awsorgs"
+const (
+	// Accounts
+	UpdateParent = 1
+	Create       = 2
+	Update       = 3
+
+	// IaC
+	Diff   = 4
+	Deploy = 5
 )
 
 type ResourceOperation interface {
-	Call(context.Context, awsorgs.Client) error
+	Call(context.Context) error
 	ToString() string
 	AddDependent(ResourceOperation)
 	ListDependents() []ResourceOperation

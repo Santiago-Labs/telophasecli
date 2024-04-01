@@ -2,20 +2,32 @@ package resourceoperation
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
 	"github.com/santiago-labs/telophasecli/resource"
 )
 
-func AzureAccountGroupDiff(az *resource.AzureAccountGroup, subscriptionClient *azureorgs.Client) ([]ResourceOperation, error) {
-	if subscriptionClient == nil {
-		return nil, nil
-	}
+type AzureAccountGroupOperation struct {
+	Operation           int
+	AzureGroup          resource.AzureAccountGroup
+	DependentOperations []ResourceOperation
+	SubscriptionClient  azureorgs.Client
+	OutputUI            runner.ConsoleUI
+}
 
-	ctx := context.TODO()
-	subscriptions, err := subscriptionClient.CurrentSubscriptions(ctx)
+func CollectAzureAcctGroupOps(
+	ctx context.Context,
+	outputUI runner.ConsoleUI,
+	subClient azureorgs.Client,
+	grp *resource.AzureAccountGroup,
+) []ResourceOperation {
+
+	subscriptions, err := subClient.CurrentSubscriptions(ctx)
 	if err != nil {
-		return nil, err
+		fmt.Printf("[ERROR]: %v\n", err)
+		return []ResourceOperation{}
 	}
 
 	var operations []ResourceOperation
@@ -26,7 +38,7 @@ func AzureAccountGroupDiff(az *resource.AzureAccountGroup, subscriptionClient *a
 	}
 
 	subsToCreate := map[string]resource.Subscription{}
-	for _, iacSub := range az.Subscriptions {
+	for _, iacSub := range grp.Subscriptions {
 		if _, ok := liveSubs[iacSub.SubscriptionName]; !ok {
 			subsToCreate[iacSub.SubscriptionName] = iacSub
 		}
@@ -38,9 +50,21 @@ func AzureAccountGroupDiff(az *resource.AzureAccountGroup, subscriptionClient *a
 		operations = append(operations, &AzureSubscriptionOperation{
 			Operation:    Create,
 			Subscription: &toCreate,
-			AzureGroup:   *az,
+			AzureGroup:   *grp,
 		})
 	}
 
-	return operations, nil
+	return operations
+}
+
+func (ao *AzureAccountGroupOperation) AddDependent(op ResourceOperation) {
+	ao.DependentOperations = append(ao.DependentOperations, op)
+}
+
+func (ao *AzureAccountGroupOperation) ListDependents() []ResourceOperation {
+	return ao.DependentOperations
+}
+
+func (ao *AzureAccountGroupOperation) Call(ctx context.Context) error {
+	return nil
 }

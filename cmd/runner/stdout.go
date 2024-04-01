@@ -24,7 +24,11 @@ func (s *stdOut) ColoredId(acct resource.Account) string {
 	coloredId, ok := s.coloredId[acct.ID()]
 	if !ok {
 		colorFunc := colors.DeterministicColorFunc(acct.AccountID)
-		coloredId := colorFunc("[Account: " + acct.ID() + "]")
+		if acct.AccountName != "" {
+			coloredId = colorFunc(fmt.Sprintf("[Account: %s (%s)]", acct.ID(), acct.AccountName))
+		} else {
+			coloredId = colorFunc("[Account: " + acct.ID() + "]")
+		}
 		s.coloredId[acct.ID()] = coloredId
 	}
 	return coloredId
