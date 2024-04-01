@@ -1,4 +1,4 @@
-package ymlparser
+package resources
 
 import (
 	"fmt"
