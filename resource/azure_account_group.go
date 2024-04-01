@@ -1,4 +1,4 @@
-package resources
+package resource
 
 type AzureAccountGroup struct {
 	// Required Fields for managing from a root subscription.

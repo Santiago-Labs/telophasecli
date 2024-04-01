@@ -1,4 +1,4 @@
-package resources
+package resource
 
 type Subscription struct {
 	SubscriptionName string   `yaml:"Name"`
