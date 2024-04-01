@@ -16,6 +16,8 @@ import (
 	"github.com/santiago-labs/telophasecli/lib/awssess"
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
+	"github.com/santiago-labs/telophasecli/resource"
+	"github.com/santiago-labs/telophasecli/resourceoperation"
 )
 
 var orgFile string
@@ -96,16 +98,16 @@ var accountProvision = &cobra.Command{
 	},
 }
 
-func orgV2Diff(orgClient awsorgs.Client, subscriptionsClient *azureorgs.Client) (ops []ymlparser.ResourceOperation, err error) {
+func orgV2Diff(orgClient awsorgs.Client, subscriptionsClient *azureorgs.Client) (ops []resourceoperation.ResourceOperation, err error) {
 	org, azure, err := ymlparser.ParseOrganizationV2(orgFile)
 	if err != nil {
 		panic(fmt.Sprintf("error: %s parsing organization", err))
 	}
 
-	var operations []ymlparser.ResourceOperation
+	var operations []resourceoperation.ResourceOperation
 	if org != nil {
-		operations = append(operations, org.Diff(orgClient)...)
-		for _, op := range ymlparser.FlattenOperations(operations) {
+		operations = append(operations, resourceoperation.AccountGroupDiff(org, orgClient)...)
+		for _, op := range resourceoperation.FlattenOperations(operations) {
 			fmt.Println(op.ToString())
 		}
 		if len(operations) == 0 {
@@ -114,11 +116,11 @@ func orgV2Diff(orgClient awsorgs.Client, subscriptionsClient *azureorgs.Client) 
 	}
 
 	if azure != nil {
-		azureOps, err := azure.Diff(subscriptionsClient)
+		azureOps, err := resourceoperation.AzureAccountGroupDiff(azure, subscriptionsClient)
 		if err != nil {
 			return nil, err
 		}
-		for _, op := range ymlparser.FlattenOperations(azureOps) {
+		for _, op := range resourceoperation.FlattenOperations(azureOps) {
 			fmt.Println(op.ToString())
 		}
 		operations = append(operations, azureOps...)
@@ -155,11 +157,11 @@ func importOrgV2(orgClient awsorgs.Client) error {
 		return fmt.Errorf("no root ID found")
 	}
 
-	rootGroup, err := ymlparser.FetchGroupAndDescendents(context.TODO(), orgClient, rootId, managingAccountID)
+	rootGroup, err := resourceoperation.FetchGroupAndDescendents(context.TODO(), orgClient, rootId, managingAccountID)
 	if err != nil {
 		return err
 	}
-	org := ymlparser.AccountGroup{
+	org := resource.AccountGroup{
 		Name:        rootGroup.Name,
 		ChildGroups: rootGroup.ChildGroups,
 		Accounts:    rootGroup.Accounts,

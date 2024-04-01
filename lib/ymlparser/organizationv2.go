@@ -12,16 +12,16 @@ import (
 	"github.com/samsarahq/go/oops"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
-	"github.com/santiago-labs/telophasecli/resources"
+	"github.com/santiago-labs/telophasecli/resource"
 	"gopkg.in/yaml.v3"
 )
 
 type orgDatav2 struct {
-	Organization      resources.AccountGroup       `yaml:"Organization"`
-	AzureAccountGroup *resources.AzureAccountGroup `yaml:"Azure,omitempty"`
+	Organization      resource.AccountGroup       `yaml:"Organization"`
+	AzureAccountGroup *resource.AzureAccountGroup `yaml:"Azure,omitempty"`
 }
 
-func ParseOrganizationV2(filepath string) (*resources.AccountGroup, *resources.AzureAccountGroup, error) {
+func ParseOrganizationV2(filepath string) (*resource.AccountGroup, *resource.AzureAccountGroup, error) {
 	if filepath == "" {
 		return nil, nil, errors.New("filepath is empty")
 	}
@@ -76,7 +76,7 @@ func ParseOrganizationV2(filepath string) (*resources.AccountGroup, *resources.A
 	return &org.Organization, azureGroup, nil
 }
 
-func hydrateSubscriptions(subsClient *azureorgs.Client, azureGroup *resources.AzureAccountGroup) error {
+func hydrateSubscriptions(subsClient *azureorgs.Client, azureGroup *resource.AzureAccountGroup) error {
 	subs, err := subsClient.CurrentSubscriptions(context.TODO())
 	if err != nil {
 		return oops.Wrapf(err, "")
@@ -85,7 +85,7 @@ func hydrateSubscriptions(subsClient *azureorgs.Client, azureGroup *resources.Az
 	for i, sub := range azureGroup.Subscriptions {
 		for _, liveSub := range subs {
 			if sub.SubscriptionName == *liveSub.DisplayName {
-				azureGroup.Subscriptions[i].Account = &resources.Account{
+				azureGroup.Subscriptions[i].Account = &resource.Account{
 					SubscriptionID: strings.Split(*liveSub.ID, "/")[2],
 					AccountName:    *liveSub.DisplayName,
 					BaselineStacks: sub.Account.BaselineStacks,
@@ -97,7 +97,7 @@ func hydrateSubscriptions(subsClient *azureorgs.Client, azureGroup *resources.Az
 	return nil
 }
 
-func hydrateAccount(group *resources.AccountGroup, acct *organizations.Account) {
+func hydrateAccount(group *resource.AccountGroup, acct *organizations.Account) {
 	for idx, parsedAcct := range group.Accounts {
 		group.Accounts[idx].Parent = group
 		if parsedAcct.Email == *acct.Email {
@@ -111,7 +111,7 @@ func hydrateAccount(group *resources.AccountGroup, acct *organizations.Account) 
 	}
 }
 
-func hydrateOU(orgClient awsorgs.Client, group *resources.AccountGroup, ou *organizations.OrganizationalUnit) error {
+func hydrateOU(orgClient awsorgs.Client, group *resource.AccountGroup, ou *organizations.OrganizationalUnit) error {
 	if ou != nil {
 		group.ID = ou.Id
 		children, err := orgClient.GetOrganizationUnitChildren(context.TODO(), *group.ID)
@@ -153,7 +153,7 @@ func hydrateOU(orgClient awsorgs.Client, group *resources.AccountGroup, ou *orga
 	return nil
 }
 
-func WriteOrgV2File(filepath string, org *resources.AccountGroup) error {
+func WriteOrgV2File(filepath string, org *resource.AccountGroup) error {
 	orgData := orgDatav2{
 		Organization: *org,
 	}
@@ -173,7 +173,7 @@ func WriteOrgV2File(filepath string, org *resources.AccountGroup) error {
 	return nil
 }
 
-func validOrganizationV2(data resources.AccountGroup) error {
+func validOrganizationV2(data resource.AccountGroup) error {
 	accountEmails := map[string]struct{}{}
 
 	validStates := []string{"delete", ""}

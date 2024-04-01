@@ -17,6 +17,7 @@ import (
 	"github.com/santiago-labs/telophasecli/lib/localstack"
 	"github.com/santiago-labs/telophasecli/lib/terraform"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
+	"github.com/santiago-labs/telophasecli/resource"
 
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/spf13/cobra"
@@ -49,7 +50,7 @@ var compileCmd = &cobra.Command{
 		}
 		ctx := context.Background()
 
-		var accountsToApply []ymlparser.Account
+		var accountsToApply []resource.Account
 
 		ops, err := orgV2Diff(orgClient, subsClient)
 		if err != nil {
@@ -95,7 +96,7 @@ var compileCmd = &cobra.Command{
 
 type deployIAC struct{}
 
-func (d deployIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
+func (d deployIAC) cdkCmd(result *sts.AssumeRoleOutput, acct resource.Account, stack resource.Stack) *exec.Cmd {
 	cdkArgs := []string{"deploy", "--require-approval", "never", "--output", cdk.TmpPath(acct, stack.Path)}
 	cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName))
 	if stack.Name == "" {
@@ -115,7 +116,7 @@ func (d deployIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, 
 	return cmd
 }
 
-func (d deployIAC) tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
+func (d deployIAC) tfCmd(result *sts.AssumeRoleOutput, acct resource.Account, stack resource.Stack) *exec.Cmd {
 	workingPath := terraform.TmpPath(acct, stack.Path)
 	args := []string{
 		"apply", "-auto-approve",

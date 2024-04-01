@@ -16,6 +16,7 @@ import (
 	"github.com/santiago-labs/telophasecli/lib/localstack"
 	"github.com/santiago-labs/telophasecli/lib/terraform"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
+	"github.com/santiago-labs/telophasecli/resource"
 
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/spf13/cobra"
@@ -39,7 +40,7 @@ var diffCmd = &cobra.Command{
 			panic(fmt.Sprintf("error: %s", err))
 		}
 
-		var accountsToApply []ymlparser.Account
+		var accountsToApply []resource.Account
 
 		_, diffErr := orgV2Diff(orgClient, subsClient)
 		if diffErr != nil {
@@ -82,7 +83,7 @@ var diffCmd = &cobra.Command{
 
 type diffIAC struct{}
 
-func (d diffIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
+func (d diffIAC) cdkCmd(result *sts.AssumeRoleOutput, acct resource.Account, stack resource.Stack) *exec.Cmd {
 	cdkArgs := []string{
 		"diff",
 		"--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName),
@@ -105,7 +106,7 @@ func (d diffIAC) cdkCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, st
 	return cmd
 }
 
-func (d diffIAC) tfCmd(result *sts.AssumeRoleOutput, acct ymlparser.Account, stack ymlparser.Stack) *exec.Cmd {
+func (d diffIAC) tfCmd(result *sts.AssumeRoleOutput, acct resource.Account, stack resource.Stack) *exec.Cmd {
 	workingPath := terraform.TmpPath(acct, stack.Path)
 	args := []string{
 		"plan",
