@@ -76,7 +76,7 @@ func (so *scpOperation) Call(ctx context.Context) error {
 
 	initTFCmd := so.initTf(mgmtRole)
 	if initTFCmd != nil {
-		if err := so.OutputUI.RunCmd(initTFCmd, *so.TargetAcct); err != nil {
+		if err := so.OutputUI.RunCmd(initTFCmd, *so.MgmtAcct); err != nil {
 			return err
 		}
 	}
@@ -101,7 +101,7 @@ func (so *scpOperation) Call(ctx context.Context) error {
 		*mgmtRole.Credentials.SecretAccessKey,
 		*mgmtRole.Credentials.SessionToken)
 
-	if err := so.OutputUI.RunCmd(cmd, *so.TargetAcct); err != nil {
+	if err := so.OutputUI.RunCmd(cmd, *so.MgmtAcct); err != nil {
 		return err
 	}
 
