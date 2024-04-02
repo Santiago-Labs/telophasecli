@@ -54,7 +54,7 @@ var compileCmd = &cobra.Command{
 			panic(fmt.Sprintf("error: %s parsing organization", err))
 		}
 
-		ops := orgV2Diff(ctx, consoleUI, orgClient, *subsClient, rootAWSGroup, rootAzureGroup)
+		ops := orgV2Diff(ctx, consoleUI, orgClient, *subsClient, rootAWSGroup, rootAzureGroup, resourceoperation.Deploy)
 		for _, op := range ops {
 			op.Call(ctx)
 		}

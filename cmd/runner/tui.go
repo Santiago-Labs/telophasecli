@@ -48,15 +48,21 @@ func NewTUI() ConsoleUI {
 	}
 }
 
-func (t *tui) createIfNotExists(acct resource.Account) {
+func (t *tui) accountID(acct resource.Account) string {
 	var acctId = acct.ID()
 	if acctId == "" {
-		acctId = "Not yet provisioned"
+		acctId = fmt.Sprintf("Not yet provisioned (email: %s)", acct.Email)
 	}
+
+	return acctId
+}
+
+func (t *tui) createIfNotExists(acct resource.Account) {
+	acctId := t.accountID(acct)
 
 	tuiLock.Lock()
 	defer tuiLock.Unlock()
-	if _, ok := t.tails[acct.ID()]; ok {
+	if _, ok := t.tails[acctId]; ok {
 		return
 	}
 
@@ -87,14 +93,16 @@ func (t *tui) createIfNotExists(acct resource.Account) {
 		return string(bytes)
 	}
 
-	t.tails[acct.ID()] = &setter
-	t.files[acct.ID()] = file
+	t.tails[acctId] = &setter
+	t.files[acctId] = file
 }
 
 func (t *tui) RunCmd(cmd *exec.Cmd, acct resource.Account) error {
 	t.createIfNotExists(acct)
-	cmd.Stderr = t.files[acct.ID()]
-	cmd.Stdout = t.files[acct.ID()]
+
+	acctId := t.accountID(acct)
+	cmd.Stderr = t.files[acctId]
+	cmd.Stdout = t.files[acctId]
 
 	if err := cmd.Start(); err != nil {
 		return err
@@ -133,7 +141,9 @@ func (t *tui) PostProcess() {
 
 func (t tui) Print(msg string, acct resource.Account) {
 	t.createIfNotExists(acct)
-	fmt.Fprint(t.files[acct.ID()], msg)
+	acctId := t.accountID(acct)
+
+	fmt.Fprintf(t.files[acctId], "%s\n", msg)
 }
 
 func runeIndex(i int) rune {

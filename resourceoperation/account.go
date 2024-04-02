@@ -15,11 +15,12 @@ import (
 
 type accountOperation struct {
 	Account             *resource.Account
+	MgmtAccount         *resource.Account
 	Operation           int
 	NewParent           *resource.AccountGroup
 	CurrentParent       *resource.AccountGroup
 	DependentOperations []ResourceOperation
-	OutputUI            runner.ConsoleUI
+	ConsoleUI           runner.ConsoleUI
 	OrgClient           *awsorgs.Client
 }
 
@@ -31,13 +32,19 @@ func NewAccountOperation(
 	newParent *resource.AccountGroup,
 	currentParent *resource.AccountGroup,
 ) ResourceOperation {
+
+	mgmtAcct, err := orgClient.FetchManagementAccount(context.TODO())
+	if err != nil {
+		panic(err)
+	}
 	return &accountOperation{
 		Account:       account,
 		Operation:     operation,
 		NewParent:     newParent,
 		CurrentParent: currentParent,
-		OutputUI:      consoleUI,
+		ConsoleUI:     consoleUI,
 		OrgClient:     &orgClient,
+		MgmtAccount:   mgmtAcct,
 	}
 }
 
@@ -82,23 +89,24 @@ func (ao *accountOperation) Call(ctx context.Context) error {
 			Email: &ao.Account.Email,
 			Name:  &ao.Account.AccountName,
 		}
-		errs := ao.OrgClient.CreateAccounts(ctx, []*organizations.Account{acct})
-		if len(errs) > 0 {
-			// TODO
-			return errs[0]
+		acctID, err := ao.OrgClient.CreateAccount(ctx, ao.ConsoleUI, *ao.MgmtAccount, acct)
+		if err != nil {
+			return err
 		}
+		ao.Account.AccountID = acctID
+
 		rootId, err := ao.OrgClient.GetRootId()
 		if err != nil {
 			return err
 		}
 
-		err = ao.OrgClient.MoveAccount(ctx, *acct.Id, rootId, *ao.Account.Parent.ID)
+		err = ao.OrgClient.MoveAccount(ctx, ao.ConsoleUI, *ao.MgmtAccount, ao.Account.AccountID, rootId, *ao.Account.Parent.ID)
 		if err != nil {
 			return err
 		}
 
 	} else if ao.Operation == UpdateParent {
-		err := ao.OrgClient.MoveAccount(ctx, ao.Account.AccountID, *ao.CurrentParent.ID, *ao.NewParent.ID)
+		err := ao.OrgClient.MoveAccount(ctx, ao.ConsoleUI, *ao.MgmtAccount, ao.Account.AccountID, *ao.CurrentParent.ID, *ao.NewParent.ID)
 		if err != nil {
 			return err
 		}

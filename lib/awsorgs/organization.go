@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/organizations"
 	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/awssess"
 	"github.com/santiago-labs/telophasecli/resource"
 )
@@ -54,6 +55,41 @@ func (c Client) CurrentAccounts(ctx context.Context) ([]*organizations.Account, 
 	}
 
 	return accounts, nil
+}
+
+func (c Client) FetchManagementAccount(ctx context.Context) (*resource.Account, error) {
+	org, err := c.organizationClient.DescribeOrganization(&organizations.DescribeOrganizationInput{})
+	if err != nil {
+		return nil, fmt.Errorf("DescribeOrganization: %s", err)
+	}
+
+	// The management account ID is available in the Organization.MasterAccountId field.
+	managementAccountID := *org.Organization.MasterAccountId
+
+	// Fetch the details of the management account.
+	var managementAccount *organizations.Account
+	accounts, err := c.CurrentAccounts(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, account := range accounts {
+		if *account.Id == managementAccountID {
+			managementAccount = account
+			break
+		}
+	}
+
+	if managementAccount == nil {
+		return nil, fmt.Errorf("management account with ID %s not found", managementAccountID)
+	}
+
+	return &resource.Account{
+		Email:             *managementAccount.Email,
+		AccountID:         managementAccountID,
+		AccountName:       *managementAccount.Name,
+		ManagementAccount: true,
+	}, nil
 }
 
 func (c Client) CurrentAccountsForParent(ctx context.Context, parentID string) ([]*organizations.Account, error) {
@@ -121,22 +157,39 @@ func (c Client) GetOrganizationUnitChildren(ctx context.Context, OUId string) ([
 	return childOUs, nil
 }
 
-func (c Client) MoveAccount(ctx context.Context, acctId, oldParentId, newParentId string) error {
+func (c Client) MoveAccount(
+	ctx context.Context,
+	consoleUI runner.ConsoleUI,
+	mgmtAcct resource.Account,
+	acctId, oldParentId, newParentId string,
+) error {
 	if oldParentId == newParentId {
 		return nil
 	}
-	fmt.Printf("Moving Account: Account ID=%s Old Parent=%s New Parent=%s\n", acctId, oldParentId, newParentId)
+	consoleUI.Print(fmt.Sprintf("Moving Account: Account: %s Old Parent: %s New Parent: %s\n", acctId, oldParentId, newParentId), mgmtAcct)
 	_, err := c.organizationClient.MoveAccountWithContext(ctx, &organizations.MoveAccountInput{
 		AccountId:           &acctId,
 		DestinationParentId: &newParentId,
 		SourceParentId:      &oldParentId,
 	})
 
+	if err == nil {
+		consoleUI.Print(fmt.Sprintf("Successfully moved account: Account: %s Old Parent=%s New Parent=%s\n", acctId, oldParentId, newParentId), mgmtAcct)
+		return nil
+	}
+
+	consoleUI.Print(fmt.Sprintf("Error moving account: Account: %s err: %v", acctId, err), mgmtAcct)
 	return err
 }
 
-func (c Client) CreateOrganizationUnit(ctx context.Context, ouName, newParentId string) (*organizations.OrganizationalUnit, error) {
-	fmt.Printf("Creating OU: Name=%s\n", ouName)
+func (c Client) CreateOrganizationUnit(
+	ctx context.Context,
+	consoleUI runner.ConsoleUI,
+	mgmtAcct resource.Account,
+	ouName, newParentId string,
+) (*organizations.OrganizationalUnit, error) {
+
+	consoleUI.Print(fmt.Sprintf("Creating OU: Name=%s\n", ouName), mgmtAcct)
 	out, err := c.organizationClient.CreateOrganizationalUnitWithContext(ctx, &organizations.CreateOrganizationalUnitInput{
 		Name:     &ouName,
 		ParentId: &newParentId,
@@ -148,8 +201,13 @@ func (c Client) CreateOrganizationUnit(ctx context.Context, ouName, newParentId 
 	return out.OrganizationalUnit, nil
 }
 
-func (c Client) RecreateOU(ctx context.Context, ouID, ouName, newParentId string) error {
-	newOU, err := c.CreateOrganizationUnit(ctx, ouName, newParentId)
+func (c Client) RecreateOU(
+	ctx context.Context,
+	consoleUI runner.ConsoleUI,
+	mgmtAcct resource.Account,
+	ouID, ouName, newParentId string,
+) error {
+	newOU, err := c.CreateOrganizationUnit(ctx, consoleUI, mgmtAcct, ouName, newParentId)
 	if err != nil {
 		return err
 	}
@@ -159,7 +217,7 @@ func (c Client) RecreateOU(ctx context.Context, ouID, ouName, newParentId string
 		return err
 	}
 	for _, acct := range childAccounts {
-		err := c.MoveAccount(ctx, *acct.Id, ouID, *newOU.Id)
+		err := c.MoveAccount(ctx, consoleUI, mgmtAcct, *acct.Id, ouID, *newOU.Id)
 		if err != nil {
 			return err
 		}
@@ -170,7 +228,7 @@ func (c Client) RecreateOU(ctx context.Context, ouID, ouName, newParentId string
 		return err
 	}
 	for _, childOU := range childOUs {
-		err := c.RecreateOU(ctx, *childOU.Id, *childOU.Name, *newOU.Id)
+		err := c.RecreateOU(ctx, consoleUI, mgmtAcct, *childOU.Id, *childOU.Name, *newOU.Id)
 		if err != nil {
 			return err
 		}
@@ -189,64 +247,58 @@ func (c Client) UpdateOrganizationUnit(ctx context.Context, ouID, newName string
 	return err
 }
 
-func (c Client) CreateAccounts(ctx context.Context, accts []*organizations.Account) []error {
-	var errs []error
-	var createRequests []*organizations.CreateAccountStatus
-	requestToAccount := make(map[string]*organizations.Account)
+func (c Client) CreateAccount(
+	ctx context.Context,
+	consoleUI runner.ConsoleUI,
+	mgmtAcct resource.Account,
+	acct *organizations.Account,
+) (string, error) {
 
-	for _, acct := range accts {
-		fmt.Printf("Creating Account: Name=%s Email=%s\n", *acct.Name, *acct.Email)
-		out, err := c.organizationClient.CreateAccount(&organizations.CreateAccountInput{
-			AccountName: acct.Name,
-			Email:       acct.Email,
-			Tags: []*organizations.Tag{
-				{
-					Key:   aws.String("TelophaseManaged"),
-					Value: aws.String("true"),
-				},
+	consoleUI.Print(fmt.Sprintf("Creating Account: Name=%s Email=%s\n", *acct.Name, *acct.Email), mgmtAcct)
+	out, err := c.organizationClient.CreateAccount(&organizations.CreateAccountInput{
+		AccountName: acct.Name,
+		Email:       acct.Email,
+		Tags: []*organizations.Tag{
+			{
+				Key:   aws.String("TelophaseManaged"),
+				Value: aws.String("true"),
 			},
-		})
-		if err != nil {
-			fmt.Printf("Error creating account: %s.\n", err.Error())
-			errs = append(errs, err)
-		}
-		requestToAccount[*out.CreateAccountStatus.Id] = acct
-		createRequests = append(createRequests, out.CreateAccountStatus)
+		},
+	})
+	if err != nil {
+		consoleUI.Print(fmt.Sprintf("Error creating account: %s.\n", err.Error()), mgmtAcct)
+		return "", err
 	}
 
-	requestsInProgress := len(createRequests)
-	for requestsInProgress > 0 {
+	for {
 		time.Sleep(15 * time.Second)
 
-		for _, request := range createRequests {
-			requestId := *request.Id
-			currStatus, err := c.organizationClient.DescribeCreateAccountStatus(&organizations.DescribeCreateAccountStatusInput{
-				CreateAccountRequestId: &requestId,
-			})
-			if err != nil {
-				fmt.Printf("error fetching create status: %s\n", err)
-				continue
-			}
+		requestId := *out.CreateAccountStatus.Id
+		currStatus, err := c.organizationClient.DescribeCreateAccountStatus(&organizations.DescribeCreateAccountStatusInput{
+			CreateAccountRequestId: &requestId,
+		})
+		if err != nil {
+			consoleUI.Print(fmt.Sprintf("Error fetching create status: %s\n", err), mgmtAcct)
+			continue
+		}
 
-			state := *currStatus.CreateAccountStatus.State
-			accountName := *currStatus.CreateAccountStatus.AccountName
+		state := *currStatus.CreateAccountStatus.State
+		accountName := *currStatus.CreateAccountStatus.AccountName
 
-			switch state {
-			case "IN_PROGRESS":
-				fmt.Printf("Still creating %s...\n", accountName)
-			case "FAILED":
-				fmt.Printf("Failed to create account %s. Error: %s\n", accountName, *currStatus.CreateAccountStatus.FailureReason)
-				requestsInProgress -= 1
+		switch state {
+		case "IN_PROGRESS":
+			consoleUI.Print(fmt.Sprintf("Still creating %s...\n", accountName), mgmtAcct)
+		case "FAILED":
+			consoleUI.Print(fmt.Sprintf("Failed to create account %s. Error: %s\n", accountName, *currStatus.CreateAccountStatus.FailureReason), mgmtAcct)
+			return "", err
 
-			case "SUCCEEDED":
-				requestToAccount[requestId].Id = currStatus.CreateAccountStatus.AccountId
-				fmt.Printf("Successfully created account %s.\n", accountName)
-				requestsInProgress -= 1
-			}
+		case "SUCCEEDED":
+			consoleUI.Print(fmt.Sprintf("Successfully created account %s.\n", accountName), mgmtAcct)
+			return *currStatus.CreateAccountStatus.AccountId, nil
+		default:
+			return "", fmt.Errorf("unexpected state: %s", state)
 		}
 	}
-
-	return errs
 }
 
 func (c Client) CloseAccounts(ctx context.Context, accts []*organizations.Account) []error {

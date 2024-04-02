@@ -17,16 +17,19 @@ import (
 
 type organizationUnitOperation struct {
 	OrganizationUnit    *resource.AccountGroup
+	MgmtAccount         *resource.Account
 	Operation           int
 	NewParent           *resource.AccountGroup
 	CurrentParent       *resource.AccountGroup
 	NewName             *string
 	OrgClient           awsorgs.Client
+	ConsoleUI           runner.ConsoleUI
 	DependentOperations []ResourceOperation
 }
 
 func NewOrganizationUnitOperation(
 	orgClient awsorgs.Client,
+	consoleUI runner.ConsoleUI,
 	organizationUnit *resource.AccountGroup,
 	operation int,
 	newParent *resource.AccountGroup,
@@ -34,13 +37,19 @@ func NewOrganizationUnitOperation(
 	newName *string,
 ) ResourceOperation {
 
+	mgmtAcct, err := orgClient.FetchManagementAccount(context.TODO())
+	if err != nil {
+		panic(err)
+	}
 	return &organizationUnitOperation{
 		OrgClient:        orgClient,
+		ConsoleUI:        consoleUI,
 		OrganizationUnit: organizationUnit,
 		Operation:        operation,
 		NewParent:        newParent,
 		CurrentParent:    currentParent,
 		NewName:          newName,
+		MgmtAccount:      mgmtAcct,
 	}
 }
 
@@ -49,6 +58,7 @@ func CollectOrganizationUnitOps(
 	consoleUI runner.ConsoleUI,
 	orgClient awsorgs.Client,
 	rootOU *resource.AccountGroup,
+	op int,
 ) []ResourceOperation {
 
 	// Order of operations matters. Groups must be Created first, followed by account creation,
@@ -82,6 +92,7 @@ func CollectOrganizationUnitOps(
 						if newGroupOperation.OrganizationUnit == parsedGroup.Parent {
 							newGroup.AddDependent(NewOrganizationUnitOperation(
 								orgClient,
+								consoleUI,
 								parsedGroup,
 								UpdateParent,
 								parsedGroup.Parent,
@@ -95,6 +106,7 @@ func CollectOrganizationUnitOps(
 					operations = append(operations,
 						NewOrganizationUnitOperation(
 							orgClient,
+							consoleUI,
 							parsedGroup,
 							UpdateParent,
 							parsedGroup.Parent,
@@ -117,6 +129,7 @@ func CollectOrganizationUnitOps(
 					if newGroupOperation.OrganizationUnit == parsedGroup.Parent {
 						newGroup.AddDependent(NewOrganizationUnitOperation(
 							orgClient,
+							consoleUI,
 							parsedGroup,
 							Create,
 							parsedGroup.Parent,
@@ -129,6 +142,7 @@ func CollectOrganizationUnitOps(
 				operations = append(operations,
 					NewOrganizationUnitOperation(
 						orgClient,
+						consoleUI,
 						parsedGroup,
 						Create,
 						parsedGroup.Parent,
@@ -186,25 +200,35 @@ func CollectOrganizationUnitOps(
 						continue
 					}
 					if newGroupOperation.OrganizationUnit == parsedAcct.Parent {
-						newGroup.AddDependent(NewAccountOperation(
+						newAcct := NewAccountOperation(
 							orgClient,
 							consoleUI,
 							parsedAcct,
 							Create,
 							parsedAcct.Parent,
 							nil,
-						))
+						)
+						newGroup.AddDependent(newAcct)
+
+						for _, acctOp := range CollectAccountOps(ctx, consoleUI, op, parsedAcct, "") {
+							newAcct.AddDependent(acctOp)
+						}
 					}
 				}
 			} else {
-				operations = append(operations, NewAccountOperation(
+				newAcct := NewAccountOperation(
 					orgClient,
 					consoleUI,
 					parsedAcct,
 					Create,
 					parsedAcct.Parent,
 					nil,
-				))
+				)
+				operations = append(operations, newAcct)
+
+				for _, acctOp := range CollectAccountOps(ctx, consoleUI, op, parsedAcct, "") {
+					newAcct.AddDependent(acctOp)
+				}
 			}
 		}
 	}
@@ -222,13 +246,13 @@ func (ou *organizationUnitOperation) ListDependents() []ResourceOperation {
 
 func (ou *organizationUnitOperation) Call(ctx context.Context) error {
 	if ou.Operation == Create {
-		newOrg, err := ou.OrgClient.CreateOrganizationUnit(ctx, ou.OrganizationUnit.Name, *ou.OrganizationUnit.Parent.ID)
+		newOrg, err := ou.OrgClient.CreateOrganizationUnit(ctx, ou.ConsoleUI, *ou.MgmtAccount, ou.OrganizationUnit.Name, *ou.OrganizationUnit.Parent.ID)
 		if err != nil {
 			return err
 		}
 		ou.OrganizationUnit.ID = newOrg.Id
 	} else if ou.Operation == UpdateParent {
-		err := ou.OrgClient.RecreateOU(ctx, *ou.OrganizationUnit.ID, ou.OrganizationUnit.Name, *ou.OrganizationUnit.Parent.ID)
+		err := ou.OrgClient.RecreateOU(ctx, ou.ConsoleUI, *ou.MgmtAccount, *ou.OrganizationUnit.ID, ou.OrganizationUnit.Name, *ou.OrganizationUnit.Parent.ID)
 		if err != nil {
 			return err
 		}

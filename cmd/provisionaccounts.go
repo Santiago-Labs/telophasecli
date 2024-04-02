@@ -88,11 +88,11 @@ var accountProvision = &cobra.Command{
 			panic(fmt.Sprintf("error: %s parsing organization", err))
 		}
 		if args[0] == "diff" {
-			orgV2Diff(ctx, consoleUI, orgClient, *subscriptionClient, rootAWSGroup, rootAzureGroup)
+			orgV2Diff(ctx, consoleUI, orgClient, *subscriptionClient, rootAWSGroup, rootAzureGroup, resourceoperation.Diff)
 		}
 
 		if args[0] == "deploy" {
-			operations := orgV2Diff(ctx, consoleUI, orgClient, *subscriptionClient, rootAWSGroup, rootAzureGroup)
+			operations := orgV2Diff(ctx, consoleUI, orgClient, *subscriptionClient, rootAWSGroup, rootAzureGroup, resourceoperation.Deploy)
 
 			for _, op := range operations {
 				err := op.Call(ctx)
@@ -111,16 +111,23 @@ func orgV2Diff(
 	subscriptionsClient azureorgs.Client,
 	rootAWSGroup *resource.AccountGroup,
 	rootAzureGroup *resource.AzureAccountGroup,
+	operation int,
 ) []resourceoperation.ResourceOperation {
 
 	var operations []resourceoperation.ResourceOperation
 	if rootAWSGroup != nil {
-		operations = append(operations, resourceoperation.CollectOrganizationUnitOps(ctx, outputUI, orgClient, rootAWSGroup)...)
+		mgmtAcct, err := orgClient.FetchManagementAccount(ctx)
+		if err != nil {
+			panic(err)
+		}
+		operations = append(operations, resourceoperation.CollectOrganizationUnitOps(
+			ctx, outputUI, orgClient, rootAWSGroup, operation,
+		)...)
 		for _, op := range resourceoperation.FlattenOperations(operations) {
-			fmt.Println(op.ToString())
+			outputUI.Print(op.ToString(), *mgmtAcct)
 		}
 		if len(operations) == 0 {
-			fmt.Println("\033[32m No changes to AWS Organization. \033[0m")
+			outputUI.Print("\033[32m No changes to AWS Organization. \033[0m", *mgmtAcct)
 		}
 	}
 

@@ -44,15 +44,34 @@ func (co *cdkOperation) ListDependents() []ResourceOperation {
 }
 
 func (co *cdkOperation) Call(ctx context.Context) error {
-	co.OutputUI.Print(fmt.Sprintf("Executing CDK stack in %s", co.Stack.Name), *co.Account)
-	stackRole, err := authAWS(*co.Account, co.Stack, co.OutputUI)
-	if err != nil {
-		panic(err)
-	}
+	co.OutputUI.Print(fmt.Sprintf("Executing CDK stack in %s", co.Stack.Path), *co.Account)
 
-	bootstrapCDK := bootstrapCDK(stackRole, *co.Account, co.Stack)
-	if err := co.OutputUI.RunCmd(bootstrapCDK, *co.Account); err != nil {
-		return err
+	var stackRole *sts.AssumeRoleOutput
+
+	// We must bootstrap cdk with the account role.
+	if co.Stack.RoleOverrideARN != "" {
+		acctRole, region, err := authAWS(*co.Account, co.Account.AssumeRoleARN(), co.OutputUI)
+		if err != nil {
+			return err
+		}
+		bootstrapCDK := bootstrapCDK(acctRole, region, *co.Account, co.Stack)
+		if err := co.OutputUI.RunCmd(bootstrapCDK, *co.Account); err != nil {
+			return err
+		}
+
+		stackRole, region, err = authAWS(*co.Account, co.Stack.RoleOverrideARN, co.OutputUI)
+		if err != nil {
+			return err
+		}
+	} else {
+		acctRole, region, err := authAWS(*co.Account, co.Account.AssumeRoleARN(), co.OutputUI)
+		if err != nil {
+			return err
+		}
+		bootstrapCDK := bootstrapCDK(acctRole, region, *co.Account, co.Stack)
+		if err := co.OutputUI.RunCmd(bootstrapCDK, *co.Account); err != nil {
+			return err
+		}
 	}
 
 	synthCDK := synthCDK(stackRole, *co.Account, co.Stack)
@@ -100,9 +119,10 @@ func (co *cdkOperation) ToString() string {
 	return ""
 }
 
-func bootstrapCDK(result *sts.AssumeRoleOutput, acct resource.Account, stack resource.Stack) *exec.Cmd {
+func bootstrapCDK(result *sts.AssumeRoleOutput, region string, acct resource.Account, stack resource.Stack) *exec.Cmd {
 	cdkArgs := []string{
 		"bootstrap",
+		fmt.Sprintf("aws://%s/%s", acct.AccountID, region),
 		"--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName),
 		"--output", cdk.TmpPath(acct, stack.Path),
 	}
@@ -142,26 +162,17 @@ func synthCDK(result *sts.AssumeRoleOutput, acct resource.Account, stack resourc
 	return cmd
 }
 
-func authAWS(acct resource.Account, stack resource.Stack, consoleUI runner.ConsoleUI) (*sts.AssumeRoleOutput, error) {
+func authAWS(acct resource.Account, arn string, consoleUI runner.ConsoleUI) (*sts.AssumeRoleOutput, string, error) {
 	var svc *sts.STS
 	sess := session.Must(awssess.DefaultSession())
 	svc = sts.New(sess)
 
-	if stack.RoleOverrideARN != "" {
-		consoleUI.Print(fmt.Sprintf("Assuming role: %s", stack.RoleOverrideARN), acct)
-		input := &sts.AssumeRoleInput{
-			RoleArn:         aws.String(stack.RoleOverrideARN),
-			RoleSessionName: aws.String("telophase-org"),
-		}
-
-		return awssess.AssumeRole(svc, input)
-	}
-
-	consoleUI.Print(fmt.Sprintf("Assuming role: %s", acct.AssumeRoleARN()), acct)
+	consoleUI.Print(fmt.Sprintf("Assuming role: %s", arn), acct)
 	input := &sts.AssumeRoleInput{
-		RoleArn:         aws.String(acct.AssumeRoleARN()),
+		RoleArn:         aws.String(arn),
 		RoleSessionName: aws.String("telophase-org"),
 	}
 
-	return awssess.AssumeRole(svc, input)
+	role, err := awssess.AssumeRole(svc, input)
+	return role, *sess.Config.Region, err
 }

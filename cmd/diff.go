@@ -47,7 +47,7 @@ var diffCmd = &cobra.Command{
 		if err != nil {
 			panic(fmt.Sprintf("error: %s parsing organization", err))
 		}
-		orgV2Diff(ctx, consoleUI, orgClient, *subsClient, rootAWSGroup, rootAzureGroup)
+		orgV2Diff(ctx, consoleUI, orgClient, *subsClient, rootAWSGroup, rootAzureGroup, resourceoperation.Diff)
 
 		if rootAWSGroup != nil {
 			for _, acct := range rootAWSGroup.AllDescendentAccounts() {

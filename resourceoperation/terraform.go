@@ -49,7 +49,12 @@ func (to *tfOperation) Call(ctx context.Context) error {
 	var stackRole *sts.AssumeRoleOutput
 	var assumeRoleErr error
 	if to.Account.AccountID != "" {
-		stackRole, assumeRoleErr = authAWS(*to.Account, to.Stack, to.OutputUI)
+		if to.Stack.RoleOverrideARN != "" {
+			stackRole, _, assumeRoleErr = authAWS(*to.Account, to.Stack.RoleOverrideARN, to.OutputUI)
+		} else {
+			stackRole, _, assumeRoleErr = authAWS(*to.Account, to.Account.AssumeRoleARN(), to.OutputUI)
+		}
+
 		if assumeRoleErr != nil {
 			return assumeRoleErr
 		}
