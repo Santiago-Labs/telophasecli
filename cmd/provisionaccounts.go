@@ -85,7 +85,7 @@ var accountProvision = &cobra.Command{
 
 		rootAWSGroup, rootAzureGroup, err := ymlparser.ParseOrganizationV2(orgFile)
 		if err != nil {
-			panic(fmt.Sprintf("error: %s parsing organization", err))
+			panic(fmt.Sprintf("error: %s", err))
 		}
 		if args[0] == "diff" {
 			orgV2Diff(ctx, consoleUI, orgClient, *subscriptionClient, rootAWSGroup, rootAzureGroup, resourceoperation.Diff)

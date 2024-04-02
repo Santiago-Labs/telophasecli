@@ -51,7 +51,7 @@ var compileCmd = &cobra.Command{
 		var accountsToApply []resource.Account
 		rootAWSGroup, rootAzureGroup, err := ymlparser.ParseOrganizationV2(orgFile)
 		if err != nil {
-			panic(fmt.Sprintf("error: %s parsing organization", err))
+			panic(fmt.Sprintf("error: %s", err))
 		}
 
 		ops := orgV2Diff(ctx, consoleUI, orgClient, *subsClient, rootAWSGroup, rootAzureGroup, resourceoperation.Deploy)

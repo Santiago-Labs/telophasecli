@@ -45,7 +45,7 @@ var diffCmd = &cobra.Command{
 
 		rootAWSGroup, rootAzureGroup, err := ymlparser.ParseOrganizationV2(orgFile)
 		if err != nil {
-			panic(fmt.Sprintf("error: %s parsing organization", err))
+			panic(fmt.Sprintf("error: %s", err))
 		}
 		orgV2Diff(ctx, consoleUI, orgClient, *subsClient, rootAWSGroup, rootAzureGroup, resourceoperation.Diff)
 
