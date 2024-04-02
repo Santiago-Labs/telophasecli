@@ -13,16 +13,21 @@ import (
 func NewSTDOut() ConsoleUI {
 	return &stdOut{
 		coloredId: make(map[string]string),
+		lock:      sync.Mutex{},
 	}
 }
 
 type stdOut struct {
 	coloredId map[string]string
+	lock      sync.Mutex
 }
 
 func (s *stdOut) ColoredId(acct resource.Account) string {
 	coloredId, ok := s.coloredId[acct.ID()]
 	if !ok {
+		s.lock.Lock()
+		defer s.lock.Unlock()
+
 		colorFunc := colors.DeterministicColorFunc(acct.AccountID)
 		if acct.AccountName != "" {
 			coloredId = colorFunc(fmt.Sprintf("[Account: %s (%s)]", acct.ID(), acct.AccountName))
