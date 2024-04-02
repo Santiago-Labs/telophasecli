@@ -6,7 +6,6 @@ import (
 
 	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
-	"github.com/santiago-labs/telophasecli/lib/azureorgs"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 	"github.com/santiago-labs/telophasecli/resource"
 	"github.com/santiago-labs/telophasecli/resourceoperation"
@@ -35,10 +34,6 @@ var compileCmd = &cobra.Command{
 	Short: "deploy - Deploy a CDK and/or TF stacks to your AWS account(s). Accounts in organization.yml will be created if they do not exist.",
 	Run: func(cmd *cobra.Command, args []string) {
 		orgClient := awsorgs.New()
-		subsClient, err := azureorgs.New()
-		if err != nil {
-			panic(fmt.Sprintf("error: %s", err))
-		}
 		ctx := context.Background()
 
 		var consoleUI runner.ConsoleUI
@@ -49,26 +44,18 @@ var compileCmd = &cobra.Command{
 		}
 
 		var accountsToApply []resource.Account
-		rootAWSGroup, rootAzureGroup, err := ymlparser.ParseOrganizationV2(orgFile)
+		rootAWSGroup, err := ymlparser.ParseOrganizationV2(orgFile)
 		if err != nil {
 			panic(fmt.Sprintf("error: %s", err))
 		}
 
-		ops := orgV2Diff(ctx, consoleUI, orgClient, *subsClient, rootAWSGroup, rootAzureGroup, resourceoperation.Deploy)
+		ops := orgV2Diff(ctx, consoleUI, orgClient, rootAWSGroup, resourceoperation.Deploy)
 		for _, op := range ops {
 			op.Call(ctx)
 		}
 
 		if rootAWSGroup != nil {
 			for _, acct := range rootAWSGroup.AllDescendentAccounts() {
-				if contains(tag, acct.AllTags()) || tag == "" {
-					accountsToApply = append(accountsToApply, *acct)
-				}
-			}
-		}
-
-		if rootAzureGroup != nil {
-			for _, acct := range rootAzureGroup.AllDescendentAccounts() {
 				if contains(tag, acct.AllTags()) || tag == "" {
 					accountsToApply = append(accountsToApply, *acct)
 				}

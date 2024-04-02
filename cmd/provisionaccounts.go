@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
-	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/aws/aws-sdk-go/aws/session"
 
 	"github.com/aws/aws-sdk-go/service/sts"
@@ -15,26 +13,16 @@ import (
 	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/awssess"
-	"github.com/santiago-labs/telophasecli/lib/azureorgs"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 	"github.com/santiago-labs/telophasecli/resource"
 	"github.com/santiago-labs/telophasecli/resourceoperation"
 )
 
 var orgFile string
-var azure bool
 
 func init() {
 	rootCmd.AddCommand(accountProvision)
 	accountProvision.Flags().StringVar(&orgFile, "org", "organization.yml", "Path to the organization.yml file")
-}
-
-func connectionAzure() (azcore.TokenCredential, error) {
-	cred, err := azidentity.NewDefaultAzureCredential(nil)
-	if err != nil {
-		return nil, err
-	}
-	return cred, nil
 }
 
 func isValidAccountArg(arg string) bool {
@@ -64,10 +52,6 @@ var accountProvision = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		orgClient := awsorgs.New()
-		subscriptionClient, err := azureorgs.New()
-		if err != nil {
-			panic(fmt.Sprintf("error creating azure client err: %s" + err.Error()))
-		}
 
 		var consoleUI runner.ConsoleUI
 		if useTUI {
@@ -83,16 +67,16 @@ var accountProvision = &cobra.Command{
 			}
 		}
 
-		rootAWSGroup, rootAzureGroup, err := ymlparser.ParseOrganizationV2(orgFile)
+		rootAWSGroup, err := ymlparser.ParseOrganizationV2(orgFile)
 		if err != nil {
 			panic(fmt.Sprintf("error: %s", err))
 		}
 		if args[0] == "diff" {
-			orgV2Diff(ctx, consoleUI, orgClient, *subscriptionClient, rootAWSGroup, rootAzureGroup, resourceoperation.Diff)
+			orgV2Diff(ctx, consoleUI, orgClient, rootAWSGroup, resourceoperation.Diff)
 		}
 
 		if args[0] == "deploy" {
-			operations := orgV2Diff(ctx, consoleUI, orgClient, *subscriptionClient, rootAWSGroup, rootAzureGroup, resourceoperation.Deploy)
+			operations := orgV2Diff(ctx, consoleUI, orgClient, rootAWSGroup, resourceoperation.Deploy)
 
 			for _, op := range operations {
 				err := op.Call(ctx)
@@ -108,9 +92,7 @@ func orgV2Diff(
 	ctx context.Context,
 	outputUI runner.ConsoleUI,
 	orgClient awsorgs.Client,
-	subscriptionsClient azureorgs.Client,
 	rootAWSGroup *resource.AccountGroup,
-	rootAzureGroup *resource.AzureAccountGroup,
 	operation int,
 ) []resourceoperation.ResourceOperation {
 
@@ -129,18 +111,6 @@ func orgV2Diff(
 		if len(operations) == 0 {
 			outputUI.Print("\033[32m No changes to AWS Organization. \033[0m", *mgmtAcct)
 		}
-	}
-
-	if rootAzureGroup != nil {
-		azureOps := resourceoperation.CollectAzureAcctGroupOps(ctx, outputUI, subscriptionsClient, rootAzureGroup)
-		for _, op := range resourceoperation.FlattenOperations(operations) {
-			fmt.Println(op.ToString())
-		}
-		if len(azureOps) == 0 {
-			fmt.Println("\033[32m No changes to Azure Subscriptions. \033[0m")
-		}
-
-		operations = append(operations, azureOps...)
 	}
 
 	return operations

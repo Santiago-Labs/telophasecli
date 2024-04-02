@@ -9,10 +9,8 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/sts"
-	"github.com/samsarahq/go/oops"
 	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/awssts"
-	"github.com/santiago-labs/telophasecli/lib/azureiam"
 	"github.com/santiago-labs/telophasecli/lib/localstack"
 	"github.com/santiago-labs/telophasecli/lib/terraform"
 	"github.com/santiago-labs/telophasecli/resource"
@@ -82,18 +80,10 @@ func (to *tfOperation) Call(ctx context.Context) error {
 	cmd := exec.Command(localstack.TfCmd(), args...)
 	cmd.Dir = workingPath
 
-	if stackRole != nil {
-		cmd.Env = awssts.SetEnviron(os.Environ(),
-			*stackRole.Credentials.AccessKeyId,
-			*stackRole.Credentials.SecretAccessKey,
-			*stackRole.Credentials.SessionToken)
-	} else if to.Account.SubscriptionID != "" {
-		resultEnv, err := azureiam.SetEnviron(os.Environ(), to.Account.SubscriptionID)
-		if err != nil {
-			return oops.Wrapf(err, "setting azure subscription id %s", to.Account.SubscriptionID)
-		}
-		cmd.Env = resultEnv
-	}
+	cmd.Env = awssts.SetEnviron(os.Environ(),
+		*stackRole.Credentials.AccessKeyId,
+		*stackRole.Credentials.SecretAccessKey,
+		*stackRole.Credentials.SessionToken)
 
 	if err := to.OutputUI.RunCmd(cmd, *to.Account); err != nil {
 		return err
@@ -129,22 +119,11 @@ func (to *tfOperation) initTf(role *sts.AssumeRoleOutput) *exec.Cmd {
 		cmd := exec.Command(localstack.TfCmd(), "init")
 		cmd.Dir = workingPath
 
-		// If result is nil then we are not using AWS
-		if role != nil {
-			cmd.Env = awssts.SetEnviron(os.Environ(),
-				*role.Credentials.AccessKeyId,
-				*role.Credentials.SecretAccessKey,
-				*role.Credentials.SessionToken)
-		}
+		cmd.Env = awssts.SetEnviron(os.Environ(),
+			*role.Credentials.AccessKeyId,
+			*role.Credentials.SecretAccessKey,
+			*role.Credentials.SessionToken)
 
-		if to.Account.SubscriptionID != "" {
-			resultEnv, err := azureiam.SetEnviron(os.Environ(), to.Account.SubscriptionID)
-			if err != nil {
-				panic(oops.Wrapf(err, "setting azure subscription id %s", to.Account.SubscriptionID))
-			}
-
-			cmd.Env = resultEnv
-		}
 		return cmd
 	}
 

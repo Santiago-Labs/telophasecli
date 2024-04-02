@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/samsarahq/go/oops"
-	"github.com/santiago-labs/telophasecli/lib/azureorgs"
 	"github.com/santiago-labs/telophasecli/resource"
 )
 
@@ -62,10 +61,6 @@ func replaceVariablesInFile(srcFile, dstFile string, acct resource.Account) erro
 	updatedContent = strings.ReplaceAll(updatedContent, "telophase.account_id", fmt.Sprintf("\"%s\"", acct.AccountID))
 	updatedContent = strings.ReplaceAll(updatedContent, "${telophase.account_name}", acct.AccountName)
 	updatedContent = strings.ReplaceAll(updatedContent, "telophase.account_name", fmt.Sprintf("\"%s\"", acct.AccountName))
-	updatedContent = strings.ReplaceAll(updatedContent, "${telophase.subscription_id}", acct.SubscriptionID)
-	updatedContent = strings.ReplaceAll(updatedContent, "telophase.subscription_id", fmt.Sprintf("\"%s\"", acct.SubscriptionID))
-	updatedContent = strings.ReplaceAll(updatedContent, "${telophase.storage_account_name}", azureorgs.StorageAccountName(acct.SubscriptionID))
-	updatedContent = strings.ReplaceAll(updatedContent, "telophase.storage_account_name", fmt.Sprintf("\"%s\"", azureorgs.StorageAccountName(acct.SubscriptionID)))
 
 	return ioutil.WriteFile(dstFile, []byte(updatedContent), 0644)
 }

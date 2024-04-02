@@ -5,7 +5,7 @@
 <br/>
 
 ## Why Telophase?
-Automation and Compliance are key concerns when adopting multi-account AWS or multi-subscription Azure environments. Telophase orchestrates the management of AWS Organizations or Azure Subscriptions, alongside your infrastructure-as-code (IaC) provider, like Terraform or CDK. Using a single tool for these allows:
+Automation and Compliance are key concerns when adopting multi-account AWS. Telophase orchestrates the management of AWS Organizations alongside your infrastructure-as-code (IaC) provider, like Terraform or CDK. Using a single tool for these allows:
 1. **Workflow Automation**: Automates account creation and decommissioning, integrating with existing automation workflows, like CI or ServiceNow.
 2. **IaC <> Account Binding**: Enables binding accounts to specific IaC stacks for automatic provisioning of baseline resources.
 3. **Easier Compliance Deployment**: Enables binding Service Control Policies (SCPs) to accounts as part of your Account provisioning workflow to make sure every Account is compliant. We make it easy to test SCPs before they are deployed.
@@ -24,8 +24,7 @@ go install github.com/santiago-labs/telophasecli@latest
   - [Quickstart](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/quickstart.md)
 - Features
   - [Manage AWS Organization](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#aws-organization)
-  - [Manage Azure Subscriptions](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#azure-subscriptions)
-  - [Assign IaC to Accounts/Subscriptions](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#assign-iac-stacks-to-accountssubscriptions)
+  - [Assign IaC to Accounts](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#assign-iac-stacks-to-accounts)
   - [Pass Outputs Across Stacks](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#pass-outputs-across-accounts-and-regions-cdk-only)
   - [Terminal UI](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#terminal-ui)
 - CLI
@@ -40,7 +39,7 @@ go install github.com/santiago-labs/telophasecli@latest
 
 ### Future Development
 - [ ] Support for multi-cloud organizations with a unified account factory.
-  - [x] Azure
+  - [ ] Azure
   - [ ] GCP
 - [ ] Drift detection/prevention
 - [ ] Guardrails around account resources 

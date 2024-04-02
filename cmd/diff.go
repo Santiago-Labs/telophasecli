@@ -6,7 +6,6 @@ import (
 
 	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
-	"github.com/santiago-labs/telophasecli/lib/azureorgs"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 	"github.com/santiago-labs/telophasecli/resource"
 	"github.com/santiago-labs/telophasecli/resourceoperation"
@@ -27,10 +26,6 @@ var diffCmd = &cobra.Command{
 	Short: "diff - Show accounts to create/update and CDK and/or TF changes for each account.",
 	Run: func(cmd *cobra.Command, args []string) {
 		orgClient := awsorgs.New()
-		subsClient, err := azureorgs.New()
-		if err != nil {
-			panic(fmt.Sprintf("error: %s", err))
-		}
 
 		var consoleUI runner.ConsoleUI
 		if useTUI {
@@ -43,22 +38,14 @@ var diffCmd = &cobra.Command{
 
 		ctx := context.Background()
 
-		rootAWSGroup, rootAzureGroup, err := ymlparser.ParseOrganizationV2(orgFile)
+		rootAWSGroup, err := ymlparser.ParseOrganizationV2(orgFile)
 		if err != nil {
 			panic(fmt.Sprintf("error: %s", err))
 		}
-		orgV2Diff(ctx, consoleUI, orgClient, *subsClient, rootAWSGroup, rootAzureGroup, resourceoperation.Diff)
+		orgV2Diff(ctx, consoleUI, orgClient, rootAWSGroup, resourceoperation.Diff)
 
 		if rootAWSGroup != nil {
 			for _, acct := range rootAWSGroup.AllDescendentAccounts() {
-				if contains(tag, acct.AllTags()) || tag == "" {
-					accountsToApply = append(accountsToApply, *acct)
-				}
-			}
-		}
-
-		if rootAzureGroup != nil {
-			for _, acct := range rootAzureGroup.AllDescendentAccounts() {
 				if contains(tag, acct.AllTags()) || tag == "" {
 					accountsToApply = append(accountsToApply, *acct)
 				}
