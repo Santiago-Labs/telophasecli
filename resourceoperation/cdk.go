@@ -59,7 +59,7 @@ func (co *cdkOperation) Call(ctx context.Context) error {
 			return err
 		}
 
-		stackRole, region, err = authAWS(*co.Account, co.Stack.RoleOverrideARN, co.OutputUI)
+		stackRole, _, err = authAWS(*co.Account, co.Stack.RoleOverrideARN, co.OutputUI)
 		if err != nil {
 			return err
 		}
