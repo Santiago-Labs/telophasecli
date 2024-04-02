@@ -7,7 +7,7 @@ import (
 	"log"
 
 	"github.com/fatih/color"
-	"github.com/santiago-labs/telophasecli/lib/awsorgs"
+	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
 	"github.com/santiago-labs/telophasecli/resource"
 )
@@ -17,6 +17,22 @@ type AzureSubscriptionOperation struct {
 	Subscription        *resource.Subscription
 	AzureGroup          resource.AzureAccountGroup
 	DependentOperations []ResourceOperation
+	OutputUI            runner.ConsoleUI
+}
+
+func CollectSubscriptionOps(
+	ctx context.Context,
+	consoleUI runner.ConsoleUI,
+	operation int,
+	sub *resource.Subscription,
+) []ResourceOperation {
+
+	var ops []ResourceOperation
+	for _, stack := range sub.Account.AllBaselineStacks() {
+		ops = append(ops, NewTFOperation(consoleUI, sub.Account, stack, operation))
+	}
+
+	return ops
 }
 
 func (ao *AzureSubscriptionOperation) AddDependent(op ResourceOperation) {
@@ -27,7 +43,7 @@ func (ao *AzureSubscriptionOperation) ListDependents() []ResourceOperation {
 	return ao.DependentOperations
 }
 
-func (ao *AzureSubscriptionOperation) Call(ctx context.Context, orgsClient awsorgs.Client) error {
+func (ao *AzureSubscriptionOperation) Call(ctx context.Context) error {
 	subsClient, err := azureorgs.New()
 	if err != nil {
 		return err
@@ -50,7 +66,7 @@ func (ao *AzureSubscriptionOperation) Call(ctx context.Context, orgsClient awsor
 	}
 
 	for _, op := range ao.DependentOperations {
-		op.Call(ctx, orgsClient)
+		op.Call(ctx)
 	}
 
 	return nil

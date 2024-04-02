@@ -8,68 +8,118 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/organizations"
 	"github.com/fatih/color"
+	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/resource"
 )
 
-const (
-	UpdateParent = 1
-	Create       = 2
-	Update       = 3
-)
-
-type AccountOperation struct {
+type accountOperation struct {
 	Account             *resource.Account
+	MgmtAccount         *resource.Account
 	Operation           int
 	NewParent           *resource.AccountGroup
 	CurrentParent       *resource.AccountGroup
 	DependentOperations []ResourceOperation
+	ConsoleUI           runner.ConsoleUI
+	OrgClient           *awsorgs.Client
 }
 
-func (ao *AccountOperation) AddDependent(op ResourceOperation) {
+func NewAccountOperation(
+	orgClient awsorgs.Client,
+	consoleUI runner.ConsoleUI,
+	account *resource.Account,
+	operation int,
+	newParent *resource.AccountGroup,
+	currentParent *resource.AccountGroup,
+) ResourceOperation {
+
+	mgmtAcct, err := orgClient.FetchManagementAccount(context.TODO())
+	if err != nil {
+		panic(err)
+	}
+	return &accountOperation{
+		Account:       account,
+		Operation:     operation,
+		NewParent:     newParent,
+		CurrentParent: currentParent,
+		ConsoleUI:     consoleUI,
+		OrgClient:     &orgClient,
+		MgmtAccount:   mgmtAcct,
+	}
+}
+
+func CollectAccountOps(
+	ctx context.Context,
+	consoleUI runner.ConsoleUI,
+	operation int,
+	acct *resource.Account,
+	stackFilter string,
+) []ResourceOperation {
+
+	var acctStacks []resource.Stack
+	if stackFilter != "" && stackFilter != "*" {
+		acctStacks = append(acctStacks, acct.FilterBaselineStacks(stackFilter)...)
+	} else {
+		acctStacks = append(acctStacks, acct.AllBaselineStacks()...)
+	}
+
+	var ops []ResourceOperation
+	for _, stack := range acctStacks {
+		if stack.Type == "Terraform" {
+			ops = append(ops, NewTFOperation(consoleUI, acct, stack, operation))
+		} else if stack.Type == "CDK" {
+			ops = append(ops, NewCDKOperation(consoleUI, acct, stack, operation))
+		}
+	}
+
+	return ops
+}
+
+func (ao *accountOperation) AddDependent(op ResourceOperation) {
 	ao.DependentOperations = append(ao.DependentOperations, op)
 }
 
-func (ao *AccountOperation) ListDependents() []ResourceOperation {
+func (ao *accountOperation) ListDependents() []ResourceOperation {
 	return ao.DependentOperations
 }
 
-func (ao *AccountOperation) Call(ctx context.Context, orgsClient awsorgs.Client) error {
+func (ao *accountOperation) Call(ctx context.Context) error {
 	if ao.Operation == Create {
 		acct := &organizations.Account{
 			Email: &ao.Account.Email,
 			Name:  &ao.Account.AccountName,
 		}
-		errs := orgsClient.CreateAccounts(ctx, []*organizations.Account{acct})
-		if len(errs) > 0 {
-			// TODO
-			return errs[0]
+		acctID, err := ao.OrgClient.CreateAccount(ctx, ao.ConsoleUI, *ao.MgmtAccount, acct)
+		if err != nil {
+			return err
 		}
-		rootId, err := orgsClient.GetRootId()
+		ao.Account.AccountID = acctID
+
+		rootId, err := ao.OrgClient.GetRootId()
 		if err != nil {
 			return err
 		}
 
-		err = orgsClient.MoveAccount(ctx, *acct.Id, rootId, *ao.Account.Parent.ID)
+		err = ao.OrgClient.MoveAccount(ctx, ao.ConsoleUI, *ao.MgmtAccount, ao.Account.AccountID, rootId, *ao.Account.Parent.ID)
 		if err != nil {
 			return err
 		}
 
 	} else if ao.Operation == UpdateParent {
-		err := orgsClient.MoveAccount(ctx, ao.Account.AccountID, *ao.CurrentParent.ID, *ao.NewParent.ID)
+		err := ao.OrgClient.MoveAccount(ctx, ao.ConsoleUI, *ao.MgmtAccount, ao.Account.AccountID, *ao.CurrentParent.ID, *ao.NewParent.ID)
 		if err != nil {
 			return err
 		}
 	}
 
 	for _, op := range ao.DependentOperations {
-		op.Call(ctx, orgsClient)
+		op.Call(ctx)
 	}
 
 	return nil
 }
 
-func (ao *AccountOperation) ToString() string {
+func (ao *accountOperation) ToString() string {
 	printColor := "yellow"
 	var templated string
 	if ao.Operation == Create {

@@ -3,23 +3,14 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/exec"
-	"strings"
 
-	"github.com/samsarahq/go/oops"
 	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
-	"github.com/santiago-labs/telophasecli/lib/awssts"
-	"github.com/santiago-labs/telophasecli/lib/azureiam"
 	"github.com/santiago-labs/telophasecli/lib/azureorgs"
-	"github.com/santiago-labs/telophasecli/lib/cdk"
-	"github.com/santiago-labs/telophasecli/lib/localstack"
-	"github.com/santiago-labs/telophasecli/lib/terraform"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 	"github.com/santiago-labs/telophasecli/resource"
+	"github.com/santiago-labs/telophasecli/resourceoperation"
 
-	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/spf13/cobra"
 )
 
@@ -50,30 +41,34 @@ var compileCmd = &cobra.Command{
 		}
 		ctx := context.Background()
 
-		var accountsToApply []resource.Account
+		var consoleUI runner.ConsoleUI
+		if useTUI {
+			consoleUI = runner.NewTUI()
+		} else {
+			consoleUI = runner.NewSTDOut()
+		}
 
-		ops, err := orgV2Diff(orgClient, subsClient)
+		var accountsToApply []resource.Account
+		rootAWSGroup, rootAzureGroup, err := ymlparser.ParseOrganizationV2(orgFile)
 		if err != nil {
 			panic(fmt.Sprintf("error: %s", err))
 		}
 
+		ops := orgV2Diff(ctx, consoleUI, orgClient, *subsClient, rootAWSGroup, rootAzureGroup, resourceoperation.Deploy)
 		for _, op := range ops {
-			op.Call(ctx, orgClient)
+			op.Call(ctx)
 		}
-		awsGroup, azureGroup, err := ymlparser.ParseOrganizationV2(orgFile)
-		if err != nil {
-			panic(fmt.Sprintf("error: %s parsing organization", err))
-		}
-		if awsGroup != nil {
-			for _, acct := range awsGroup.AllDescendentAccounts() {
+
+		if rootAWSGroup != nil {
+			for _, acct := range rootAWSGroup.AllDescendentAccounts() {
 				if contains(tag, acct.AllTags()) || tag == "" {
 					accountsToApply = append(accountsToApply, *acct)
 				}
 			}
 		}
 
-		if azureGroup != nil {
-			for _, acct := range azureGroup.AllDescendentAccounts() {
+		if rootAzureGroup != nil {
+			for _, acct := range rootAzureGroup.AllDescendentAccounts() {
 				if contains(tag, acct.AllTags()) || tag == "" {
 					accountsToApply = append(accountsToApply, *acct)
 				}
@@ -84,58 +79,6 @@ var compileCmd = &cobra.Command{
 			fmt.Println("No accounts to deploy")
 		}
 
-		var consoleUI runner.ConsoleUI
-		if useTUI {
-			consoleUI = runner.NewTUI()
-		} else {
-			consoleUI = runner.NewSTDOut()
-		}
-		runIAC(deployIAC{}, accountsToApply, consoleUI)
+		runIAC(ctx, consoleUI, resourceoperation.Deploy, accountsToApply)
 	},
-}
-
-type deployIAC struct{}
-
-func (d deployIAC) cdkCmd(result *sts.AssumeRoleOutput, acct resource.Account, stack resource.Stack) *exec.Cmd {
-	cdkArgs := []string{"deploy", "--require-approval", "never", "--output", cdk.TmpPath(acct, stack.Path)}
-	cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName))
-	if stack.Name == "" {
-		cdkArgs = append(cdkArgs, "--all")
-	} else {
-		cdkArgs = append(cdkArgs, strings.Split(stack.Name, ",")...)
-	}
-	cmd := exec.Command(localstack.CdkCmd(), cdkArgs...)
-	cmd.Dir = stack.Path
-	if result != nil {
-		cmd.Env = awssts.SetEnviron(os.Environ(),
-			*result.Credentials.AccessKeyId,
-			*result.Credentials.SecretAccessKey,
-			*result.Credentials.SessionToken)
-	}
-
-	return cmd
-}
-
-func (d deployIAC) tfCmd(result *sts.AssumeRoleOutput, acct resource.Account, stack resource.Stack) *exec.Cmd {
-	workingPath := terraform.TmpPath(acct, stack.Path)
-	args := []string{
-		"apply", "-auto-approve",
-	}
-	cmd := exec.Command(localstack.TfCmd(), args...)
-	cmd.Dir = workingPath
-	if result != nil {
-		cmd.Env = awssts.SetEnviron(os.Environ(),
-			*result.Credentials.AccessKeyId,
-			*result.Credentials.SecretAccessKey,
-			*result.Credentials.SessionToken)
-	}
-	if acct.SubscriptionID != "" {
-		resultEnv, err := azureiam.SetEnviron(os.Environ(), acct.SubscriptionID)
-		if err != nil {
-			panic(oops.Wrapf(err, "setting azure subscription id %s", acct.SubscriptionID))
-		}
-		cmd.Env = resultEnv
-	}
-
-	return cmd
 }
