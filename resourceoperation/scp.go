@@ -11,10 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
-	"github.com/santiago-labs/telophasecli/lib/awssts"
 	"github.com/santiago-labs/telophasecli/lib/localstack"
 	"github.com/santiago-labs/telophasecli/lib/terraform"
 	"github.com/santiago-labs/telophasecli/resource"
@@ -26,12 +24,8 @@ func CollectSCPOps(
 	consoleUI runner.ConsoleUI,
 	operation int,
 	rootOU *resource.AccountGroup,
+	mgmtAcct *resource.Account,
 ) []ResourceOperation {
-
-	mgmtAcct, err := orgClient.FetchManagementAccount(ctx)
-	if err != nil {
-		panic(err)
-	}
 
 	var ops []ResourceOperation
 	for _, ou := range rootOU.AllDescendentGroups() {
@@ -101,12 +95,7 @@ func (so *scpOperation) ListDependents() []ResourceOperation {
 func (so *scpOperation) Call(ctx context.Context) error {
 	so.OutputUI.Print(fmt.Sprintf("Executing SCP Terraform stack in %s", so.Stack.Path), *so.MgmtAcct)
 
-	mgmtRole, _, assumeRoleErr := authAWS(*so.MgmtAcct, so.roleARN(), so.OutputUI)
-	if assumeRoleErr != nil {
-		return assumeRoleErr
-	}
-
-	initTFCmd := so.initTf(mgmtRole)
+	initTFCmd := so.initTf()
 	if initTFCmd != nil {
 		if err := so.OutputUI.RunCmd(initTFCmd, *so.MgmtAcct); err != nil {
 			return err
@@ -128,30 +117,20 @@ func (so *scpOperation) Call(ctx context.Context) error {
 	cmd := exec.Command(localstack.TfCmd(), args...)
 	cmd.Dir = workingPath
 
-	cmd.Env = awssts.SetEnviron(os.Environ(),
-		*mgmtRole.Credentials.AccessKeyId,
-		*mgmtRole.Credentials.SecretAccessKey,
-		*mgmtRole.Credentials.SessionToken)
-
 	if err := so.OutputUI.RunCmd(cmd, *so.MgmtAcct); err != nil {
 		return err
 	}
 
 	for _, op := range so.DependentOperations {
-		op.Call(ctx)
+		if err := op.Call(ctx); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (so *scpOperation) roleARN() string {
-	if so.Stack.RoleOverrideARN != "" {
-		return so.Stack.RoleOverrideARN
-	}
-	return so.MgmtAcct.AssumeRoleARN()
-}
-
-func (so *scpOperation) initTf(role *sts.AssumeRoleOutput) *exec.Cmd {
+func (so *scpOperation) initTf() *exec.Cmd {
 	workingPath := so.tmpPath()
 	terraformDir := filepath.Join(workingPath, ".terraform")
 	if terraformDir == "" || !strings.Contains(terraformDir, "telophasedirs") {
@@ -174,11 +153,6 @@ func (so *scpOperation) initTf(role *sts.AssumeRoleOutput) *exec.Cmd {
 		cmd := exec.Command(localstack.TfCmd(), "init")
 		cmd.Dir = workingPath
 
-		cmd.Env = awssts.SetEnviron(os.Environ(),
-			*role.Credentials.AccessKeyId,
-			*role.Credentials.SecretAccessKey,
-			*role.Credentials.SessionToken)
-
 		return cmd
 	}
 
@@ -198,7 +172,7 @@ func (so *scpOperation) tmpPath() string {
 	hashBytes := hasher.Sum(nil)
 	hashString := hex.EncodeToString(hashBytes)
 
-	return path.Join("telophasedirs", fmt.Sprintf("tf-tmp-%s-%s-%s", so.MgmtAcct.ID(), so.MgmtAcct.ID(), hashString))
+	return path.Join("telophasedirs", fmt.Sprintf("tf-tmp-%s-%s-%s", so.MgmtAcct.ID(), so.targetResource().ID(), hashString))
 }
 
 func (so *scpOperation) ToString() string {
