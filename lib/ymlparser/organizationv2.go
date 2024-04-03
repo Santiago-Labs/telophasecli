@@ -6,46 +6,43 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 
 	"github.com/aws/aws-sdk-go/service/organizations"
 	"github.com/samsarahq/go/oops"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
-	"github.com/santiago-labs/telophasecli/lib/azureorgs"
 	"github.com/santiago-labs/telophasecli/resource"
 	"gopkg.in/yaml.v3"
 )
 
 type orgDatav2 struct {
-	Organization      resource.AccountGroup       `yaml:"Organization"`
-	AzureAccountGroup *resource.AzureAccountGroup `yaml:"Azure,omitempty"`
+	Organization resource.AccountGroup `yaml:"Organization"`
 }
 
-func ParseOrganizationV2(filepath string) (*resource.AccountGroup, *resource.AzureAccountGroup, error) {
+func ParseOrganizationV2(filepath string) (*resource.AccountGroup, error) {
 	if filepath == "" {
-		return nil, nil, errors.New("filepath is empty")
+		return nil, errors.New("filepath is empty")
 	}
 
 	data, err := ioutil.ReadFile(filepath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("err: %s reading file %s", err.Error(), filepath)
+		return nil, fmt.Errorf("err: %s reading file %s", err.Error(), filepath)
 	}
 
 	var org orgDatav2
 
 	if err := yaml.Unmarshal(data, &org); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	if err := validOrganizationV2(org.Organization); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	orgClient := awsorgs.New()
 
 	rootId, err := orgClient.GetRootId()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	rootName := "root"
 	rootOU := &organizations.OrganizationalUnit{
@@ -58,43 +55,13 @@ func ParseOrganizationV2(filepath string) (*resource.AccountGroup, *resource.Azu
 	// Hydrate Group, then fetch all accounts (pointers) and populate ID.
 	allAccounts, err := orgClient.CurrentAccounts(context.TODO())
 	if err != nil {
-		return nil, nil, oops.Wrapf(err, "CurrentAccounts")
+		return nil, oops.Wrapf(err, "CurrentAccounts")
 	}
 	for _, acct := range allAccounts {
 		hydrateAccount(&org.Organization, acct)
 	}
 
-	azureGroup := org.AzureAccountGroup
-	if org.AzureAccountGroup != nil {
-		subsClient, err := azureorgs.New()
-		if err != nil {
-			return nil, nil, oops.Wrapf(err, "")
-		}
-		hydrateSubscriptions(subsClient, azureGroup)
-	}
-
-	return &org.Organization, azureGroup, nil
-}
-
-func hydrateSubscriptions(subsClient *azureorgs.Client, azureGroup *resource.AzureAccountGroup) error {
-	subs, err := subsClient.CurrentSubscriptions(context.TODO())
-	if err != nil {
-		return oops.Wrapf(err, "")
-	}
-
-	for i, sub := range azureGroup.Subscriptions {
-		for _, liveSub := range subs {
-			if sub.SubscriptionName == *liveSub.DisplayName {
-				azureGroup.Subscriptions[i].Account = &resource.Account{
-					SubscriptionID: strings.Split(*liveSub.ID, "/")[2],
-					AccountName:    *liveSub.DisplayName,
-					BaselineStacks: sub.Account.BaselineStacks,
-				}
-			}
-		}
-	}
-
-	return nil
+	return &org.Organization, nil
 }
 
 func hydrateAccount(group *resource.AccountGroup, acct *organizations.Account) {

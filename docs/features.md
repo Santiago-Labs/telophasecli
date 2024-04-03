@@ -1,5 +1,5 @@
 ## Features
-### Manage both AWS Organization and Azure Subscription hierarchy as IaC
+### Manage AWS Organization as IaC
 #### AWS Organization
 Example `organization.yml`
 ```yml
@@ -24,27 +24,8 @@ The configuration above will create
 3) `Development` Organizational Unit
 4) `Engineer A` account in the `Development` OU
 
-#### Azure Subscriptions
-Example `organization.yml`
-```yml
-Azure:
-  SubscriptionTenantID: 00000000-0000-0000-0000-000000000000
-  SubscriptionOwnerID: user@company.com
-  BillingAccountName: Example Billing Account
-  BillingProfileName: Example Billing Profile
-  InvoiceSectionName: Example Invoice Section
-  Subscriptions:
-    - Name: "Engineer A"
-    - Name: "QA"
-```
-The configuration above will create
-1) `Engineer A` subscription
-2) `QA` subscription
-
-Required fields: `SubscriptionTenantID`, `SubscriptionOwnerID`, `BillingAccountName`, `BillingProfileName`, `InvoiceSectionName`
-
-### Assign IaC Stacks to Accounts/Subscriptions
-Terraform and CDK (AWS Only) can be assigned at any level in the hierarchy. All child accounts/subscriptions inherit the stack.
+### Assign IaC Stacks to Accounts
+Terraform and CDK (AWS Only) can be assigned at any level in the hierarchy. All child accounts inherit the stack.
 
 #### Example
 ```yml
