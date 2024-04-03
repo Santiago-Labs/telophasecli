@@ -109,7 +109,9 @@ func (co *cdkOperation) Call(ctx context.Context) error {
 	}
 
 	for _, op := range co.DependentOperations {
-		op.Call(ctx)
+		if err := op.Call(ctx); err != nil {
+			return err
+		}
 	}
 
 	return nil
