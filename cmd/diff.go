@@ -58,9 +58,17 @@ var diffCmd = &cobra.Command{
 
 		runIAC(ctx, consoleUI, resourceoperation.Diff, accountsToApply)
 
-		scpOps := resourceoperation.CollectSCPOps(ctx, orgClient, consoleUI, resourceoperation.Diff, rootAWSGroup)
+		mgmtAcct, err := orgClient.FetchManagementAccount(ctx)
+		if err != nil {
+			panic(err)
+		}
+
+		scpOps := resourceoperation.CollectSCPOps(ctx, orgClient, consoleUI, resourceoperation.Diff, rootAWSGroup, mgmtAcct)
 		for _, op := range scpOps {
-			op.Call(ctx)
+			err := op.Call(ctx)
+			if err != nil {
+				consoleUI.Print(fmt.Sprintf("Error on SCP Operation: %v", err), *mgmtAcct)
+			}
 		}
 	},
 }

@@ -51,7 +51,9 @@ var compileCmd = &cobra.Command{
 
 		ops := orgV2Diff(ctx, consoleUI, orgClient, rootAWSGroup, resourceoperation.Deploy)
 		for _, op := range ops {
-			op.Call(ctx)
+			if err := op.Call(ctx); err != nil {
+				panic(err)
+			}
 		}
 
 		if rootAWSGroup != nil {
@@ -68,9 +70,16 @@ var compileCmd = &cobra.Command{
 
 		runIAC(ctx, consoleUI, resourceoperation.Deploy, accountsToApply)
 
-		scpOps := resourceoperation.CollectSCPOps(ctx, orgClient, consoleUI, resourceoperation.Diff, rootAWSGroup)
+		mgmtAcct, err := orgClient.FetchManagementAccount(ctx)
+		if err != nil {
+			panic(err)
+		}
+		scpOps := resourceoperation.CollectSCPOps(ctx, orgClient, consoleUI, resourceoperation.Deploy, rootAWSGroup, mgmtAcct)
 		for _, op := range scpOps {
-			op.Call(ctx)
+			err := op.Call(ctx)
+			if err != nil {
+				consoleUI.Print(fmt.Sprintf("Error on SCP Operation: %v", err), *mgmtAcct)
+			}
 		}
 	},
 }

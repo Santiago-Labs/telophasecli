@@ -35,7 +35,9 @@ func runIAC(
 			}
 
 			for _, op := range ops {
-				op.Call(ctx)
+				if err := op.Call(ctx); err != nil {
+					panic(err)
+				}
 			}
 		}(accts[i])
 	}
