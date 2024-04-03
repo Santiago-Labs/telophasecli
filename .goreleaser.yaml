@@ -8,6 +8,16 @@
 
 version: 1
 
+on:
+  push:
+    tags:
+      - '*'
+    branch:
+      - main
+
+permissions:
+  contents: write
+
 before:
   hooks:
     # You may remove this if you don't use go modules.
