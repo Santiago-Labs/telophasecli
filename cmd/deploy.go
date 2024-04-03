@@ -67,5 +67,10 @@ var compileCmd = &cobra.Command{
 		}
 
 		runIAC(ctx, consoleUI, resourceoperation.Deploy, accountsToApply)
+
+		scpOps := resourceoperation.CollectSCPOps(ctx, orgClient, consoleUI, resourceoperation.Diff, rootAWSGroup)
+		for _, op := range scpOps {
+			op.Call(ctx)
+		}
 	},
 }

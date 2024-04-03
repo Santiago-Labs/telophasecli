@@ -24,7 +24,7 @@ func TmpPath(acct resource.Account, filePath string) string {
 	return path.Join("telophasedirs", fmt.Sprintf("tf-tmp%s-%s", acct.ID(), hashString))
 }
 
-func CopyDir(src string, dst string, acct resource.Account) error {
+func CopyDir(src string, dst string, resource resource.Resource) error {
 	ignoreDir := "telophasedirs"
 
 	abs, err := filepath.Abs(src)
@@ -46,21 +46,27 @@ func CopyDir(src string, dst string, acct resource.Account) error {
 		if info.IsDir() {
 			return os.MkdirAll(targetPath, info.Mode())
 		} else {
-			return replaceVariablesInFile(path, targetPath, acct)
+			return replaceVariablesInFile(path, targetPath, resource)
 		}
 	})
 }
 
-func replaceVariablesInFile(srcFile, dstFile string, acct resource.Account) error {
+func replaceVariablesInFile(srcFile, dstFile string, resource resource.Resource) error {
 	content, err := ioutil.ReadFile(srcFile)
 	if err != nil {
 		return err
 	}
 
-	updatedContent := strings.ReplaceAll(string(content), "${telophase.account_id}", acct.AccountID)
-	updatedContent = strings.ReplaceAll(updatedContent, "telophase.account_id", fmt.Sprintf("\"%s\"", acct.AccountID))
-	updatedContent = strings.ReplaceAll(updatedContent, "${telophase.account_name}", acct.AccountName)
-	updatedContent = strings.ReplaceAll(updatedContent, "telophase.account_name", fmt.Sprintf("\"%s\"", acct.AccountName))
+	resourceType := strings.Join(strings.Split(strings.ToLower(resource.Type()), " "), "_")
+	updatedContent := strings.ReplaceAll(string(content), fmt.Sprintf("${telophase.%s_id}", resourceType), resource.ID())
+	updatedContent = strings.ReplaceAll(updatedContent, fmt.Sprintf("telophase.%s_id", resourceType), fmt.Sprintf("\"%s\"", resource.ID()))
+	updatedContent = strings.ReplaceAll(updatedContent, fmt.Sprintf("${telophase.%s_name}", resourceType), resource.Name())
+	updatedContent = strings.ReplaceAll(updatedContent, fmt.Sprintf("telophase.%s_name", resourceType), fmt.Sprintf("\"%s\"", resource.Name()))
+
+	updatedContent = strings.ReplaceAll(updatedContent, "${telophase.resource_id}", resource.ID())
+	updatedContent = strings.ReplaceAll(updatedContent, "telophase.resource_id", fmt.Sprintf("\"%s\"", resource.ID()))
+	updatedContent = strings.ReplaceAll(updatedContent, "${telophase.resource_name}", resource.Name())
+	updatedContent = strings.ReplaceAll(updatedContent, "telophase.resource_name", fmt.Sprintf("\"%s\"", resource.Name()))
 
 	return ioutil.WriteFile(dstFile, []byte(updatedContent), 0644)
 }

@@ -36,6 +36,14 @@ func (a Account) ID() string {
 	return ""
 }
 
+func (a Account) Name() string {
+	return a.AccountName
+}
+
+func (a Account) Type() string {
+	return "Account"
+}
+
 func (a Account) IsAWS() bool {
 	return a.AccountID != ""
 }

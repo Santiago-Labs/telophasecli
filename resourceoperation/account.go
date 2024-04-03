@@ -100,13 +100,13 @@ func (ao *accountOperation) Call(ctx context.Context) error {
 			return err
 		}
 
-		err = ao.OrgClient.MoveAccount(ctx, ao.ConsoleUI, *ao.MgmtAccount, ao.Account.AccountID, rootId, *ao.Account.Parent.ID)
+		err = ao.OrgClient.MoveAccount(ctx, ao.ConsoleUI, *ao.MgmtAccount, ao.Account.AccountID, rootId, *ao.Account.Parent.GroupID)
 		if err != nil {
 			return err
 		}
 
 	} else if ao.Operation == UpdateParent {
-		err := ao.OrgClient.MoveAccount(ctx, ao.ConsoleUI, *ao.MgmtAccount, ao.Account.AccountID, *ao.CurrentParent.ID, *ao.NewParent.ID)
+		err := ao.OrgClient.MoveAccount(ctx, ao.ConsoleUI, *ao.MgmtAccount, ao.Account.AccountID, *ao.CurrentParent.GroupID, *ao.NewParent.GroupID)
 		if err != nil {
 			return err
 		}

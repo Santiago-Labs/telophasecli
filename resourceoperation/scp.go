@@ -13,6 +13,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/santiago-labs/telophasecli/cmd/runner"
+	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/awssts"
 	"github.com/santiago-labs/telophasecli/lib/localstack"
 	"github.com/santiago-labs/telophasecli/lib/terraform"
@@ -21,12 +22,43 @@ import (
 
 func CollectSCPOps(
 	ctx context.Context,
+	orgClient awsorgs.Client,
 	consoleUI runner.ConsoleUI,
 	operation int,
 	rootOU *resource.AccountGroup,
 ) []ResourceOperation {
 
+	mgmtAcct, err := orgClient.FetchManagementAccount(ctx)
+	if err != nil {
+		panic(err)
+	}
+
 	var ops []ResourceOperation
+	for _, ou := range rootOU.AllDescendentGroups() {
+		for _, scp := range ou.ServiceControlPolicies {
+			ops = append(ops, NewSCPOperation(
+				consoleUI,
+				nil,
+				mgmtAcct,
+				ou,
+				scp,
+				operation,
+			))
+		}
+	}
+
+	for _, acct := range rootOU.AllDescendentAccounts() {
+		for _, scp := range acct.ServiceControlPolicies {
+			ops = append(ops, NewSCPOperation(
+				consoleUI,
+				acct,
+				mgmtAcct,
+				nil,
+				scp,
+				operation,
+			))
+		}
+	}
 
 	return ops
 }
@@ -135,7 +167,7 @@ func (so *scpOperation) initTf(role *sts.AssumeRoleOutput) *exec.Cmd {
 			panic(fmt.Errorf("failed to create directory %s: %w", workingPath, err))
 		}
 
-		if err := terraform.CopyDir(so.Stack.Path, workingPath, *so.TargetAcct); err != nil {
+		if err := terraform.CopyDir(so.Stack.Path, workingPath, so.targetResource()); err != nil {
 			panic(fmt.Errorf("failed to copy files from %s to %s: %w", so.Stack.Path, workingPath, err))
 		}
 
@@ -151,6 +183,13 @@ func (so *scpOperation) initTf(role *sts.AssumeRoleOutput) *exec.Cmd {
 	}
 
 	return nil
+}
+
+func (so *scpOperation) targetResource() resource.Resource {
+	if so.TargetAcct != nil {
+		return so.TargetAcct
+	}
+	return so.TargetOU
 }
 
 func (so *scpOperation) tmpPath() string {

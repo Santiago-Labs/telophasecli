@@ -3,14 +3,29 @@ package resource
 import "sort"
 
 type AccountGroup struct {
-	ID                     *string         `yaml:"-"`
-	Name                   string          `yaml:"Name,omitempty"`
+	GroupID                *string         `yaml:"-"`
+	GroupName              string          `yaml:"Name,omitempty"`
 	ChildGroups            []*AccountGroup `yaml:"AccountGroups,omitempty"`
 	Tags                   []string        `yaml:"Tags,omitempty"`
 	Accounts               []*Account      `yaml:"Accounts,omitempty"`
 	BaselineStacks         []Stack         `yaml:"Stacks,omitempty"`
 	ServiceControlPolicies []Stack         `yaml:"ServiceControlPolicies,omitempty"`
 	Parent                 *AccountGroup   `yaml:"-"`
+}
+
+func (grp AccountGroup) ID() string {
+	if grp.GroupID != nil {
+		return *grp.GroupID
+	}
+	return ""
+}
+
+func (grp AccountGroup) Name() string {
+	return grp.GroupName
+}
+
+func (grp AccountGroup) Type() string {
+	return "Organization Unit"
 }
 
 func (grp AccountGroup) AllTags() []string {
@@ -55,7 +70,7 @@ func (grp AccountGroup) AllDescendentGroups() []*AccountGroup {
 	}
 
 	sort.Slice(groups, func(i, j int) bool {
-		return groups[i].Name < groups[j].Name
+		return groups[i].GroupName < groups[j].GroupName
 	})
 
 	return groups

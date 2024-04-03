@@ -57,5 +57,10 @@ var diffCmd = &cobra.Command{
 		}
 
 		runIAC(ctx, consoleUI, resourceoperation.Diff, accountsToApply)
+
+		scpOps := resourceoperation.CollectSCPOps(ctx, orgClient, consoleUI, resourceoperation.Diff, rootAWSGroup)
+		for _, op := range scpOps {
+			op.Call(ctx)
+		}
 	},
 }

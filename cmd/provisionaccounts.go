@@ -145,7 +145,7 @@ func importOrgV2(orgClient awsorgs.Client) error {
 		return err
 	}
 	org := resource.AccountGroup{
-		Name:        rootGroup.Name,
+		GroupName:   rootGroup.GroupName,
 		ChildGroups: rootGroup.ChildGroups,
 		Accounts:    rootGroup.Accounts,
 	}
