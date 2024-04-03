@@ -90,7 +90,9 @@ func (to *tfOperation) Call(ctx context.Context) error {
 	}
 
 	for _, op := range to.DependentOperations {
-		op.Call(ctx)
+		if err := op.Call(ctx); err != nil {
+			return err
+		}
 	}
 
 	return nil
