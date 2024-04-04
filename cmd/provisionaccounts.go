@@ -5,14 +5,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws/session"
-
-	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/spf13/cobra"
 
 	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
-	"github.com/santiago-labs/telophasecli/lib/awssess"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 	"github.com/santiago-labs/telophasecli/resource"
 	"github.com/santiago-labs/telophasecli/resourceoperation"
@@ -23,6 +19,7 @@ var orgFile string
 func init() {
 	rootCmd.AddCommand(accountProvision)
 	accountProvision.Flags().StringVar(&orgFile, "org", "organization.yml", "Path to the organization.yml file")
+	accountProvision.Flags().BoolVar(&useTUI, "tui", false, "use the TUI for diff")
 }
 
 func isValidAccountArg(arg string) bool {
@@ -51,7 +48,6 @@ var accountProvision = &cobra.Command{
 		return fmt.Errorf("invalid color specified: %s", args[0])
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		orgClient := awsorgs.New()
 
 		var consoleUI runner.ConsoleUI
 		if useTUI {
@@ -60,36 +56,48 @@ var accountProvision = &cobra.Command{
 			consoleUI = runner.NewSTDOut()
 		}
 
-		ctx := context.Background()
-		mgmtAcct, err := orgClient.FetchManagementAccount(ctx)
-		if err != nil {
-			panic(err)
-		}
-		if args[0] == "import" {
-			if err := importOrgV2(orgClient); err != nil {
-				panic(fmt.Sprintf("error importing organization: %s", err))
-			}
-		}
+		go processOrg(consoleUI, args[0])
+		consoleUI.Start()
 
-		rootAWSGroup, err := ymlparser.ParseOrganizationV2(orgFile)
-		if err != nil {
-			panic(fmt.Sprintf("error: %s", err))
-		}
-		if args[0] == "diff" {
-			orgV2Diff(ctx, consoleUI, orgClient, rootAWSGroup, mgmtAcct, resourceoperation.Diff)
-		}
-
-		if args[0] == "deploy" {
-			operations := orgV2Diff(ctx, consoleUI, orgClient, rootAWSGroup, mgmtAcct, resourceoperation.Deploy)
-
-			for _, op := range operations {
-				err := op.Call(ctx)
-				if err != nil {
-					panic(fmt.Sprintf("error: %s", err))
-				}
-			}
-		}
 	},
+}
+
+func processOrg(consoleUI runner.ConsoleUI, cmd string) {
+	orgClient := awsorgs.New()
+	ctx := context.Background()
+	mgmtAcct, err := orgClient.FetchManagementAccount(ctx)
+	if err != nil {
+		panic(err)
+	}
+	if cmd == "import" {
+		consoleUI.Print("Importing AWS Organization", *mgmtAcct)
+		if err := importOrgV2(ctx, consoleUI, orgClient, mgmtAcct); err != nil {
+			consoleUI.Print(fmt.Sprintf("error importing organization: %s", err), *mgmtAcct)
+		}
+	}
+
+	rootAWSGroup, err := ymlparser.ParseOrganizationV2(orgFile)
+	if err != nil {
+		consoleUI.Print(fmt.Sprintf("error parsing organization: %s", err), *mgmtAcct)
+	}
+	if cmd == "diff" {
+		consoleUI.Print("Diffing AWS Organization", *mgmtAcct)
+		orgV2Diff(ctx, consoleUI, orgClient, rootAWSGroup, mgmtAcct, resourceoperation.Diff)
+	}
+
+	if cmd == "deploy" {
+		consoleUI.Print("Diffing AWS Organization", *mgmtAcct)
+		operations := orgV2Diff(ctx, consoleUI, orgClient, rootAWSGroup, mgmtAcct, resourceoperation.Deploy)
+
+		for _, op := range operations {
+			err := op.Call(ctx)
+			if err != nil {
+				panic(fmt.Sprintf("error: %s", err))
+			}
+		}
+	}
+
+	consoleUI.Print("Done.", *mgmtAcct)
 }
 
 func orgV2Diff(
@@ -117,21 +125,7 @@ func orgV2Diff(
 	return operations
 }
 
-func currentAccountID() (string, error) {
-	stsClient := sts.New(session.Must(awssess.DefaultSession()))
-	caller, err := stsClient.GetCallerIdentity(&sts.GetCallerIdentityInput{})
-	if err != nil {
-		return "", err
-	}
-
-	return *caller.Account, nil
-}
-
-func importOrgV2(orgClient awsorgs.Client) error {
-	managingAccountID, err := currentAccountID()
-	if err != nil {
-		return err
-	}
+func importOrgV2(ctx context.Context, consoleUI runner.ConsoleUI, orgClient awsorgs.Client, mgmtAcct *resource.Account) error {
 
 	rootId, err := orgClient.GetRootId()
 	if err != nil {
@@ -141,7 +135,7 @@ func importOrgV2(orgClient awsorgs.Client) error {
 		return fmt.Errorf("no root ID found")
 	}
 
-	rootGroup, err := orgClient.FetchGroupAndDescendents(context.TODO(), rootId, managingAccountID)
+	rootGroup, err := orgClient.FetchGroupAndDescendents(ctx, rootId, mgmtAcct.AccountID)
 	if err != nil {
 		return err
 	}
@@ -155,5 +149,6 @@ func importOrgV2(orgClient awsorgs.Client) error {
 		return err
 	}
 
+	consoleUI.Print(fmt.Sprintf("Successfully wrote file to: %s", orgFile), *mgmtAcct)
 	return nil
 }
