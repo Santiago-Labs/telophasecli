@@ -35,7 +35,7 @@ func NewTUI() ConsoleUI {
 		SetChangedFunc(func() {
 			tv.ScrollToEnd()
 			app.Draw()
-		}).SetText("Starting CDK...")
+		}).SetText("Starting Telophase...")
 
 	return &tui{
 		list:  tview.NewList(),
@@ -95,6 +95,8 @@ func (t *tui) createIfNotExists(acct resource.Account) {
 
 	t.tails[acctId] = &setter
 	t.files[acctId] = file
+
+	t.app.Draw()
 }
 
 func (t *tui) RunCmd(cmd *exec.Cmd, acct resource.Account) error {
@@ -114,12 +116,15 @@ func (t *tui) RunCmd(cmd *exec.Cmd, acct resource.Account) error {
 	return nil
 }
 
-func (t *tui) PostProcess() {
+func (t *tui) Start() {
 	t.list.AddItem("Quit", "Press to exit", 'q', func() {
 		t.app.Stop()
 	})
 
-	// Start index at 0 for the first account.
+	startScreen := func() string { return "Starting Telophase..." }
+	t.tails["quit"] = &startScreen
+	t.index["quit"] = 0
+
 	tuiIndex.Swap(0)
 
 	go t.liveTextSetter()
@@ -133,10 +138,10 @@ func (t *tui) PostProcess() {
 	grid.AddItem(t.list, 0, 0, 1, 1, 0, 100, false).
 		AddItem(t.main, 0, 1, 1, 1, 0, 100, false)
 
-	if err := t.app.SetRoot(grid, true).SetFocus(t.list).Run(); err != nil {
+	err := t.app.SetRoot(grid, true).SetFocus(t.list).Run()
+	if err != nil {
 		panic(err)
 	}
-
 }
 
 func (t tui) Print(msg string, acct resource.Account) {
@@ -160,6 +165,11 @@ func runeIndex(i int) rune {
 
 // liveTextSetter updates the current tui view with the current tail's text.
 func (t *tui) liveTextSetter() {
+	defer func() {
+		if r := recover(); r != nil {
+			t.app.Stop()
+		}
+	}()
 	for {
 		func() {
 			time.Sleep(200 * time.Millisecond)

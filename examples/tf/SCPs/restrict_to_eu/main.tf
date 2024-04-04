@@ -17,12 +17,12 @@ data "aws_iam_policy_document" "restrict_regions" {
 }
 
 resource "aws_organizations_policy" "restrict_regions" {
-  name        = "restrict_regions"
+  name        = "restrict_regions_${telophase.organization_unit_id}"
   description = "Deny all regions except EU West 1."
   content     = data.aws_iam_policy_document.restrict_regions.json
 }
 
-resource "aws_organizations_policy_attachment" "restrict_regions_on_account" {
+resource "aws_organizations_policy_attachment" "restrict_regions" {
   policy_id = aws_organizations_policy.restrict_regions.id
-  target_id = telophase.account_id
+  target_id = telophase.organization_unit_id
 }

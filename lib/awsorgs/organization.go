@@ -370,10 +370,10 @@ func (c Client) FetchGroupAndDescendents(ctx context.Context, ouID, mgmtAccountI
 		}
 	}
 
-	group.ID = &ouID
-	group.Name = *providerGroup.Name
+	group.GroupID = &ouID
+	group.GroupName = *providerGroup.Name
 
-	groupAccounts, err := c.CurrentAccountsForParent(ctx, *group.ID)
+	groupAccounts, err := c.CurrentAccountsForParent(ctx, *group.GroupID)
 	if err != nil {
 		return group, err
 	}

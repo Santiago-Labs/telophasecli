@@ -49,7 +49,7 @@ func ParseOrganizationV2(filepath string) (*resource.AccountGroup, error) {
 		Id:   &rootId,
 		Name: &rootName,
 	}
-	org.Organization.Name = "root"
+	org.Organization.GroupName = "root"
 	hydrateOU(orgClient, &org.Organization, rootOU)
 
 	// Hydrate Group, then fetch all accounts (pointers) and populate ID.
@@ -80,8 +80,8 @@ func hydrateAccount(group *resource.AccountGroup, acct *organizations.Account) {
 
 func hydrateOU(orgClient awsorgs.Client, group *resource.AccountGroup, ou *organizations.OrganizationalUnit) error {
 	if ou != nil {
-		group.ID = ou.Id
-		children, err := orgClient.GetOrganizationUnitChildren(context.TODO(), *group.ID)
+		group.GroupID = ou.Id
+		children, err := orgClient.GetOrganizationUnitChildren(context.TODO(), *group.GroupID)
 		if err != nil {
 			return err
 		}
@@ -90,7 +90,7 @@ func hydrateOU(orgClient awsorgs.Client, group *resource.AccountGroup, ou *organ
 			var found bool
 			parsedChild.Parent = group
 			for _, child := range children {
-				if parsedChild.Name == *child.Name {
+				if parsedChild.GroupName == *child.Name {
 					found = true
 					err = hydrateOU(orgClient, parsedChild, child)
 					if err != nil {

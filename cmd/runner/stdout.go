@@ -60,7 +60,7 @@ func (s *stdOut) RunCmd(cmd *exec.Cmd, acct resource.Account) error {
 
 	var scannerWg sync.WaitGroup
 	scannerWg.Add(2)
-	scanF := func(scanner *bufio.Scanner, name string) {
+	scanF := func(scanner *bufio.Scanner, _ string) {
 		defer scannerWg.Done()
 		for scanner.Scan() {
 			fmt.Printf("%s %s\n", s.ColoredId(acct), scanner.Text())
@@ -86,4 +86,4 @@ func (s *stdOut) Print(msg string, acct resource.Account) {
 	fmt.Printf("%s %v\n", s.ColoredId(acct), msg)
 }
 
-func (s *stdOut) PostProcess() {}
+func (s *stdOut) Start() {}
