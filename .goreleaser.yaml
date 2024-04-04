@@ -52,3 +52,14 @@ brews:
     tap:
       owner: Santiago-Labs
       name: telophasecli 
+
+    commit_author:
+      name: dschofie 
+      email: danny@telophase.dev
+
+    repository:
+      # Repository owner.
+      owner: Santiago-Labs 
+      # Repository name.
+      name: homebrew-telophase
+      branch: main
