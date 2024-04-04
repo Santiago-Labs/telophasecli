@@ -25,19 +25,19 @@ export AWS_REGION=us-east-1
 5. Run your first account diff. This assumes that you have an `organization.yml` setup. If using this repo you can use the example [`organization.yml`](./organization.yml) in this directory.
 
 ```bash
-LOCALSTACK=true AWS_REGION=us-east-1 telophasecli account diff
+LOCALSTACK=true telophasecli account diff
 ```
 
 6. Create your first accounts!
 ```bash
-LOCALSTACK=true AWS_REGION=us-east-1 telophasecli account deploy
+LOCALSTACK=true telophasecli account deploy
 ```
 
 7. Deploy Infra in the Accounts
 
 Optionally use the TUI via --tui. The [`organization.yml`](./organization.yml) in this account assumes you are using the [`s3-remote-state`](./s3-remote-state/) for CDK and the IAM role stack in [`tf/ci_iam`](./tf/ci_iam) for Terraform. This will deploy the associated stacks with each account.
 ```bash
-LOCALSTACK=true AWS_REGION=us-east-1 telophasecli deploy
+LOCALSTACK=true telophasecli deploy
 ```
 
 8. Inspect the accounts using `awslocal`
