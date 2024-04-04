@@ -23,11 +23,12 @@ var diffCmd = &cobra.Command{
 		var consoleUI runner.ConsoleUI
 		if useTUI {
 			consoleUI = runner.NewTUI()
+			go processOrgEndToEnd(consoleUI, resourceoperation.Diff)
 		} else {
 			consoleUI = runner.NewSTDOut()
+			processOrgEndToEnd(consoleUI, resourceoperation.Diff)
 		}
 
-		go processOrgEndToEnd(consoleUI, resourceoperation.Diff)
 		consoleUI.Start()
 	},
 }

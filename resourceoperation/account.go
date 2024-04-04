@@ -126,7 +126,7 @@ func (ao *accountOperation) ToString() string {
 	var templated string
 	if ao.Operation == Create {
 		printColor = "green"
-		templated = `(Create Account)
+		templated = "\n" + `(Create Account)
 +	Name: {{ .Account.AccountName }}
 +	Email: {{ .Account.Email }}
 +	Parent ID: {{ if .NewParent.ID }}{{ .NewParent.ID }}{{else}}<computed>{{end}}
@@ -134,7 +134,7 @@ func (ao *accountOperation) ToString() string {
 
 `
 	} else if ao.Operation == UpdateParent {
-		templated = `(Update Account Parent)
+		templated = "\n" + `(Update Account Parent)
 ID: {{ .Account.AccountID }}
 Name: {{ .Account.AccountName }}
 Email: {{ .Account.Email }}
