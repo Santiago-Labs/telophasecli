@@ -9,7 +9,7 @@ This Directory contains an example repo for IaC using remote S3 buckets and telo
 
 2. Start up Localstack in the background. Ensure your pro license is set. Learn more [here](https://docs.localstack.cloud/getting-started/auth-token/)
 ```bash
-localstack -d
+localstack start -d
 ```
 
 3. Localstack Setup
@@ -25,19 +25,19 @@ export AWS_REGION=us-east-1
 5. Run your first account diff. This assumes that you have an `organization.yml` setup. If using this repo you can use the example [`organization.yml`](./organization.yml) in this directory.
 
 ```bash
-LOCALSTACK=true AWS_REGION=us-east-1 telophase account diff
+LOCALSTACK=true AWS_REGION=us-east-1 telophasecli account diff
 ```
 
 6. Create your first accounts!
 ```bash
-LOCALSTACK=true AWS_REGION=us-east-1 telophase account deploy
+LOCALSTACK=true AWS_REGION=us-east-1 telophasecli account deploy
 ```
 
 7. Deploy Infra in the Accounts
 
 Optionally use the TUI via --tui. The [`organization.yml`](./organization.yml) in this account assumes you are using the [`s3-remote-state`](./s3-remote-state/) for CDK and the IAM role stack in [`tf/ci_iam`](./tf/ci_iam) for Terraform. This will deploy the associated stacks with each account.
 ```bash
-LOCALSTACK=true AWS_REGION=us-east-1 telophase deploy
+LOCALSTACK=true AWS_REGION=us-east-1 telophasecli deploy
 ```
 
 8. Inspect the accounts using `awslocal`
