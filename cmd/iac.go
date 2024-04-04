@@ -42,7 +42,6 @@ func runIAC(
 		}(accts[i])
 	}
 
-	consoleUI.PostProcess()
 	wg.Wait()
 }
 func contains(e string, s []string) bool {

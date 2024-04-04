@@ -61,6 +61,10 @@ var accountProvision = &cobra.Command{
 		}
 
 		ctx := context.Background()
+		mgmtAcct, err := orgClient.FetchManagementAccount(ctx)
+		if err != nil {
+			panic(err)
+		}
 		if args[0] == "import" {
 			if err := importOrgV2(orgClient); err != nil {
 				panic(fmt.Sprintf("error importing organization: %s", err))
@@ -72,11 +76,11 @@ var accountProvision = &cobra.Command{
 			panic(fmt.Sprintf("error: %s", err))
 		}
 		if args[0] == "diff" {
-			orgV2Diff(ctx, consoleUI, orgClient, rootAWSGroup, resourceoperation.Diff)
+			orgV2Diff(ctx, consoleUI, orgClient, rootAWSGroup, mgmtAcct, resourceoperation.Diff)
 		}
 
 		if args[0] == "deploy" {
-			operations := orgV2Diff(ctx, consoleUI, orgClient, rootAWSGroup, resourceoperation.Deploy)
+			operations := orgV2Diff(ctx, consoleUI, orgClient, rootAWSGroup, mgmtAcct, resourceoperation.Deploy)
 
 			for _, op := range operations {
 				err := op.Call(ctx)
@@ -93,15 +97,12 @@ func orgV2Diff(
 	outputUI runner.ConsoleUI,
 	orgClient awsorgs.Client,
 	rootAWSGroup *resource.AccountGroup,
+	mgmtAcct *resource.Account,
 	operation int,
 ) []resourceoperation.ResourceOperation {
 
 	var operations []resourceoperation.ResourceOperation
 	if rootAWSGroup != nil {
-		mgmtAcct, err := orgClient.FetchManagementAccount(ctx)
-		if err != nil {
-			panic(err)
-		}
 		operations = append(operations, resourceoperation.CollectOrganizationUnitOps(
 			ctx, outputUI, orgClient, rootAWSGroup, operation,
 		)...)

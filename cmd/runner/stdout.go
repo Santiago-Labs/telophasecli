@@ -86,4 +86,4 @@ func (s *stdOut) Print(msg string, acct resource.Account) {
 	fmt.Printf("%s %v\n", s.ColoredId(acct), msg)
 }
 
-func (s *stdOut) PostProcess() {}
+func (s *stdOut) Start() {}

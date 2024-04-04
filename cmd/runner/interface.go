@@ -9,5 +9,5 @@ import (
 type ConsoleUI interface {
 	Print(string, resource.Account)
 	RunCmd(*exec.Cmd, resource.Account) error
-	PostProcess()
+	Start()
 }
