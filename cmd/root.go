@@ -74,4 +74,5 @@ func processOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int) {
 	if len(scpOps) == 0 {
 		consoleUI.Print("No Service Control Policies to deploy.", *mgmtAcct)
 	}
+	consoleUI.Print("Done.\n", *mgmtAcct)
 }

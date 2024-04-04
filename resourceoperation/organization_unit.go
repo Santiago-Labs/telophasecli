@@ -277,14 +277,14 @@ func (ou *organizationUnitOperation) ToString() string {
 	var templated string
 	if ou.Operation == Create {
 		printColor = "green"
-		templated = `(Create Organizational Unit)
+		templated = "\n" + `(Create Organizational Unit)
 +	Name: {{ .OrganizationUnit.Name }}
 +	Parent ID: {{ if .NewParent.ID }}{{ .NewParent.ID }}{{else}}<computed>{{end}}
 +	Parent Name: {{ .NewParent.Name }}
 
 `
 	} else if ou.Operation == UpdateParent {
-		templated = `(Update Organizational Unit Parent)
+		templated = "\n" + `(Update Organizational Unit Parent)
 ID: {{ .OrganizationUnit.ID }}
 Name: {{ .OrganizationUnit.Name }}
 ~	Parent ID: {{ .CurrentParent.ID }} -> {{ if .NewParent.ID }}{{ .NewParent.ID }}{{else}}<computed>{{end}}
@@ -292,7 +292,7 @@ Name: {{ .OrganizationUnit.Name }}
 
 `
 	} else if ou.Operation == Update {
-		templated = `(Update Organizational Unit)
+		templated = "\n" + `(Update Organizational Unit)
 ID: {{ .OrganizationUnit.ID }}
 ~	Name: {{ .OrganizationUnit.Name }} -> {{ .NewName }}
 

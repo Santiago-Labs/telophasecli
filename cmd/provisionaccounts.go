@@ -52,11 +52,11 @@ var accountProvision = &cobra.Command{
 		var consoleUI runner.ConsoleUI
 		if useTUI {
 			consoleUI = runner.NewTUI()
+			go processOrg(consoleUI, args[0])
 		} else {
 			consoleUI = runner.NewSTDOut()
+			processOrg(consoleUI, args[0])
 		}
-
-		go processOrg(consoleUI, args[0])
 		consoleUI.Start()
 
 	},
@@ -80,6 +80,7 @@ func processOrg(consoleUI runner.ConsoleUI, cmd string) {
 	if err != nil {
 		consoleUI.Print(fmt.Sprintf("error parsing organization: %s", err), *mgmtAcct)
 	}
+
 	if cmd == "diff" {
 		consoleUI.Print("Diffing AWS Organization", *mgmtAcct)
 		orgV2Diff(ctx, consoleUI, orgClient, rootAWSGroup, mgmtAcct, resourceoperation.Diff)
@@ -97,7 +98,7 @@ func processOrg(consoleUI runner.ConsoleUI, cmd string) {
 		}
 	}
 
-	consoleUI.Print("Done.", *mgmtAcct)
+	consoleUI.Print("Done.\n", *mgmtAcct)
 }
 
 func orgV2Diff(

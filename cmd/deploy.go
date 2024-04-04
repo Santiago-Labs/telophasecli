@@ -31,11 +31,12 @@ var compileCmd = &cobra.Command{
 		var consoleUI runner.ConsoleUI
 		if useTUI {
 			consoleUI = runner.NewTUI()
+			go processOrgEndToEnd(consoleUI, resourceoperation.Deploy)
 		} else {
 			consoleUI = runner.NewSTDOut()
+			processOrgEndToEnd(consoleUI, resourceoperation.Deploy)
 		}
 
-		go processOrgEndToEnd(consoleUI, resourceoperation.Deploy)
 		consoleUI.Start()
 
 	},
