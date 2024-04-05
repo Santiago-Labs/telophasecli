@@ -1,0 +1,31 @@
+---
+title: 'Manage AWS Organizations'
+icon: 'sitemap'
+---
+
+`telophasecli` allows you to define your AWS Organization Unit structure via code. 
+
+## Example `organization.yml`
+```yml
+Organization:
+  OrganizationUnits:
+      - Name: Production
+        Accounts:
+          - Email: safety+firmware@example.app
+            AccountName: Safety Firmware
+          - Email: safety+ingestion@example.app
+            AccountName: Safety Ingestion Team
+      - Name: Development
+        Accounts:
+          - Email: eng1@example.app
+            AccountName: Engineer A
+
+```
+
+The configuration above will create
+1) `Production` Organizational Unit
+2) `Safety Firmware` and `Safety Ingestion Team` accounts in the `Production` OU
+3) `Development` Organizational Unit
+4) `Engineer A` account in the `Development` OU
+
+These accounts can be provisioned via `telophasecli account deploy`

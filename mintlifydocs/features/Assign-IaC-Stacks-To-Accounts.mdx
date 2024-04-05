@@ -1,0 +1,36 @@
+---
+title: 'Assign IaC Stacks to Accounts'
+icon: 'hand-pointer'
+---
+
+Terraform and CDK (AWS Only) can be assigned at any level in the hierarchy. All child accounts inherit the stack.
+
+## Example
+```yml
+Organization:
+  OrganizationUnits:
+      - Name: Production
+        Stacks:
+            # This stack will be applied to all accounts in the `Production` OU (`Safety Firmware` and `Safety Ingestion Team`).
+          - Name: SCPDisableEURegion 
+            Path: go/src/cdk/scp
+            Type: CDK
+        Accounts:
+          - Email: safety+firmware@example.app
+            AccountName: Safety Firmware
+            Stacks:
+                # This stack will be applied to `Safety Firmware` account only.
+              - Path: tf/safety/firmware_bucket 
+                Type: Terraform
+          - Email: safety+ingestion@example.app
+            AccountName: Safety Ingestion Team
+      - Name: Development
+        Stacks:
+            # This stack will be applied to all accounts in the `Development` OU (`Engineer A`).
+          - Name: DevAccount
+            Path: go/src/cdk/dev
+            Type: CDK
+        Accounts:
+          - Email: eng1@example.app
+            AccountName: Engineer A
+```
