@@ -8,7 +8,7 @@ Flags:
   -h, --help              help for diff
       --org string        Path to the organization.yml file (default "organization.yml")
       --stacks string     Filter stacks to deploy
-      --tag string        Filter accounts and account groups to deploy.
+      --tag string        Filter accounts and organization units to deploy.
       --tui               use the TUI for diff
 ```
 
@@ -26,7 +26,7 @@ Flags:
   -h, --help              help for deploy
       --org string        Path to the organization.yml file (default "organization.yml")
       --stacks string     Filter stacks to deploy
-      --tag string        Filter accounts and account groups to deploy
+      --tag string        Filter accounts and organization units to deploy
       --tui               use the TUI for deploy
 ```
 

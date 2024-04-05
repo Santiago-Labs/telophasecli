@@ -15,10 +15,10 @@ import (
 )
 
 type orgDatav2 struct {
-	Organization resource.AccountGroup `yaml:"Organization"`
+	Organization resource.OrganizationUnit `yaml:"Organization"`
 }
 
-func ParseOrganizationV2(filepath string) (*resource.AccountGroup, error) {
+func ParseOrganizationV2(filepath string) (*resource.OrganizationUnit, error) {
 	if filepath == "" {
 		return nil, errors.New("filepath is empty")
 	}
@@ -49,7 +49,7 @@ func ParseOrganizationV2(filepath string) (*resource.AccountGroup, error) {
 		Id:   &rootId,
 		Name: &rootName,
 	}
-	org.Organization.GroupName = "root"
+	org.Organization.OUName = "root"
 	hydrateOU(orgClient, &org.Organization, rootOU)
 
 	// Hydrate Group, then fetch all accounts (pointers) and populate ID.
@@ -64,33 +64,33 @@ func ParseOrganizationV2(filepath string) (*resource.AccountGroup, error) {
 	return &org.Organization, nil
 }
 
-func hydrateAccount(group *resource.AccountGroup, acct *organizations.Account) {
-	for idx, parsedAcct := range group.Accounts {
-		group.Accounts[idx].Parent = group
+func hydrateAccount(ou *resource.OrganizationUnit, acct *organizations.Account) {
+	for idx, parsedAcct := range ou.Accounts {
+		ou.Accounts[idx].Parent = ou
 		if parsedAcct.Email == *acct.Email {
-			group.Accounts[idx].AccountID = *acct.Id
+			ou.Accounts[idx].AccountID = *acct.Id
 			return
 		}
 	}
 
-	for _, childGroup := range group.ChildGroups {
-		hydrateAccount(childGroup, acct)
+	for _, childOU := range ou.ChildOUs {
+		hydrateAccount(childOU, acct)
 	}
 }
 
-func hydrateOU(orgClient awsorgs.Client, group *resource.AccountGroup, ou *organizations.OrganizationalUnit) error {
-	if ou != nil {
-		group.GroupID = ou.Id
-		children, err := orgClient.GetOrganizationUnitChildren(context.TODO(), *group.GroupID)
+func hydrateOU(orgClient awsorgs.Client, parsedOU *resource.OrganizationUnit, providerOU *organizations.OrganizationalUnit) error {
+	if providerOU != nil {
+		parsedOU.OUID = providerOU.Id
+		children, err := orgClient.GetOrganizationUnitChildren(context.TODO(), *parsedOU.OUID)
 		if err != nil {
 			return err
 		}
 
-		for _, parsedChild := range group.ChildGroups {
+		for _, parsedChild := range parsedOU.ChildOUs {
 			var found bool
-			parsedChild.Parent = group
+			parsedChild.Parent = parsedOU
 			for _, child := range children {
-				if parsedChild.GroupName == *child.Name {
+				if parsedChild.OUName == *child.Name {
 					found = true
 					err = hydrateOU(orgClient, parsedChild, child)
 					if err != nil {
@@ -108,8 +108,8 @@ func hydrateOU(orgClient awsorgs.Client, group *resource.AccountGroup, ou *organ
 			}
 		}
 	} else {
-		for _, parsedChild := range group.ChildGroups {
-			parsedChild.Parent = group
+		for _, parsedChild := range parsedOU.ChildOUs {
+			parsedChild.Parent = parsedOU
 			err := hydrateOU(orgClient, parsedChild, nil)
 			if err != nil {
 				return err
@@ -120,7 +120,7 @@ func hydrateOU(orgClient awsorgs.Client, group *resource.AccountGroup, ou *organ
 	return nil
 }
 
-func WriteOrgV2File(filepath string, org *resource.AccountGroup) error {
+func WriteOrgV2File(filepath string, org *resource.OrganizationUnit) error {
 	orgData := orgDatav2{
 		Organization: *org,
 	}
@@ -140,7 +140,7 @@ func WriteOrgV2File(filepath string, org *resource.AccountGroup) error {
 	return nil
 }
 
-func validOrganizationV2(data resource.AccountGroup) error {
+func validOrganizationV2(data resource.OrganizationUnit) error {
 	accountEmails := map[string]struct{}{}
 
 	validStates := []string{"delete", ""}
@@ -158,6 +158,17 @@ func validOrganizationV2(data resource.AccountGroup) error {
 			accountEmails[account.Email] = struct{}{}
 		}
 
+	}
+
+	for _, ou := range data.AllDescendentOUs() {
+		if len(ou.ChildGroups) > 0 {
+			if len(ou.ChildOUs) > 0 {
+				return fmt.Errorf("cannot set both AccountGroups and OrganizationUnits fields on Organization Unit: %s", ou.OUName)
+			}
+
+			// Remove this after deleting ChildGroups field.
+			ou.ChildOUs = append(ou.ChildOUs, ou.ChildGroups...)
+		}
 	}
 
 	return nil

@@ -1,5 +1,5 @@
 ## `organization.yml`
-This file represents your AWS Organization. Any changes to `Accounts` or `AccountGroups` (representing AWS's `Organization Unit`) will be reflected in your AWS Organization. You can create new accounts or organization units, move accounts to different organization units, and assign `cdk` or `terraform` stacks at **any** level in the hierarchy.
+This file represents your AWS Organization. Any changes to `Accounts` or `OrganizationUnits` will be reflected in your AWS Organization. You can create new accounts or organization units, move accounts to different organization units, and assign `cdk` or `terraform` stacks at **any** level in the hierarchy.
 
 ### Structure
 Telophase allows you to structure accounts in any way the cloud provider allows. You can nest `Organization Units` within each other.
@@ -7,7 +7,7 @@ Telophase allows you to structure accounts in any way the cloud provider allows.
 ```yaml
 Organization:
     Name: root  ## AWS Organization Root
-    AccountGroups:  ## Organization Units
+    OrganizationUnits:  ## Organization Units
         - Name: ProductionTenants
           Stacks:  ## CDK or Terraform stacks to apply to all accounts in this Organization Unit
             - Path: go/src/cdk
@@ -31,7 +31,7 @@ Organization:
 Organization:
     Name: root  # (Required) This must be set to "Name: root".
     Accounts:  # (Optional) Child accounts of root Organization Unit.
-    AccountGroups:  # (Optional) Child Organization Units of the root Organization Unit.
+    OrganizationUnits:  # (Optional) Child Organization Units of the root Organization Unit.
 ```
 
 #### Account
@@ -59,20 +59,20 @@ This will create two Accounts:
 1. `us-prod` with root user `us-prod@telophase.dev`
 2. `eu-prod` with root user `eu-prod@telophase.dev`
 
-#### AccountGroups
-`AccountGroups` represents a list of AWS `Organization Unit`s.
+#### OrganizationUnits
+`OrganizationUnits` represents a list of AWS `Organization Unit`s.
 
 ```yaml
-AccountGroups:
+OrganizationUnits:
   - Name:  # (Required) Name of the Organization Unit.
     Accounts:  # (Optional) Child accounts of this Organization Unit.
     Stacks:  # (Optional) CDK or Terraform stacks to apply to all accounts in this Organization Unit.
-    AccountGroups:  # (Optional) Child Organization Units of this Organization Unit.
+    OrganizationUnits:  # (Optional) Child Organization Units of this Organization Unit.
 ```
 
 ##### Example
 ```yaml
-AccountGroups:
+OrganizationUnits:
     - Name: Production
       Accounts:
         - Email: us-prod@telophase.dev
@@ -92,7 +92,7 @@ This will create two OUs:
 2. `Dev Accounts` with child accounts `developer1` and `developer2`
 
 #### Stacks
-CDK and Terraform stacks can be assigned to `Account`s and `AccountGroup`s. Stacks assigned to `AccountGroup` will be applied to all child `Account`s.
+CDK and Terraform stacks can be assigned to `Account`s and `OrganizationUnits`s. Stacks assigned to `OrganizationUnits` will be applied to all child `Account`s.
 
 ```yaml
 Stacks:
@@ -120,7 +120,7 @@ This will run two separate applies in the `us-prod` account:
 2. `tf/default-vpc` Terraform stack.
 
 #### Tags
-Tags can be used to perform operations on groups of accounts. `Account`s and `AccountGroup`s can be tagged. Tags do _not_ represent AWS `Tag`s.
+Tags can be used to perform operations on groups of accounts. `Account`s and `OrganizationUnits`s can be tagged. Tags do _not_ represent AWS `Tag`s.
 
 Telophase commands optionally take tags as inputs, allowing you to limit the scope of the operation. 
 

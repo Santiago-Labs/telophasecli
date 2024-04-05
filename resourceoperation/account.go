@@ -17,8 +17,8 @@ type accountOperation struct {
 	Account             *resource.Account
 	MgmtAccount         *resource.Account
 	Operation           int
-	NewParent           *resource.AccountGroup
-	CurrentParent       *resource.AccountGroup
+	NewParent           *resource.OrganizationUnit
+	CurrentParent       *resource.OrganizationUnit
 	DependentOperations []ResourceOperation
 	ConsoleUI           runner.ConsoleUI
 	OrgClient           *awsorgs.Client
@@ -29,8 +29,8 @@ func NewAccountOperation(
 	consoleUI runner.ConsoleUI,
 	account, mgmtAcct *resource.Account,
 	operation int,
-	newParent *resource.AccountGroup,
-	currentParent *resource.AccountGroup,
+	newParent *resource.OrganizationUnit,
+	currentParent *resource.OrganizationUnit,
 ) ResourceOperation {
 
 	return &accountOperation{
@@ -96,13 +96,13 @@ func (ao *accountOperation) Call(ctx context.Context) error {
 			return err
 		}
 
-		err = ao.OrgClient.MoveAccount(ctx, ao.ConsoleUI, *ao.MgmtAccount, ao.Account.AccountID, rootId, *ao.Account.Parent.GroupID)
+		err = ao.OrgClient.MoveAccount(ctx, ao.ConsoleUI, *ao.MgmtAccount, ao.Account.AccountID, rootId, *ao.Account.Parent.OUID)
 		if err != nil {
 			return err
 		}
 
 	} else if ao.Operation == UpdateParent {
-		err := ao.OrgClient.MoveAccount(ctx, ao.ConsoleUI, *ao.MgmtAccount, ao.Account.AccountID, *ao.CurrentParent.GroupID, *ao.NewParent.GroupID)
+		err := ao.OrgClient.MoveAccount(ctx, ao.ConsoleUI, *ao.MgmtAccount, ao.Account.AccountID, *ao.CurrentParent.OUID, *ao.NewParent.OUID)
 		if err != nil {
 			return err
 		}

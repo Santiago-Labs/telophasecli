@@ -350,60 +350,60 @@ func (c Client) ListAccountsForParent(parentID string) ([]*organizations.Account
 	return accounts, err
 }
 
-func (c Client) FetchGroupAndDescendents(ctx context.Context, ouID, mgmtAccountID string) (resource.AccountGroup, error) {
-	var group resource.AccountGroup
+func (c Client) FetchOUAndDescendents(ctx context.Context, ouID, mgmtAccountID string) (resource.OrganizationUnit, error) {
+	var ou resource.OrganizationUnit
 
-	var providerGroup *organizations.OrganizationalUnit
+	var providerOU *organizations.OrganizationalUnit
 
-	// we treat the root group as an OU, but AWS does not consider root as an OU.
+	// AWS does not represent the root as an OU, but we do for simplicity.
 	if strings.HasPrefix(ouID, "r-") {
 		name := "root"
-		providerGroup = &organizations.OrganizationalUnit{
+		providerOU = &organizations.OrganizationalUnit{
 			Id:   &ouID,
 			Name: &name,
 		}
 	} else {
 		var err error
-		providerGroup, err = c.GetOrganizationUnit(ctx, ouID)
+		providerOU, err = c.GetOrganizationUnit(ctx, ouID)
 		if err != nil {
-			return group, err
+			return ou, err
 		}
 	}
 
-	group.GroupID = &ouID
-	group.GroupName = *providerGroup.Name
+	ou.OUID = &ouID
+	ou.OUName = *providerOU.Name
 
-	groupAccounts, err := c.CurrentAccountsForParent(ctx, *group.GroupID)
+	groupAccounts, err := c.CurrentAccountsForParent(ctx, *ou.OUID)
 	if err != nil {
-		return group, err
+		return ou, err
 	}
 
 	for _, providerAcct := range groupAccounts {
 		acct := resource.Account{
 			AccountID:   *providerAcct.Id,
 			Email:       *providerAcct.Email,
-			Parent:      &group,
+			Parent:      &ou,
 			AccountName: *providerAcct.Name,
 		}
 		if providerAcct.Id == &mgmtAccountID {
 			acct.ManagementAccount = true
 		}
-		group.Accounts = append(group.Accounts, &acct)
+		ou.Accounts = append(ou.Accounts, &acct)
 	}
 
 	children, err := c.GetOrganizationUnitChildren(ctx, ouID)
 	if err != nil {
-		return group, err
+		return ou, err
 	}
 
 	for _, providerChild := range children {
-		child, err := c.FetchGroupAndDescendents(ctx, *providerChild.Id, mgmtAccountID)
+		child, err := c.FetchOUAndDescendents(ctx, *providerChild.Id, mgmtAccountID)
 		if err != nil {
-			return group, err
+			return ou, err
 		}
-		child.Parent = &group
-		group.ChildGroups = append(group.ChildGroups, &child)
+		child.Parent = &ou
+		ou.ChildOUs = append(ou.ChildOUs, &child)
 	}
 
-	return group, nil
+	return ou, nil
 }

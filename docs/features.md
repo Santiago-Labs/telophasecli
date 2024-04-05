@@ -4,7 +4,7 @@
 Example `organization.yml`
 ```yml
 Organization:
-  AccountGroups:
+  OrganizationUnits:
       - Name: Production
         Accounts:
           - Email: safety+firmware@example.app
@@ -57,7 +57,7 @@ Terraform and CDK can be assigned at any level in the hierarchy. All child accou
 #### Example
 ```yml
 Organization:
-  AccountGroups:
+  OrganizationUnits:
       - Name: Production
         Accounts:
           - Email: safety+firmware@example.app
@@ -86,7 +86,7 @@ Telophase integrates with [localstack](https://www.localstack.cloud/) to test AW
 #### Example: Create a subdomain using the account name
 ```yml
 Organization:
-  AccountGroups:
+  OrganizationUnits:
       - Name: Tenants
         Stacks:
           - Name: AccountZone
