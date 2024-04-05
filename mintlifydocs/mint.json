@@ -37,7 +37,7 @@
       "group": "Features",
       "pages": [
         "features/Manage-AWS-Organizations",
-        "features/Assign-IaC-Stacks-To-Accounts",
+        "features/Assign-IaC-Blueprints-To-Accounts",
         "features/scps",
         "features/tui",
         "features/localstack"
