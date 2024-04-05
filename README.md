@@ -25,7 +25,7 @@ go install github.com/santiago-labs/telophasecli@latest
 - Features
   - [Manage AWS Organization as IaC](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#aws-organization)
   - [Manage Service Control Policies](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#service-control-policies)
-  - [Assign IaC Blueprints to Accounts](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#assign-iac-stacks-to-accounts)
+  - [Assign IaC Blueprints to Accounts](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#assign-iac-blueprints-to-accounts)
   - [Testing](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#testing)
   - [Terminal UI](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#terminal-ui)
 - CLI
