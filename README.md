@@ -21,21 +21,19 @@ go install github.com/santiago-labs/telophasecli@latest
 ## Quick links
 
 - Intro
-  - [Quickstart](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/quickstart.md)
+  - [Quickstart](mintlifydocs/quickstart.md)
 - Features
-  - [Manage AWS Organization as IaC](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#aws-organization)
-  - [Manage Service Control Policies](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#service-control-policies)
-  - [Assign IaC Blueprints to Accounts](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#assign-iac-blueprints-to-accounts)
-  - [Testing](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#testing)
-  - [Terminal UI](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#terminal-ui)
+  - [Manage AWS Organization as IaC](mintlifydocs/features.md#aws-organization)
+  - [Manage Service Control Policies](mintlifydocs/features.md#service-control-policies)
+  - [Assign IaC Blueprints to Accounts](mintlifydocs/features.md#assign-iac-blueprints-to-accounts)
+  - [Testing](mintlifydocs/features.md#testing)
+  - [Terminal UI](mintlifydocs/features/tui.mdx)
 - CLI
-  - [`telophase diff`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#telophasecli-diff)
-  - [`telophase deploy`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#telophasecli-deploy)
-  - [`telophase account import`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#telophasecli-account-import)
-  - [`telophase account diff`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#telophasecli-account-diff)
-  - [`telophase account deploy`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#telophasecli-account-deploy)
+  - [`telophase diff`](mintlifydocs/commands/diff.mdx)
+  - [`telophase deploy`](mintlifydocs/commands/deploy.mdx)
+  - [`telophase account import`](mintlifydocs/commands/account-import.mdx)
 - Organization.yml Reference
-  - [Reference](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/organizationyml.md)
+  - [Reference](mintlifydocs/config/organizationyml.mdx)
 
 
 ### Future Development
