@@ -67,7 +67,8 @@ func processOrg(consoleUI runner.ConsoleUI, cmd string) {
 	ctx := context.Background()
 	mgmtAcct, err := orgClient.FetchManagementAccount(ctx)
 	if err != nil {
-		panic(err)
+		consoleUI.Print(fmt.Sprintf("Error: %v", err), *mgmtAcct)
+		return
 	}
 	if cmd == "import" {
 		consoleUI.Print("Importing AWS Organization", *mgmtAcct)
@@ -93,7 +94,8 @@ func processOrg(consoleUI runner.ConsoleUI, cmd string) {
 		for _, op := range operations {
 			err := op.Call(ctx)
 			if err != nil {
-				panic(fmt.Sprintf("error: %s", err))
+				consoleUI.Print(fmt.Sprintf("Error: %v", err), *mgmtAcct)
+				return
 			}
 		}
 	}
@@ -113,7 +115,7 @@ func orgV2Diff(
 	var operations []resourceoperation.ResourceOperation
 	if rootAWSGroup != nil {
 		operations = append(operations, resourceoperation.CollectOrganizationUnitOps(
-			ctx, outputUI, orgClient, rootAWSGroup, operation,
+			ctx, outputUI, orgClient, mgmtAcct, rootAWSGroup, operation,
 		)...)
 		for _, op := range resourceoperation.FlattenOperations(operations) {
 			outputUI.Print(op.ToString(), *mgmtAcct)

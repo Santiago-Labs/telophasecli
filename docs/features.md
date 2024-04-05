@@ -54,6 +54,9 @@ Organization:
             AccountName: Engineer A
 ```
 
+### Testing
+Telophase integrates with [localstack](https://www.localstack.cloud/) to test AWS Organization and TF/CDK changes locally. Set `LOCALSTACK=true` in your env to use localstack instead of your AWS account. For a detailed example, see the [LocalStack Example](https://github.com/Santiago-Labs/telophasecli/tree/main/examples/localstack).
+
 ### Pass AccountID and AccountName as input to Terraform and CDK Stacks
 `AccountID` and `AccountName` are passed as input to each stack as `telophaseAccountID` and `telophaseAccountName` respectively.
 
@@ -89,3 +92,8 @@ hostedZone := awsroute53.NewHostedZone(stack, jsii.String("childZone"), &awsrout
 })
 ```
 This will create `lidl.telophase.dev` in the `Lidl` account, `walmart.telophase.dev` in the `Walmart` account, and `costco.telophase.dev` in the `Costco` account.
+
+### Terminal UI
+Pass `--tui` option to use our Terminal UI
+
+<img width="1272" alt="Screenshot 2024-04-05 at 12 20 39 PM" src="https://github.com/Santiago-Labs/telophasecli/assets/3019043/4cb86f97-bf59-4a80-adb0-0323b7005934">

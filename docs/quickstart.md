@@ -63,7 +63,7 @@ Organization:
     - Email: ethan+ci@telophase.dev
       AccountName: CI
 ```
-Then run `telophasecli account plan` and `telophasecli account apply`
+Then run `telophasecli account diff` and `telophasecli account apply`
 
 #### Example: Apply Terraform
 You can apply IaC by assigning a stack to the account in `organization.yml`:
@@ -77,4 +77,4 @@ Organization:
         - Path: tf/ci_blueprint
           Type: Terraform
 ```
-Then run `telophasecli plan` and `telophasecli apply`
+Then run `telophasecli diff` and `telophasecli apply`

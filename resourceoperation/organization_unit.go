@@ -3,6 +3,7 @@ package resourceoperation
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"html/template"
 	"log"
 
@@ -31,16 +32,13 @@ func NewOrganizationUnitOperation(
 	orgClient awsorgs.Client,
 	consoleUI runner.ConsoleUI,
 	organizationUnit *resource.AccountGroup,
+	mgmtAcct *resource.Account,
 	operation int,
 	newParent *resource.AccountGroup,
 	currentParent *resource.AccountGroup,
 	newName *string,
 ) ResourceOperation {
 
-	mgmtAcct, err := orgClient.FetchManagementAccount(context.TODO())
-	if err != nil {
-		panic(err)
-	}
 	return &organizationUnitOperation{
 		OrgClient:        orgClient,
 		ConsoleUI:        consoleUI,
@@ -57,6 +55,7 @@ func CollectOrganizationUnitOps(
 	ctx context.Context,
 	consoleUI runner.ConsoleUI,
 	orgClient awsorgs.Client,
+	mgmtAcct *resource.Account,
 	rootOU *resource.AccountGroup,
 	op int,
 ) []ResourceOperation {
@@ -68,12 +67,14 @@ func CollectOrganizationUnitOps(
 	stsClient := sts.New(session.Must(awssess.DefaultSession()))
 	caller, err := stsClient.GetCallerIdentity(&sts.GetCallerIdentityInput{})
 	if err != nil {
-		panic(err)
+		consoleUI.Print(fmt.Sprintf("Error: %v", err), *mgmtAcct)
+		return []ResourceOperation{}
 	}
 
 	providerRootGroup, err := orgClient.FetchGroupAndDescendents(context.TODO(), *rootOU.GroupID, *caller.Account)
 	if err != nil {
-		panic(err)
+		consoleUI.Print(fmt.Sprintf("Error: %v", err), *mgmtAcct)
+		return []ResourceOperation{}
 	}
 
 	providerGroups := providerRootGroup.AllDescendentGroups()
@@ -94,6 +95,7 @@ func CollectOrganizationUnitOps(
 								orgClient,
 								consoleUI,
 								parsedGroup,
+								mgmtAcct,
 								UpdateParent,
 								parsedGroup.Parent,
 								providerGroup.Parent,
@@ -108,6 +110,7 @@ func CollectOrganizationUnitOps(
 							orgClient,
 							consoleUI,
 							parsedGroup,
+							mgmtAcct,
 							UpdateParent,
 							parsedGroup.Parent,
 							providerGroup.Parent,
@@ -131,6 +134,7 @@ func CollectOrganizationUnitOps(
 							orgClient,
 							consoleUI,
 							parsedGroup,
+							mgmtAcct,
 							Create,
 							parsedGroup.Parent,
 							nil,
@@ -144,6 +148,7 @@ func CollectOrganizationUnitOps(
 						orgClient,
 						consoleUI,
 						parsedGroup,
+						mgmtAcct,
 						Create,
 						parsedGroup.Parent,
 						nil,
@@ -171,6 +176,7 @@ func CollectOrganizationUnitOps(
 								orgClient,
 								consoleUI,
 								parsedAcct,
+								mgmtAcct,
 								UpdateParent,
 								parsedAcct.Parent,
 								providerAcct.Parent,
@@ -183,6 +189,7 @@ func CollectOrganizationUnitOps(
 						orgClient,
 						consoleUI,
 						parsedAcct,
+						mgmtAcct,
 						UpdateParent,
 						parsedAcct.Parent,
 						providerAcct.Parent,
@@ -204,6 +211,7 @@ func CollectOrganizationUnitOps(
 							orgClient,
 							consoleUI,
 							parsedAcct,
+							mgmtAcct,
 							Create,
 							parsedAcct.Parent,
 							nil,
@@ -216,6 +224,7 @@ func CollectOrganizationUnitOps(
 					orgClient,
 					consoleUI,
 					parsedAcct,
+					mgmtAcct,
 					Create,
 					parsedAcct.Parent,
 					nil,
