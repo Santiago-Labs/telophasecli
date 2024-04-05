@@ -27,16 +27,12 @@ type accountOperation struct {
 func NewAccountOperation(
 	orgClient awsorgs.Client,
 	consoleUI runner.ConsoleUI,
-	account *resource.Account,
+	account, mgmtAcct *resource.Account,
 	operation int,
 	newParent *resource.AccountGroup,
 	currentParent *resource.AccountGroup,
 ) ResourceOperation {
 
-	mgmtAcct, err := orgClient.FetchManagementAccount(context.TODO())
-	if err != nil {
-		panic(err)
-	}
 	return &accountOperation{
 		Account:       account,
 		Operation:     operation,

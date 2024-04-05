@@ -102,20 +102,24 @@ func (to *tfOperation) initTf(role *sts.AssumeRoleOutput) *exec.Cmd {
 	workingPath := terraform.TmpPath(*to.Account, to.Stack.Path)
 	terraformDir := filepath.Join(workingPath, ".terraform")
 	if terraformDir == "" || !strings.Contains(terraformDir, "telophasedirs") {
-		panic(fmt.Errorf("expected terraform dir to be set"))
+		to.OutputUI.Print("expected terraform dir to be set", *to.Account)
+		return nil
 	}
 	// Clean the directory
 	if err := os.RemoveAll(terraformDir); err != nil {
-		panic(fmt.Errorf("failed to remove directory %s: %w", terraformDir, err))
+		to.OutputUI.Print(fmt.Sprintf("Error: failed to remove directory %s: %v", terraformDir, err), *to.Account)
+		return nil
 	}
 
 	if _, err := os.Stat(terraformDir); os.IsNotExist(err) {
 		if err := os.MkdirAll(workingPath, 0755); err != nil {
-			panic(fmt.Errorf("failed to create directory %s: %w", workingPath, err))
+			to.OutputUI.Print(fmt.Sprintf("Error: failed to create directory %s: %v", terraformDir, err), *to.Account)
+			return nil
 		}
 
 		if err := terraform.CopyDir(to.Stack.Path, workingPath, *to.Account); err != nil {
-			panic(fmt.Errorf("failed to copy files from %s to %s: %w", to.Stack.Path, workingPath, err))
+			to.OutputUI.Print(fmt.Sprintf("Error: failed to copy files from %s to %s: %v", to.Stack.Path, workingPath, err), *to.Account)
+			return nil
 		}
 
 		cmd := exec.Command(localstack.TfCmd(), "init")

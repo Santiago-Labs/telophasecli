@@ -39,14 +39,25 @@ func processOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int) {
 	orgClient := awsorgs.New()
 	mgmtAcct, err := orgClient.FetchManagementAccount(ctx)
 	if err != nil {
-		panic(err)
+		consoleUI.Print(fmt.Sprintf("Error: %v", err), resource.Account{})
+		return
 	}
 
 	rootAWSGroup, err := ymlparser.ParseOrganizationV2(orgFile)
 	if err != nil {
-		panic(fmt.Sprintf("error: %s", err))
+		consoleUI.Print(fmt.Sprintf("error: %s", err), *mgmtAcct)
+		return
 	}
-	orgV2Diff(ctx, consoleUI, orgClient, rootAWSGroup, mgmtAcct, cmd)
+	orgOps := orgV2Diff(ctx, consoleUI, orgClient, rootAWSGroup, mgmtAcct, cmd)
+
+	if cmd == resourceoperation.Deploy {
+		for _, op := range orgOps {
+			err := op.Call(ctx)
+			if err != nil {
+				consoleUI.Print(fmt.Sprintf("Error on AWS Organization Operation: %v", err), *mgmtAcct)
+			}
+		}
+	}
 
 	var accountsToApply []resource.Account
 	if rootAWSGroup != nil {

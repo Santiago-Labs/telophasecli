@@ -24,18 +24,41 @@ The configuration above will create
 3) `Development` Organizational Unit
 4) `Engineer A` account in the `Development` OU
 
-### Assign IaC Stacks to Accounts
-Terraform and CDK (AWS Only) can be assigned at any level in the hierarchy. All child accounts inherit the stack.
+### Service Control Policies
+Service Control Policies defined in Terraform or CDK can be applied to Organization Units and Accounts in `organization.yml`.
 
 #### Example
 ```yml
 Organization:
   AccountGroups:
       - Name: Production
-        Stacks:
-          - Name: SCPDisableEURegion # This stack will be applied to all accounts in the `Production` OU (`Safety Firmware` and `Safety Ingestion Team`).
-            Path: go/src/cdk/scp
-            Type: CDK
+        ServiceControlPolicies:
+          - Name: DisableEURegion # This SCP will be applied to the `Production` Organization Unit.
+            Path: path/to/scp
+            Type: Terraform
+        Accounts:
+          - Email: safety+firmware@example.app
+            AccountName: Safety Firmware
+          - Email: safety+ingestion@example.app
+            AccountName: Safety Ingestion Team
+      - Name: Development
+        Accounts:
+          - Email: eng1@example.app
+            AccountName: Engineer A
+            ServiceControlPolicies:
+              - Name: DisableGPUInstances # This SCP will be applied to `Engineer A` account only.
+                Path: path/to/scp
+                Type: Terraform
+```
+
+### Assign IaC Blueprints to Accounts
+Terraform and CDK can be assigned at any level in the hierarchy. All child accounts inherit the stack.
+
+#### Example
+```yml
+Organization:
+  AccountGroups:
+      - Name: Production
         Accounts:
           - Email: safety+firmware@example.app
             AccountName: Safety Firmware
@@ -53,6 +76,9 @@ Organization:
           - Email: eng1@example.app
             AccountName: Engineer A
 ```
+
+### Testing
+Telophase integrates with [localstack](https://www.localstack.cloud/) to test AWS Organization and TF/CDK changes locally. Set `LOCALSTACK=true` in your env to use localstack instead of your AWS account. For a detailed example, see the [LocalStack Example](https://github.com/Santiago-Labs/telophasecli/tree/main/examples/localstack).
 
 ### Pass AccountID and AccountName as input to Terraform and CDK Stacks
 `AccountID` and `AccountName` are passed as input to each stack as `telophaseAccountID` and `telophaseAccountName` respectively.
@@ -89,3 +115,8 @@ hostedZone := awsroute53.NewHostedZone(stack, jsii.String("childZone"), &awsrout
 })
 ```
 This will create `lidl.telophase.dev` in the `Lidl` account, `walmart.telophase.dev` in the `Walmart` account, and `costco.telophase.dev` in the `Costco` account.
+
+### Terminal UI
+Pass `--tui` option to use our Terminal UI
+
+<img width="1272" alt="Screenshot 2024-04-05 at 12 20 39 PM" src="https://github.com/Santiago-Labs/telophasecli/assets/3019043/4cb86f97-bf59-4a80-adb0-0323b7005934">
