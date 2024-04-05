@@ -209,10 +209,6 @@ func CollectOrganizationUnitOps(
 							nil,
 						)
 						newGroup.AddDependent(newAcct)
-
-						for _, acctOp := range CollectAccountOps(ctx, consoleUI, op, parsedAcct, "") {
-							newAcct.AddDependent(acctOp)
-						}
 					}
 				}
 			} else {
@@ -225,10 +221,6 @@ func CollectOrganizationUnitOps(
 					nil,
 				)
 				operations = append(operations, newAcct)
-
-				for _, acctOp := range CollectAccountOps(ctx, consoleUI, op, parsedAcct, "") {
-					newAcct.AddDependent(acctOp)
-				}
 			}
 		}
 	}

@@ -42,13 +42,13 @@ func processOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int) {
 		panic(err)
 	}
 
-	var accountsToApply []resource.Account
 	rootAWSGroup, err := ymlparser.ParseOrganizationV2(orgFile)
 	if err != nil {
 		panic(fmt.Sprintf("error: %s", err))
 	}
 	orgV2Diff(ctx, consoleUI, orgClient, rootAWSGroup, mgmtAcct, cmd)
 
+	var accountsToApply []resource.Account
 	if rootAWSGroup != nil {
 		for _, acct := range rootAWSGroup.AllDescendentAccounts() {
 			if contains(tag, acct.AllTags()) || tag == "" {
