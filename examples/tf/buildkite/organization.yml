@@ -1,6 +1,6 @@
 Organization:
     Name: root
-    AccountGroups:
+    OrganizationUnits:
         - Name: Security
           Accounts:
             - Email: aws+audit@example.com

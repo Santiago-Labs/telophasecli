@@ -23,12 +23,12 @@ func CollectSCPOps(
 	orgClient awsorgs.Client,
 	consoleUI runner.ConsoleUI,
 	operation int,
-	rootOU *resource.AccountGroup,
+	rootOU *resource.OrganizationUnit,
 	mgmtAcct *resource.Account,
 ) []ResourceOperation {
 
 	var ops []ResourceOperation
-	for _, ou := range rootOU.AllDescendentGroups() {
+	for _, ou := range rootOU.AllDescendentOUs() {
 		for _, scp := range ou.ServiceControlPolicies {
 			ops = append(ops, NewSCPOperation(
 				consoleUI,
@@ -59,7 +59,7 @@ func CollectSCPOps(
 
 type scpOperation struct {
 	TargetAcct          *resource.Account
-	TargetOU            *resource.AccountGroup
+	TargetOU            *resource.OrganizationUnit
 	MgmtAcct            *resource.Account
 	Operation           int
 	Stack               resource.Stack
@@ -70,7 +70,7 @@ type scpOperation struct {
 func NewSCPOperation(
 	consoleUI runner.ConsoleUI,
 	targetAcct, mgmtAcct *resource.Account,
-	targetOU *resource.AccountGroup,
+	targetOU *resource.OrganizationUnit,
 	stack resource.Stack,
 	op int,
 ) ResourceOperation {

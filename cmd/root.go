@@ -43,12 +43,12 @@ func processOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int) {
 		return
 	}
 
-	rootAWSGroup, err := ymlparser.ParseOrganizationV2(orgFile)
+	rootAWSOU, err := ymlparser.ParseOrganizationV2(orgFile)
 	if err != nil {
 		consoleUI.Print(fmt.Sprintf("error: %s", err), *mgmtAcct)
 		return
 	}
-	orgOps := orgV2Diff(ctx, consoleUI, orgClient, rootAWSGroup, mgmtAcct, cmd)
+	orgOps := orgV2Diff(ctx, consoleUI, orgClient, rootAWSOU, mgmtAcct, cmd)
 
 	if cmd == resourceoperation.Deploy {
 		for _, op := range orgOps {
@@ -60,8 +60,8 @@ func processOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int) {
 	}
 
 	var accountsToApply []resource.Account
-	if rootAWSGroup != nil {
-		for _, acct := range rootAWSGroup.AllDescendentAccounts() {
+	if rootAWSOU != nil {
+		for _, acct := range rootAWSOU.AllDescendentAccounts() {
 			if contains(tag, acct.AllTags()) || tag == "" {
 				accountsToApply = append(accountsToApply, *acct)
 			}
@@ -74,7 +74,7 @@ func processOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int) {
 
 	runIAC(ctx, consoleUI, cmd, accountsToApply)
 
-	scpOps := resourceoperation.CollectSCPOps(ctx, orgClient, consoleUI, cmd, rootAWSGroup, mgmtAcct)
+	scpOps := resourceoperation.CollectSCPOps(ctx, orgClient, consoleUI, cmd, rootAWSOU, mgmtAcct)
 	for _, op := range scpOps {
 		err := op.Call(ctx)
 		if err != nil {

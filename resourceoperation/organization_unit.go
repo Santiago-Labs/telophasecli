@@ -17,11 +17,11 @@ import (
 )
 
 type organizationUnitOperation struct {
-	OrganizationUnit    *resource.AccountGroup
+	OrganizationUnit    *resource.OrganizationUnit
 	MgmtAccount         *resource.Account
 	Operation           int
-	NewParent           *resource.AccountGroup
-	CurrentParent       *resource.AccountGroup
+	NewParent           *resource.OrganizationUnit
+	CurrentParent       *resource.OrganizationUnit
 	NewName             *string
 	OrgClient           awsorgs.Client
 	ConsoleUI           runner.ConsoleUI
@@ -31,11 +31,11 @@ type organizationUnitOperation struct {
 func NewOrganizationUnitOperation(
 	orgClient awsorgs.Client,
 	consoleUI runner.ConsoleUI,
-	organizationUnit *resource.AccountGroup,
+	organizationUnit *resource.OrganizationUnit,
 	mgmtAcct *resource.Account,
 	operation int,
-	newParent *resource.AccountGroup,
-	currentParent *resource.AccountGroup,
+	newParent *resource.OrganizationUnit,
+	currentParent *resource.OrganizationUnit,
 	newName *string,
 ) ResourceOperation {
 
@@ -56,7 +56,7 @@ func CollectOrganizationUnitOps(
 	consoleUI runner.ConsoleUI,
 	orgClient awsorgs.Client,
 	mgmtAcct *resource.Account,
-	rootOU *resource.AccountGroup,
+	rootOU *resource.OrganizationUnit,
 	op int,
 ) []ResourceOperation {
 
@@ -71,49 +71,49 @@ func CollectOrganizationUnitOps(
 		return []ResourceOperation{}
 	}
 
-	providerRootGroup, err := orgClient.FetchGroupAndDescendents(context.TODO(), *rootOU.GroupID, *caller.Account)
+	providerRootOU, err := orgClient.FetchOUAndDescendents(context.TODO(), *rootOU.OUID, *caller.Account)
 	if err != nil {
 		consoleUI.Print(fmt.Sprintf("Error: %v", err), *mgmtAcct)
 		return []ResourceOperation{}
 	}
 
-	providerGroups := providerRootGroup.AllDescendentGroups()
-	for _, parsedGroup := range rootOU.AllDescendentGroups() {
+	providerOUs := providerRootOU.AllDescendentOUs()
+	for _, parsedOU := range rootOU.AllDescendentOUs() {
 		var found bool
-		for _, providerGroup := range providerGroups {
-			if parsedGroup.GroupID != nil && *providerGroup.GroupID == *parsedGroup.GroupID {
+		for _, providerOU := range providerOUs {
+			if parsedOU.OUID != nil && *providerOU.OUID == *parsedOU.OUID {
 				found = true
-				if parsedGroup.Parent.GroupID == nil {
-					for _, newGroup := range FlattenOperations(operations) {
-						newGroupOperation, ok := newGroup.(*organizationUnitOperation)
+				if parsedOU.Parent.OUID == nil {
+					for _, newOU := range FlattenOperations(operations) {
+						newOUOperation, ok := newOU.(*organizationUnitOperation)
 						if !ok {
 							continue
 						}
 
-						if newGroupOperation.OrganizationUnit == parsedGroup.Parent {
-							newGroup.AddDependent(NewOrganizationUnitOperation(
+						if newOUOperation.OrganizationUnit == parsedOU.Parent {
+							newOU.AddDependent(NewOrganizationUnitOperation(
 								orgClient,
 								consoleUI,
-								parsedGroup,
+								parsedOU,
 								mgmtAcct,
 								UpdateParent,
-								parsedGroup.Parent,
-								providerGroup.Parent,
+								parsedOU.Parent,
+								providerOU.Parent,
 								nil,
 							))
 						}
 					}
 
-				} else if *parsedGroup.Parent.GroupID != *providerGroup.Parent.GroupID {
+				} else if *parsedOU.Parent.OUID != *providerOU.Parent.OUID {
 					operations = append(operations,
 						NewOrganizationUnitOperation(
 							orgClient,
 							consoleUI,
-							parsedGroup,
+							parsedOU,
 							mgmtAcct,
 							UpdateParent,
-							parsedGroup.Parent,
-							providerGroup.Parent,
+							parsedOU.Parent,
+							providerOU.Parent,
 							nil,
 						),
 					)
@@ -123,20 +123,20 @@ func CollectOrganizationUnitOps(
 		}
 
 		if !found {
-			if parsedGroup.Parent.GroupID == nil {
-				for _, newGroup := range FlattenOperations(operations) {
-					newGroupOperation, ok := newGroup.(*organizationUnitOperation)
+			if parsedOU.Parent.OUID == nil {
+				for _, newOU := range FlattenOperations(operations) {
+					newOUOperation, ok := newOU.(*organizationUnitOperation)
 					if !ok {
 						continue
 					}
-					if newGroupOperation.OrganizationUnit == parsedGroup.Parent {
-						newGroup.AddDependent(NewOrganizationUnitOperation(
+					if newOUOperation.OrganizationUnit == parsedOU.Parent {
+						newOU.AddDependent(NewOrganizationUnitOperation(
 							orgClient,
 							consoleUI,
-							parsedGroup,
+							parsedOU,
 							mgmtAcct,
 							Create,
-							parsedGroup.Parent,
+							parsedOU.Parent,
 							nil,
 							nil,
 						))
@@ -147,10 +147,10 @@ func CollectOrganizationUnitOps(
 					NewOrganizationUnitOperation(
 						orgClient,
 						consoleUI,
-						parsedGroup,
+						parsedOU,
 						mgmtAcct,
 						Create,
-						parsedGroup.Parent,
+						parsedOU.Parent,
 						nil,
 						nil,
 					),
@@ -159,20 +159,20 @@ func CollectOrganizationUnitOps(
 		}
 	}
 
-	providerAccounts := providerRootGroup.AllDescendentAccounts()
+	providerAccounts := providerRootOU.AllDescendentAccounts()
 	for _, parsedAcct := range rootOU.AllDescendentAccounts() {
 		var found bool
 		for _, providerAcct := range providerAccounts {
 			if providerAcct.Email == parsedAcct.Email {
 				found = true
-				if parsedAcct.Parent.GroupID == nil {
-					for _, newGroup := range FlattenOperations(operations) {
-						newGroupOperation, ok := newGroup.(*organizationUnitOperation)
+				if parsedAcct.Parent.OUID == nil {
+					for _, newOU := range FlattenOperations(operations) {
+						newOUOperation, ok := newOU.(*organizationUnitOperation)
 						if !ok {
 							continue
 						}
-						if newGroupOperation.OrganizationUnit == parsedAcct.Parent {
-							newGroup.AddDependent(NewAccountOperation(
+						if newOUOperation.OrganizationUnit == parsedAcct.Parent {
+							newOU.AddDependent(NewAccountOperation(
 								orgClient,
 								consoleUI,
 								parsedAcct,
@@ -184,7 +184,7 @@ func CollectOrganizationUnitOps(
 
 						}
 					}
-				} else if *providerAcct.Parent.GroupID != *parsedAcct.Parent.GroupID {
+				} else if *providerAcct.Parent.OUID != *parsedAcct.Parent.OUID {
 					operations = append(operations, NewAccountOperation(
 						orgClient,
 						consoleUI,
@@ -200,13 +200,13 @@ func CollectOrganizationUnitOps(
 		}
 
 		if !found {
-			if parsedAcct.Parent.GroupID == nil {
-				for _, newGroup := range FlattenOperations(operations) {
-					newGroupOperation, ok := newGroup.(*organizationUnitOperation)
+			if parsedAcct.Parent.OUID == nil {
+				for _, newOU := range FlattenOperations(operations) {
+					newOUOperation, ok := newOU.(*organizationUnitOperation)
 					if !ok {
 						continue
 					}
-					if newGroupOperation.OrganizationUnit == parsedAcct.Parent {
+					if newOUOperation.OrganizationUnit == parsedAcct.Parent {
 						newAcct := NewAccountOperation(
 							orgClient,
 							consoleUI,
@@ -216,7 +216,7 @@ func CollectOrganizationUnitOps(
 							parsedAcct.Parent,
 							nil,
 						)
-						newGroup.AddDependent(newAcct)
+						newOU.AddDependent(newAcct)
 					}
 				}
 			} else {
@@ -247,18 +247,18 @@ func (ou *organizationUnitOperation) ListDependents() []ResourceOperation {
 
 func (ou *organizationUnitOperation) Call(ctx context.Context) error {
 	if ou.Operation == Create {
-		newOrg, err := ou.OrgClient.CreateOrganizationUnit(ctx, ou.ConsoleUI, *ou.MgmtAccount, ou.OrganizationUnit.GroupName, *ou.OrganizationUnit.Parent.GroupID)
+		newOrg, err := ou.OrgClient.CreateOrganizationUnit(ctx, ou.ConsoleUI, *ou.MgmtAccount, ou.OrganizationUnit.OUName, *ou.OrganizationUnit.Parent.OUID)
 		if err != nil {
 			return err
 		}
-		ou.OrganizationUnit.GroupID = newOrg.Id
+		ou.OrganizationUnit.OUID = newOrg.Id
 	} else if ou.Operation == UpdateParent {
-		err := ou.OrgClient.RecreateOU(ctx, ou.ConsoleUI, *ou.MgmtAccount, *ou.OrganizationUnit.GroupID, ou.OrganizationUnit.GroupName, *ou.OrganizationUnit.Parent.GroupID)
+		err := ou.OrgClient.RecreateOU(ctx, ou.ConsoleUI, *ou.MgmtAccount, *ou.OrganizationUnit.OUID, ou.OrganizationUnit.OUName, *ou.OrganizationUnit.Parent.OUID)
 		if err != nil {
 			return err
 		}
 	} else if ou.Operation == Update {
-		err := ou.OrgClient.UpdateOrganizationUnit(ctx, *ou.OrganizationUnit.GroupID, ou.OrganizationUnit.GroupName)
+		err := ou.OrgClient.UpdateOrganizationUnit(ctx, *ou.OrganizationUnit.OUID, ou.OrganizationUnit.OUName)
 		if err != nil {
 			return err
 		}

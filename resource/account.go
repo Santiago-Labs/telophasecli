@@ -11,12 +11,12 @@ type Account struct {
 	State       string `yaml:"State,omitempty"`
 	AccountID   string `yaml:"-"`
 
-	AssumeRoleName         string        `yaml:"AssumeRoleName,omitempty"`
-	Tags                   []string      `yaml:"Tags,omitempty"`
-	BaselineStacks         []Stack       `yaml:"Stacks,omitempty"`
-	ServiceControlPolicies []Stack       `yaml:"ServiceControlPolicies,omitempty"`
-	ManagementAccount      bool          `yaml:"ManagementAccount,omitempty"`
-	Parent                 *AccountGroup `yaml:"-"`
+	AssumeRoleName         string            `yaml:"AssumeRoleName,omitempty"`
+	Tags                   []string          `yaml:"Tags,omitempty"`
+	BaselineStacks         []Stack           `yaml:"Stacks,omitempty"`
+	ServiceControlPolicies []Stack           `yaml:"ServiceControlPolicies,omitempty"`
+	ManagementAccount      bool              `yaml:"ManagementAccount,omitempty"`
+	Parent                 *OrganizationUnit `yaml:"-"`
 }
 
 func (a Account) AssumeRoleARN() string {

@@ -18,7 +18,7 @@ var (
 func init() {
 	rootCmd.AddCommand(compileCmd)
 	compileCmd.Flags().StringVar(&stacks, "stacks", "", "Filter stacks to deploy")
-	compileCmd.Flags().StringVar(&tag, "tag", "", "Filter accounts and account groups to deploy")
+	compileCmd.Flags().StringVar(&tag, "tag", "", "Filter accounts and organization units to deploy")
 	compileCmd.Flags().StringVar(&orgFile, "org", "organization.yml", "Path to the organization.yml file")
 	compileCmd.Flags().BoolVar(&useTUI, "tui", false, "use the TUI for deploy")
 }

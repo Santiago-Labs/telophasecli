@@ -77,19 +77,19 @@ func processOrg(consoleUI runner.ConsoleUI, cmd string) {
 		}
 	}
 
-	rootAWSGroup, err := ymlparser.ParseOrganizationV2(orgFile)
+	rootAWSOU, err := ymlparser.ParseOrganizationV2(orgFile)
 	if err != nil {
 		consoleUI.Print(fmt.Sprintf("error parsing organization: %s", err), *mgmtAcct)
 	}
 
 	if cmd == "diff" {
 		consoleUI.Print("Diffing AWS Organization", *mgmtAcct)
-		orgV2Diff(ctx, consoleUI, orgClient, rootAWSGroup, mgmtAcct, resourceoperation.Diff)
+		orgV2Diff(ctx, consoleUI, orgClient, rootAWSOU, mgmtAcct, resourceoperation.Diff)
 	}
 
 	if cmd == "deploy" {
 		consoleUI.Print("Diffing AWS Organization", *mgmtAcct)
-		operations := orgV2Diff(ctx, consoleUI, orgClient, rootAWSGroup, mgmtAcct, resourceoperation.Deploy)
+		operations := orgV2Diff(ctx, consoleUI, orgClient, rootAWSOU, mgmtAcct, resourceoperation.Deploy)
 
 		for _, op := range operations {
 			err := op.Call(ctx)
@@ -107,15 +107,15 @@ func orgV2Diff(
 	ctx context.Context,
 	outputUI runner.ConsoleUI,
 	orgClient awsorgs.Client,
-	rootAWSGroup *resource.AccountGroup,
+	rootAWSOU *resource.OrganizationUnit,
 	mgmtAcct *resource.Account,
 	operation int,
 ) []resourceoperation.ResourceOperation {
 
 	var operations []resourceoperation.ResourceOperation
-	if rootAWSGroup != nil {
+	if rootAWSOU != nil {
 		operations = append(operations, resourceoperation.CollectOrganizationUnitOps(
-			ctx, outputUI, orgClient, mgmtAcct, rootAWSGroup, operation,
+			ctx, outputUI, orgClient, mgmtAcct, rootAWSOU, operation,
 		)...)
 		for _, op := range resourceoperation.FlattenOperations(operations) {
 			outputUI.Print(op.ToString(), *mgmtAcct)
@@ -138,14 +138,14 @@ func importOrgV2(ctx context.Context, consoleUI runner.ConsoleUI, orgClient awso
 		return fmt.Errorf("no root ID found")
 	}
 
-	rootGroup, err := orgClient.FetchGroupAndDescendents(ctx, rootId, mgmtAcct.AccountID)
+	rootOU, err := orgClient.FetchOUAndDescendents(ctx, rootId, mgmtAcct.AccountID)
 	if err != nil {
 		return err
 	}
-	org := resource.AccountGroup{
-		GroupName:   rootGroup.GroupName,
-		ChildGroups: rootGroup.ChildGroups,
-		Accounts:    rootGroup.Accounts,
+	org := resource.OrganizationUnit{
+		OUName:   rootOU.OUName,
+		ChildOUs: rootOU.ChildOUs,
+		Accounts: rootOU.Accounts,
 	}
 
 	if err := ymlparser.WriteOrgV2File(orgFile, &org); err != nil {
