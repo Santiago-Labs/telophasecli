@@ -1,1 +1,66 @@
-../../examples/localstack/README.mdx
+---
+title: 'Testing'
+icon: 'vial'
+---
+
+# Example: Localstack
+This example will walk you through using localstack with Telophase to create AWS Accounts and OUs (see: [`organization.yml`](./organization.yml)), and deploy CDK and Terraform to them.
+
+# Getting Started with Localstack + Telophase
+1. Install Dependencies
+```bash
+./setup.sh
+```
+
+2. Start up Localstack in the background. Ensure your pro license is set. Learn more [here](https://docs.localstack.cloud/getting-started/auth-token/)
+```bash
+localstack start -d
+```
+
+3. Localstack Setup
+Create your root organization in Localstack
+```bash
+awslocal organizations create-organization --feature-set ALL
+```
+
+4. Setup an AWS_REGION if not set
+```bash
+export AWS_REGION=us-east-1
+```
+
+5. Deploy Infra in the Accounts
+
+Telophase will:
+1. Create the accounts and OUs listed in `organization.yml`
+2. A CDK stack will create an S3 bucket for a terraform state will be create in each account. Additionally, a Terraform stack will create a CI deploy role in each account in the `Production` OU.
+```bash
+LOCALSTACK=true telophasecli deploy --tui
+```
+
+6. Inspect the accounts using `awslocal`
+
+Learn how Localstack handles multi-account auth [here](https://docs.localstack.cloud/references/multi-account-setups/)
+```bash
+# View the organizations you have created
+awslocal organizations list-accounts
+
+# Each account will have its own tfstate bucket 
+AWS_ACCESS_KEY_ID=$AN_ORG_FROM_ABOVE awslocal s3 ls
+
+# New roles will be created in each account
+AWS_ACCESS_KEY_ID=$AN_ORG_FROM_ABOVE awslocal iam list-roles
+```
+
+### Common Errors
+#### Cannot create preexisting table / Cannot do operations on a non-existent table
+These are triggered by a concurrency bug in localstack. You can resolve it by pre-creating the `tf-test-state` table and running Telophase again:
+```bash
+aws dynamodb create-table --table-name tf-test-state \
+--attribute-definitions AttributeName=id,AttributeType=S \
+--key-schema AttributeName=id,KeyType=HASH \
+--provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 \
+--endpoint-url http://localhost:4566
+
+LOCALSTACK=true telophasecli deploy
+```
+
