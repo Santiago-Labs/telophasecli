@@ -4,6 +4,9 @@
 <h1 align="center">Telophase</h1>
 <br/>
 
+## Documentation
+Full documentation here: https://docs.telophase.dev
+
 ## Why Telophase?
 Automation and Compliance are key concerns when adopting multi-account AWS. Telophase orchestrates the management of AWS Organizations alongside your infrastructure-as-code (IaC) provider, like Terraform or CDK. Using a single tool for these allows:
 1. **Workflow Automation**: Automates account creation and decommissioning, integrating with existing automation workflows, like CI or ServiceNow.
@@ -18,24 +21,24 @@ Go is the only supported installation method. If you'd like another method, plea
 go install github.com/santiago-labs/telophasecli@latest
 ```
 
+
+
 ## Quick links
 
 - Intro
-  - [Quickstart](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/quickstart.md)
+  - [Quickstart](https://docs.telophase.dev/quickstart)
 - Features
-  - [Manage AWS Organization as IaC](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#aws-organization)
-  - [Manage Service Control Policies](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#service-control-policies)
-  - [Assign IaC Blueprints to Accounts](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#assign-iac-blueprints-to-accounts)
-  - [Testing](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#testing)
-  - [Terminal UI](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/features.md#terminal-ui)
+  - [Manage AWS Organization as IaC](https://docs.telophase.dev/features/Manage-AWS-Organizations)
+  - [Manage Service Control Policies](https://docs.telophase.dev/features/scps)
+  - [Assign IaC Blueprints to Accounts](https://docs.telophase.dev/features/Assign-IaC-Blueprints-To-Accounts)
+  - [Testing](https://docs.telophase.dev/features/localstack)
+  - [Terminal UI](https://docs.telophase.dev/features/tui)
 - CLI
-  - [`telophase diff`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#telophasecli-diff)
-  - [`telophase deploy`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#telophasecli-deploy)
-  - [`telophase account import`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#telophasecli-account-import)
-  - [`telophase account diff`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#telophasecli-account-diff)
-  - [`telophase account deploy`](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/commands.md#telophasecli-account-deploy)
+  - [`telophase diff`](https://docs.telophase.dev/commands/diff)
+  - [`telophase deploy`](https://docs.telophase.dev/commands/deploy)
+  - [`telophase account import`](https://docs.telophase.dev/commands/account-import)
 - Organization.yml Reference
-  - [Reference](https://github.com/Santiago-Labs/telophasecli/blob/main/docs/organizationyml.md)
+  - [Reference](https://docs.telophase.dev/config/organization)
 
 
 ### Future Development

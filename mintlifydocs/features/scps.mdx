@@ -1,0 +1,30 @@
+---
+title: 'Service Control Policies'
+icon: 'police-box'
+---
+
+Service Control Policies defined in Terraform or CDK can be applied to Organization Units and Accounts in `organization.yml`.
+
+## Example
+```yml
+Organization:
+  AccountGroups:
+      - Name: Production
+        ServiceControlPolicies:
+          - Name: DisableEURegion # This SCP will be applied to the `Production` Organization Unit.
+            Path: path/to/scp
+            Type: Terraform
+        Accounts:
+          - Email: safety+firmware@example.app
+            AccountName: Safety Firmware
+          - Email: safety+ingestion@example.app
+            AccountName: Safety Ingestion Team
+      - Name: Development
+        Accounts:
+          - Email: eng1@example.app
+            AccountName: Engineer A
+            ServiceControlPolicies:
+              - Name: DisableGPUInstances # This SCP will be applied to `Engineer A` account only.
+                Path: path/to/scp
+                Type: Terraform
+```

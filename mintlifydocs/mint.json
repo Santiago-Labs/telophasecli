@@ -5,7 +5,7 @@
     "dark": "/logo/logo.png",
     "light": "/logo/light-telophase.svg"
   },
-  "favicon": "/favicons.png",
+  "favicon": "/favicon.png",
   "colors": {
     "primary": "#000000",
     "light": "#07C983",
@@ -37,8 +37,10 @@
       "group": "Features",
       "pages": [
         "features/Manage-AWS-Organizations",
-        "features/Assign-IaC-Stacks-To-Accounts",
-        "features/tui"
+        "features/Assign-IaC-Blueprints-To-Accounts",
+        "features/scps",
+        "features/tui",
+        "features/localstack"
       ]
     },
     {
