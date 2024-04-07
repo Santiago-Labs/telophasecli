@@ -10,7 +10,6 @@ on:
     branches: [ "main" ]
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
     steps:
@@ -20,9 +19,34 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: '1.20'
+    
+    - name: Run Setup
+      run: ./setup.sh
 
     - name: Build
       run: go build -v ./...
+    
+    - name: Build main
+      run: go build -v .
+    
+    - name: Start LocalStack
+      uses: LocalStack/setup-localstack@main
+      with:
+        image-tag: 'latest'
+        install-awslocal: 'true'
+        use-pro: 'true'
+      env:
+        LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
+    
+    - name: Setup aws credentials
+      run: |
+        mkdir -p ~/.aws
+        echo "[default]" > ~/.aws/credentials
+        echo "aws_access_key_id = localstack" >> ~/.aws/credentials
+        echo "aws_secret_access_key = localstack" >> ~/.aws/credentials
+        echo "region = us-east-1" >> ~/.aws/credentials
 
     - name: Test
       run: go test -v ./...
+      env:
+        LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}

@@ -1,7 +1,5 @@
 package resource
 
-import "sort"
-
 type OrganizationUnit struct {
 	OUID                   *string             `yaml:"-"`
 	OUName                 string              `yaml:"Name,omitempty"`
@@ -55,10 +53,6 @@ func (grp OrganizationUnit) AllDescendentAccounts() []*Account {
 		accounts = append(accounts, ou.AllDescendentAccounts()...)
 	}
 
-	sort.Slice(accounts, func(i, j int) bool {
-		return accounts[i].Email < accounts[j].Email
-	})
-
 	return accounts
 }
 
@@ -69,10 +63,6 @@ func (grp OrganizationUnit) AllDescendentOUs() []*OrganizationUnit {
 	for _, childOU := range grp.ChildOUs {
 		OUs = append(OUs, childOU.AllDescendentOUs()...)
 	}
-
-	sort.Slice(OUs, func(i, j int) bool {
-		return OUs[i].OUName < OUs[j].OUName
-	})
 
 	return OUs
 
