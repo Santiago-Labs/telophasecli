@@ -113,16 +113,14 @@ func orgV2Diff(
 ) []resourceoperation.ResourceOperation {
 
 	var operations []resourceoperation.ResourceOperation
-	if rootAWSOU != nil {
-		operations = append(operations, resourceoperation.CollectOrganizationUnitOps(
-			ctx, outputUI, orgClient, mgmtAcct, rootAWSOU, operation,
-		)...)
-		for _, op := range resourceoperation.FlattenOperations(operations) {
-			outputUI.Print(op.ToString(), *mgmtAcct)
-		}
-		if len(operations) == 0 {
-			outputUI.Print("\033[32m No changes to AWS Organization. \033[0m", *mgmtAcct)
-		}
+	operations = append(operations, resourceoperation.CollectOrganizationUnitOps(
+		ctx, outputUI, orgClient, mgmtAcct, rootAWSOU, operation,
+	)...)
+	for _, op := range resourceoperation.FlattenOperations(operations) {
+		outputUI.Print(op.ToString(), *mgmtAcct)
+	}
+	if len(operations) == 0 {
+		outputUI.Print("\033[32m No changes to AWS Organization. \033[0m", *mgmtAcct)
 	}
 
 	return operations

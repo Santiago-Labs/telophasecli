@@ -51,30 +51,45 @@ func ParseOrganizationV2(filepath string) (*resource.OrganizationUnit, error) {
 	}
 	org.Organization.OUName = "root"
 	hydrateOU(orgClient, &org.Organization, rootOU)
+	hydrateAccountParent(&org.Organization)
 
 	// Hydrate Group, then fetch all accounts (pointers) and populate ID.
 	allAccounts, err := orgClient.CurrentAccounts(context.TODO())
 	if err != nil {
 		return nil, oops.Wrapf(err, "CurrentAccounts")
 	}
-	for _, acct := range allAccounts {
-		hydrateAccount(&org.Organization, acct)
+	for idx := range allAccounts {
+		hydrateAccount(&org.Organization, allAccounts[idx])
 	}
 
 	return &org.Organization, nil
 }
 
 func hydrateAccount(ou *resource.OrganizationUnit, acct *organizations.Account) {
+	found := true
 	for idx, parsedAcct := range ou.Accounts {
-		ou.Accounts[idx].Parent = ou
-		if parsedAcct.Email == *acct.Email {
+		if parsedAcct.Email == *acct.Email && !found {
 			ou.Accounts[idx].AccountID = *acct.Id
-			return
+			found = true
 		}
+	}
+
+	if found {
+		return
 	}
 
 	for _, childOU := range ou.ChildOUs {
 		hydrateAccount(childOU, acct)
+	}
+}
+
+func hydrateAccountParent(ou *resource.OrganizationUnit) {
+	for idx := range ou.Accounts {
+		ou.Accounts[idx].Parent = ou
+	}
+
+	for _, childOU := range ou.ChildOUs {
+		hydrateAccountParent(childOU)
 	}
 }
 
