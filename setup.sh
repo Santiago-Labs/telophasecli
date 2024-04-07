@@ -12,12 +12,14 @@ print_green() {
 
 if command -v brew &> /dev/null; then
     echo "Brew is installed, proceeding with awscli and terraform installation."
-    brew install awscli terraform
+    brew install awscli terraform localstack/tap/localstack-cli
 elif [ "$(uname)" = "Linux" ]; then
     if [ -f /etc/debian_version ]; then
         echo "Debian-based Linux detected. Installing packages with apt."
         sudo apt update && sudo apt install -y awscli
         sudo snap install terraform --classic
+        curl -Lo localstack-cli-3.3.0-linux-amd64-onefile.tar.gz https://github.com/localstack/localstack-cli/releases/download/v3.3.0/localstack-cli-3.3.0-linux-amd64-onefile.tar.gz
+        sudo tar xvzf localstack-cli-3.3.0-linux-*-onefile.tar.gz -C /usr/local/bin
     elif [ -f /etc/redhat-release ]; then
         echo "Red Hat-based Linux detected. Installing packages with dnf."
         sudo dnf install -y awscli
