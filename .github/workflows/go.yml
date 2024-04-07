@@ -24,6 +24,15 @@ jobs:
     - name: Build
       run: go build -v ./...
     
+    - name: Start LocalStack
+      uses: LocalStack/setup-localstack@main
+      with:
+        image-tag: 'latest'
+        install-awslocal: 'true'
+        use-pro: 'true'
+      env:
+        LOCALSTACK_API_KEY: ${{ secrets.LOCALSTACK_API_KEY }}
+    
     - name: Setup aws credentials
       run: |
         mkdir -p ~/.aws
