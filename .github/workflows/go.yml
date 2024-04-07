@@ -31,7 +31,7 @@ jobs:
         install-awslocal: 'true'
         use-pro: 'true'
       env:
-        LOCALSTACK_API_KEY: ${{ secrets.LOCALSTACK_API_KEY }}
+        LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
     
     - name: Setup aws credentials
       run: |
@@ -44,4 +44,4 @@ jobs:
     - name: Test
       run: go test -v ./...
       env:
-        LOCALSTACK_API_KEY: ${{ secrets.LOCALSTACK_API_KEY }}
+        LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
