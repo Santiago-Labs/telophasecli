@@ -12,8 +12,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      ENVIRONMENT: tests
     steps:
     - uses: actions/checkout@v3
 
@@ -24,6 +22,9 @@ jobs:
 
     - name: Build
       run: go build -v ./...
+    
+    - name: Build main
+      run: go build -v .
     
     - name: Start LocalStack
       uses: LocalStack/setup-localstack@main
