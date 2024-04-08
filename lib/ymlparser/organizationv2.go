@@ -38,49 +38,44 @@ func ParseOrganizationV2(filepath string) (*resource.OrganizationUnit, error) {
 		return nil, err
 	}
 
+	if err = HydrateParsedOrg(&org.Organization); err != nil {
+		return nil, err
+	}
+
+	return &org.Organization, nil
+}
+
+func HydrateParsedOrg(parsedOrg *resource.OrganizationUnit) error {
 	orgClient := awsorgs.New()
 
 	rootId, err := orgClient.GetRootId()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	rootName := "root"
 	rootOU := &organizations.OrganizationalUnit{
 		Id:   &rootId,
 		Name: &rootName,
 	}
-	org.Organization.OUName = "root"
-	hydrateOU(orgClient, &org.Organization, rootOU)
-	hydrateAccountParent(&org.Organization)
+	parsedOrg.OUName = "root"
+	hydrateOUID(orgClient, parsedOrg, rootOU)
+	hydrateOUParent(parsedOrg)
+	hydrateAccountParent(parsedOrg)
 
 	// Hydrate Group, then fetch all accounts (pointers) and populate ID.
-	allAccounts, err := orgClient.CurrentAccounts(context.TODO())
+	providerAccts, err := orgClient.CurrentAccounts(context.TODO())
 	if err != nil {
-		return nil, oops.Wrapf(err, "CurrentAccounts")
+		return oops.Wrapf(err, "CurrentAccounts")
 	}
-	for idx := range allAccounts {
-		hydrateAccount(&org.Organization, allAccounts[idx])
-	}
-
-	return &org.Organization, nil
-}
-
-func hydrateAccount(ou *resource.OrganizationUnit, acct *organizations.Account) {
-	found := true
-	for idx, parsedAcct := range ou.Accounts {
-		if parsedAcct.Email == *acct.Email && !found {
-			ou.Accounts[idx].AccountID = *acct.Id
-			found = true
+	for _, providerAcct := range providerAccts {
+		for _, parsedAcct := range parsedOrg.AllDescendentAccounts() {
+			if parsedAcct.Email == *providerAcct.Email {
+				parsedAcct.AccountID = *providerAcct.Id
+			}
 		}
 	}
 
-	if found {
-		return
-	}
-
-	for _, childOU := range ou.ChildOUs {
-		hydrateAccount(childOU, acct)
-	}
+	return nil
 }
 
 func hydrateAccountParent(ou *resource.OrganizationUnit) {
@@ -93,30 +88,28 @@ func hydrateAccountParent(ou *resource.OrganizationUnit) {
 	}
 }
 
-func hydrateOU(orgClient awsorgs.Client, parsedOU *resource.OrganizationUnit, providerOU *organizations.OrganizationalUnit) error {
+func hydrateOUID(orgClient awsorgs.Client, parsedOU *resource.OrganizationUnit, providerOU *organizations.OrganizationalUnit) error {
 	if providerOU != nil {
 		parsedOU.OUID = providerOU.Id
-		children, err := orgClient.GetOrganizationUnitChildren(context.TODO(), *parsedOU.OUID)
+		providerChildren, err := orgClient.GetOrganizationUnitChildren(context.TODO(), *parsedOU.OUID)
 		if err != nil {
 			return err
 		}
 
 		for _, parsedChild := range parsedOU.ChildOUs {
 			var found bool
-			parsedChild.Parent = parsedOU
-			for _, child := range children {
-				if parsedChild.OUName == *child.Name {
+			for _, providerChild := range providerChildren {
+				if parsedChild.OUName == *providerChild.Name {
 					found = true
-					err = hydrateOU(orgClient, parsedChild, child)
+					err = hydrateOUID(orgClient, parsedChild, providerChild)
 					if err != nil {
 						return err
 					}
 				}
 			}
 
-			// Iterate over children to hydrate parentID
 			if !found {
-				err := hydrateOU(orgClient, parsedChild, nil)
+				err := hydrateOUID(orgClient, parsedChild, nil)
 				if err != nil {
 					return err
 				}
@@ -124,8 +117,7 @@ func hydrateOU(orgClient awsorgs.Client, parsedOU *resource.OrganizationUnit, pr
 		}
 	} else {
 		for _, parsedChild := range parsedOU.ChildOUs {
-			parsedChild.Parent = parsedOU
-			err := hydrateOU(orgClient, parsedChild, nil)
+			err := hydrateOUID(orgClient, parsedChild, nil)
 			if err != nil {
 				return err
 			}
@@ -133,6 +125,13 @@ func hydrateOU(orgClient awsorgs.Client, parsedOU *resource.OrganizationUnit, pr
 	}
 
 	return nil
+}
+
+func hydrateOUParent(parsedOU *resource.OrganizationUnit) {
+	for _, parsedChild := range parsedOU.ChildOUs {
+		parsedChild.Parent = parsedOU
+		hydrateOUParent(parsedChild)
+	}
 }
 
 func WriteOrgV2File(filepath string, org *resource.OrganizationUnit) error {
