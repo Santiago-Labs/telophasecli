@@ -41,6 +41,9 @@ go install github.com/santiago-labs/telophasecli@latest
   - [Reference](https://docs.telophase.dev/config/organization)
 
 
+### Community
+Join our Slack community: [![slack](https://img.shields.io/badge/slack-chat-yellow)](https://join.slack.com/t/telophasecommunity/shared_invite/zt-2gpmj94b4-3sexoHWp3~ee~MZpjJcRgQ)
+
 ### Future Development
 - [ ] Support for multi-cloud organizations with a unified account factory.
   - [ ] Azure
