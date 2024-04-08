@@ -23,11 +23,11 @@ type stdOut struct {
 }
 
 func (s *stdOut) ColoredId(acct resource.Account) string {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	coloredId, ok := s.coloredId[acct.ID()]
 	if !ok {
-		s.lock.Lock()
-		defer s.lock.Unlock()
-
 		colorFunc := colors.DeterministicColorFunc(acct.AccountID)
 		if acct.AccountName != "" {
 			coloredId = colorFunc(fmt.Sprintf("[Account: %s (%s)]", acct.ID(), acct.AccountName))
