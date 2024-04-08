@@ -6,7 +6,7 @@ description: "Telophase is an open-source AWS Control Tower"
 # Why Telophase?
 Automation and Compliance are key concerns when adopting multi-account AWS. Telophase orchestrates the management of AWS Organizations alongside your infrastructure-as-code (IaC) provider, like Terraform or CDK. Using a single tool for these allows:
 1. **Workflow Automation**: Automates account creation and decommissioning, integrating with existing automation workflows, like CI or ServiceNow.
-2. **IaC & Account Binding**: Enables binding accounts to specific IaC stacks for automatic provisioning of baseline resources.
+2. **IaC & Account Binding**: Enables binding accounts to specific IaC blueprints for automatic provisioning of baseline resources.
 3. **Easier Compliance Deployment**: Enables binding Service Control Policies (SCPs) to accounts as part of your Account provisioning workflow to make sure every Account is compliant. We make it easy to test SCPs before they are deployed.
 
 Currently, Telophase is a CLI tool only. In the future, we plan to offer a web UI.
@@ -27,11 +27,18 @@ go install github.com/santiago-labs/telophasecli@latest
       Manage your AWS organizations via an `organizations.yml` file.
     </Card>
     <Card
-        title="Assign IaC Stacks to Accounts"
+        title="Assign IaC Blueprints to Accounts"
         icon="hand-pointer"
         href="/features/Assign-IaC-Stacks-To-Accounts"
     >
       Assign CDK or Terraform `Stacks` to Organization Units or Organizations to provision infrastructure in across your Organizations.
+    </Card>
+    <Card
+        title="Service Control Policies"
+        icon="police-box"
+        href="/features/scps"
+    >
+      Configuring Service Control Policies (SCPs).
     </Card>
     <Card
         title="Using the Terminal UI"
@@ -39,6 +46,13 @@ go install github.com/santiago-labs/telophasecli@latest
         href="/features/tui"
     >
       Learn how to use the Terminal UI with `telophasecli`
+    </Card>
+    <Card
+        title="Testing"
+        icon="vial"
+        href="/features/localstack"
+    >
+      Using localstack to test changes to your AWS Organization.
     </Card>
 </CardGroup>
 
