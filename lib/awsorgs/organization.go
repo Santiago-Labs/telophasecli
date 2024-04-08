@@ -166,7 +166,7 @@ func (c Client) MoveAccount(
 	if oldParentId == newParentId {
 		return nil
 	}
-	consoleUI.Print(fmt.Sprintf("Moving Account: Account: %s Old Parent: %s New Parent: %s\n", acctId, oldParentId, newParentId), mgmtAcct)
+	consoleUI.Print(fmt.Sprintf("Moving Account: %s Old Parent: %s New Parent: %s\n", acctId, oldParentId, newParentId), mgmtAcct)
 	_, err := c.organizationClient.MoveAccountWithContext(ctx, &organizations.MoveAccountInput{
 		AccountId:           &acctId,
 		DestinationParentId: &newParentId,
