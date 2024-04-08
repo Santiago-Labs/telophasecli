@@ -34,7 +34,7 @@ func Execute() {
 	}
 }
 
-func processOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int) {
+func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int) {
 	ctx := context.Background()
 	orgClient := awsorgs.New()
 	mgmtAcct, err := orgClient.FetchManagementAccount(ctx)
@@ -48,7 +48,16 @@ func processOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int) {
 		consoleUI.Print(fmt.Sprintf("error: %s", err), *mgmtAcct)
 		return
 	}
-	orgOps := orgV2Diff(ctx, consoleUI, orgClient, rootAWSOU, mgmtAcct, cmd)
+
+	orgOps := resourceoperation.CollectOrganizationUnitOps(
+		ctx, consoleUI, orgClient, mgmtAcct, rootAWSOU, cmd,
+	)
+	for _, op := range resourceoperation.FlattenOperations(orgOps) {
+		consoleUI.Print(op.ToString(), *mgmtAcct)
+	}
+	if len(orgOps) == 0 {
+		consoleUI.Print("\033[32m No changes to AWS Organization. \033[0m", *mgmtAcct)
+	}
 
 	if cmd == resourceoperation.Deploy {
 		for _, op := range orgOps {

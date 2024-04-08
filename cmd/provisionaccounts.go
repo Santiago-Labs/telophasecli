@@ -84,14 +84,30 @@ func processOrg(consoleUI runner.ConsoleUI, cmd string) {
 
 	if cmd == "diff" {
 		consoleUI.Print("Diffing AWS Organization", *mgmtAcct)
-		orgV2Diff(ctx, consoleUI, orgClient, rootAWSOU, mgmtAcct, resourceoperation.Diff)
+		orgOps := resourceoperation.CollectOrganizationUnitOps(
+			ctx, consoleUI, orgClient, mgmtAcct, rootAWSOU, resourceoperation.Diff,
+		)
+		for _, op := range resourceoperation.FlattenOperations(orgOps) {
+			consoleUI.Print(op.ToString(), *mgmtAcct)
+		}
+		if len(orgOps) == 0 {
+			consoleUI.Print("\033[32m No changes to AWS Organization. \033[0m", *mgmtAcct)
+		}
 	}
 
 	if cmd == "deploy" {
 		consoleUI.Print("Diffing AWS Organization", *mgmtAcct)
-		operations := orgV2Diff(ctx, consoleUI, orgClient, rootAWSOU, mgmtAcct, resourceoperation.Deploy)
+		orgOps := resourceoperation.CollectOrganizationUnitOps(
+			ctx, consoleUI, orgClient, mgmtAcct, rootAWSOU, resourceoperation.Deploy,
+		)
 
-		for _, op := range operations {
+		for _, op := range resourceoperation.FlattenOperations(orgOps) {
+			consoleUI.Print(op.ToString(), *mgmtAcct)
+		}
+		if len(orgOps) == 0 {
+			consoleUI.Print("\033[32m No changes to AWS Organization. \033[0m", *mgmtAcct)
+		}
+		for _, op := range orgOps {
 			err := op.Call(ctx)
 			if err != nil {
 				consoleUI.Print(fmt.Sprintf("Error: %v", err), *mgmtAcct)
@@ -101,29 +117,6 @@ func processOrg(consoleUI runner.ConsoleUI, cmd string) {
 	}
 
 	consoleUI.Print("Done.\n", *mgmtAcct)
-}
-
-func orgV2Diff(
-	ctx context.Context,
-	outputUI runner.ConsoleUI,
-	orgClient awsorgs.Client,
-	rootAWSOU *resource.OrganizationUnit,
-	mgmtAcct *resource.Account,
-	operation int,
-) []resourceoperation.ResourceOperation {
-
-	var operations []resourceoperation.ResourceOperation
-	operations = append(operations, resourceoperation.CollectOrganizationUnitOps(
-		ctx, outputUI, orgClient, mgmtAcct, rootAWSOU, operation,
-	)...)
-	for _, op := range resourceoperation.FlattenOperations(operations) {
-		outputUI.Print(op.ToString(), *mgmtAcct)
-	}
-	if len(operations) == 0 {
-		outputUI.Print("\033[32m No changes to AWS Organization. \033[0m", *mgmtAcct)
-	}
-
-	return operations
 }
 
 func importOrgV2(ctx context.Context, consoleUI runner.ConsoleUI, orgClient awsorgs.Client, mgmtAcct *resource.Account) error {
