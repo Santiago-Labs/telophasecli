@@ -4,19 +4,23 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"os/exec"
+	"runtime/debug"
 	"testing"
 
+	"github.com/santiago-labs/telophasecli/cmd"
+	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/ymlparser"
 	"github.com/santiago-labs/telophasecli/resource"
+	"github.com/santiago-labs/telophasecli/resourceoperation"
 	"github.com/stretchr/testify/assert"
 )
 
 type E2ETestCase struct {
-	Name     string
-	OrgYaml  string
-	Expected *resource.OrganizationUnit
+	Name            string
+	OrgInitialState *resource.OrganizationUnit
+	OrgYaml         string
+	Expected        *resource.OrganizationUnit
 }
 
 var tests = []E2ETestCase{
@@ -251,20 +255,150 @@ Organization:
 			},
 		},
 	},
+	{
+		Name: "Test that we can move Accounts between OUs",
+		OrgInitialState: &resource.OrganizationUnit{
+			OUName: "root",
+			ChildOUs: []*resource.OrganizationUnit{
+				{
+					OUName: "US Engineers",
+					Accounts: []*resource.Account{
+						{
+							AccountName: "Engineer A",
+							Email:       "engineerA@example.com",
+						},
+						{
+							AccountName: "Engineer B",
+							Email:       "engineerB@example.com",
+						},
+					},
+				},
+				{
+					OUName: "EU Engineers",
+					Accounts: []*resource.Account{
+						{
+							AccountName: "Engineer C",
+							Email:       "engineerC@example.com",
+						},
+						{
+							AccountName: "Engineer D",
+							Email:       "engineerD@example.com",
+						},
+					},
+				},
+			},
+			Accounts: []*resource.Account{
+				{
+					AccountName: "master",
+					Email:       "master@example.com",
+				},
+			},
+		},
+		OrgYaml: `
+Organization:
+    Name: root
+    OrganizationUnits:
+      - Name: US Engineers
+        Accounts:
+          - AccountName: Engineer A
+            Email: engineerA@example.com
+      - Name: EU Engineers 
+        Accounts:
+          - AccountName: Engineer C
+            Email: engineerC@example.com
+          - AccountName: Engineer D
+            Email: engineerD@example.com
+          - AccountName: Engineer B
+            Email: engineerB@example.com
+    Accounts:
+      - AccountName: master
+        Email: master@example.com
+`,
+		Expected: &resource.OrganizationUnit{
+			OUName: "root",
+			ChildOUs: []*resource.OrganizationUnit{
+				{
+					OUName: "US Engineers",
+					Accounts: []*resource.Account{
+						{
+							AccountName: "Engineer A",
+							Email:       "engineerA@example.com",
+						},
+					},
+				},
+				{
+					OUName: "EU Engineers",
+					Accounts: []*resource.Account{
+						{
+							AccountName: "Engineer B",
+							Email:       "engineerB@example.com",
+						},
+						{
+							AccountName: "Engineer C",
+							Email:       "engineerC@example.com",
+						},
+						{
+							AccountName: "Engineer D",
+							Email:       "engineerD@example.com",
+						},
+					},
+				},
+			},
+			Accounts: []*resource.Account{
+				{
+					AccountName: "master",
+					Email:       "master@example.com",
+				},
+			},
+		},
+	},
 }
 
 func TestEndToEnd(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
-			t.Errorf("Recovered from panic: %v", r)
+			stack := debug.Stack()
+			t.Errorf("Recovered from panic: %v\n%s", r, stack)
 		}
 	}()
 
 	for _, test := range tests {
+		fmt.Printf("Running test: %s\n", test.Name)
 		setupTest()
 
-		fmt.Printf("Running test: %s\n", test.Name)
-		err := ioutil.WriteFile("organization.yml", []byte(test.OrgYaml), 0644)
+		ctx := context.Background()
+		orgClient := awsorgs.New()
+
+		rootId, err := orgClient.GetRootId()
+		assert.NoError(t, err, "Failed to fetch rootId")
+
+		consoleUI := runner.NewSTDOut()
+		mgmtAcct, err := orgClient.FetchManagementAccount(ctx)
+		assert.NoError(t, err, "Error fetching management account")
+
+		if test.OrgInitialState != nil {
+			rootId, err := orgClient.GetRootId()
+			assert.NoError(t, err, "Error fetching root OU ID")
+			test.OrgInitialState.OUID = &rootId
+
+			ymlparser.HydrateParsedOrg(test.OrgInitialState)
+			orgOps := resourceoperation.CollectOrganizationUnitOps(
+				ctx, consoleUI, orgClient, mgmtAcct, test.OrgInitialState, resourceoperation.Deploy,
+			)
+			for _, op := range orgOps {
+				err := op.Call(ctx)
+				if err != nil {
+					assert.NoError(t, err, "Error creating organization initial state")
+				}
+			}
+
+			fetchedOrg, err := orgClient.FetchOUAndDescendents(ctx, rootId, "000000000000")
+			assert.NoError(t, err, "Failed to fetch rootOU")
+
+			compareOrganizationUnits(t, test.OrgInitialState, &fetchedOrg)
+		}
+
+		err = ioutil.WriteFile("organization.yml", []byte(test.OrgYaml), 0644)
 		assert.NoError(t, err, "Failed to write organization.yml")
 
 		parsedOrg, err := ymlparser.ParseOrganizationV2("organization.yml")
@@ -272,14 +406,7 @@ func TestEndToEnd(t *testing.T) {
 
 		compareOrganizationUnits(t, test.Expected, parsedOrg)
 
-		cmd := exec.Command("bash", "-c", "../telophasecli deploy")
-		_, stderr, err := runCmd(cmd)
-		assert.NoError(t, err, fmt.Sprintf("Failed to run telophasecli deploy. STDERR \n %s \n", stderr))
-
-		ctx := context.Background()
-		orgClient := awsorgs.New()
-		rootId, err := orgClient.GetRootId()
-		assert.NoError(t, err, "Failed to fetch rootId")
+		cmd.ProcessOrgEndToEnd(consoleUI, resourceoperation.Deploy)
 
 		fetchedOrg, err := orgClient.FetchOUAndDescendents(ctx, rootId, "000000000000")
 		assert.NoError(t, err, "Failed to fetch rootOU")
