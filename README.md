@@ -8,9 +8,9 @@
 Full documentation here: https://docs.telophase.dev
 
 ## Why Telophase?
-Automation and Compliance are key concerns when adopting multi-account AWS. Telophase orchestrates the management of AWS Organizations alongside your infrastructure-as-code (IaC) provider, like Terraform or CDK. Using a single tool for these allows:
+Automation and Compliance are key concerns when adopting a multi-account AWS setup. Telophase manages your AWS Organization as IaC, and deeply integrates with IaC providers, like Terraform or CDK. This integration allows:
 1. **Workflow Automation**: Automates account creation and decommissioning, integrating with existing automation workflows, like CI or ServiceNow.
-2. **IaC <> Account Binding**: Enables binding accounts to specific IaC blueprints for automatic provisioning of baseline resources.
+2. **IaC <> Account Binding**: Enables binding accounts to IaC blueprints for automatic provisioning of resources in a newly created account.
 3. **Easier Compliance Deployment**: Enables binding Service Control Policies (SCPs) to accounts as part of your Account provisioning workflow to make sure every Account is compliant. We make it easy to test SCPs before they are deployed.
 
 Currently, Telophase is a CLI tool only. In the future, we plan to offer a web UI.
