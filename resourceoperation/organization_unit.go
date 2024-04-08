@@ -7,12 +7,9 @@ import (
 	"html/template"
 	"log"
 
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/fatih/color"
 	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
-	"github.com/santiago-labs/telophasecli/lib/awssess"
 	"github.com/santiago-labs/telophasecli/resource"
 )
 
@@ -64,14 +61,7 @@ func CollectOrganizationUnitOps(
 	// and finally (re)parenting groups and accounts.
 	var operations []ResourceOperation
 
-	stsClient := sts.New(session.Must(awssess.DefaultSession()))
-	caller, err := stsClient.GetCallerIdentity(&sts.GetCallerIdentityInput{})
-	if err != nil {
-		consoleUI.Print(fmt.Sprintf("Error: %v", err), *mgmtAcct)
-		return []ResourceOperation{}
-	}
-
-	providerRootOU, err := orgClient.FetchOUAndDescendents(context.TODO(), *rootOU.OUID, *caller.Account)
+	providerRootOU, err := orgClient.FetchOUAndDescendents(ctx, *rootOU.OUID, mgmtAcct.AccountID)
 	if err != nil {
 		consoleUI.Print(fmt.Sprintf("Error: %v", err), *mgmtAcct)
 		return []ResourceOperation{}
@@ -181,7 +171,6 @@ func CollectOrganizationUnitOps(
 								parsedAcct.Parent,
 								providerAcct.Parent,
 							))
-
 						}
 					}
 				} else if *providerAcct.Parent.OUID != *parsedAcct.Parent.OUID {
