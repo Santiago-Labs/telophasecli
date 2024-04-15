@@ -18,7 +18,7 @@ type orgDatav2 struct {
 	Organization resource.OrganizationUnit `yaml:"Organization"`
 }
 
-func ParseOrganizationV2(filepath string) (*resource.OrganizationUnit, error) {
+func ParseOrganizationV2(ctx context.Context, filepath string) (*resource.OrganizationUnit, error) {
 	if filepath == "" {
 		return nil, errors.New("filepath is empty")
 	}
@@ -38,14 +38,14 @@ func ParseOrganizationV2(filepath string) (*resource.OrganizationUnit, error) {
 		return nil, err
 	}
 
-	if err = HydrateParsedOrg(&org.Organization); err != nil {
+	if err = HydrateParsedOrg(ctx, &org.Organization); err != nil {
 		return nil, err
 	}
 
 	return &org.Organization, nil
 }
 
-func HydrateParsedOrg(parsedOrg *resource.OrganizationUnit) error {
+func HydrateParsedOrg(ctx context.Context, parsedOrg *resource.OrganizationUnit) error {
 	orgClient := awsorgs.New()
 
 	rootId, err := orgClient.GetRootId()
@@ -62,8 +62,13 @@ func HydrateParsedOrg(parsedOrg *resource.OrganizationUnit) error {
 	hydrateOUParent(parsedOrg)
 	hydrateAccountParent(parsedOrg)
 
+	mgmtAcct, err := orgClient.FetchManagementAccount(ctx)
+	if err != nil {
+		return oops.Wrapf(err, "error fetching management account")
+	}
+
 	// Hydrate Group, then fetch all accounts (pointers) and populate ID.
-	providerAccts, err := orgClient.CurrentAccounts(context.TODO())
+	providerAccts, err := orgClient.CurrentAccounts(ctx)
 	if err != nil {
 		return oops.Wrapf(err, "CurrentAccounts")
 	}
@@ -71,6 +76,9 @@ func HydrateParsedOrg(parsedOrg *resource.OrganizationUnit) error {
 		for _, parsedAcct := range parsedOrg.AllDescendentAccounts() {
 			if parsedAcct.Email == *providerAcct.Email {
 				parsedAcct.AccountID = *providerAcct.Id
+			}
+			if parsedAcct.Email == mgmtAcct.Email {
+				parsedAcct.ManagementAccount = true
 			}
 		}
 	}
