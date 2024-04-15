@@ -385,7 +385,7 @@ func (c Client) FetchOUAndDescendents(ctx context.Context, ouID, mgmtAccountID s
 			Parent:      &ou,
 			AccountName: *providerAcct.Name,
 		}
-		if providerAcct.Id == &mgmtAccountID {
+		if *providerAcct.Id == mgmtAccountID {
 			acct.ManagementAccount = true
 		}
 		ou.Accounts = append(ou.Accounts, &acct)
