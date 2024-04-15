@@ -48,8 +48,9 @@ Organization:
 			},
 			Accounts: []*resource.Account{
 				{
-					AccountName: "master",
-					Email:       "master@example.com",
+					AccountName:       "master",
+					Email:             "master@example.com",
+					ManagementAccount: true,
 				},
 			},
 		},
@@ -100,8 +101,9 @@ Organization:
 			},
 			Accounts: []*resource.Account{
 				{
-					AccountName: "master",
-					Email:       "master@example.com",
+					AccountName:       "master",
+					Email:             "master@example.com",
+					ManagementAccount: true,
 				},
 			},
 		},
@@ -123,8 +125,9 @@ Organization:
 			OUName: "root",
 			Accounts: []*resource.Account{
 				{
-					AccountName: "master",
-					Email:       "master@example.com",
+					AccountName:       "master",
+					Email:             "master@example.com",
+					ManagementAccount: true,
 				},
 				{
 					AccountName: "test1",
@@ -241,8 +244,9 @@ Organization:
 			},
 			Accounts: []*resource.Account{
 				{
-					AccountName: "master",
-					Email:       "master@example.com",
+					AccountName:       "master",
+					Email:             "master@example.com",
+					ManagementAccount: true,
 				},
 				{
 					AccountName: "test8",
@@ -346,8 +350,9 @@ Organization:
 			},
 			Accounts: []*resource.Account{
 				{
-					AccountName: "master",
-					Email:       "master@example.com",
+					AccountName:       "master",
+					Email:             "master@example.com",
+					ManagementAccount: true,
 				},
 			},
 		},
@@ -381,7 +386,7 @@ func TestEndToEnd(t *testing.T) {
 			assert.NoError(t, err, "Error fetching root OU ID")
 			test.OrgInitialState.OUID = &rootId
 
-			ymlparser.HydrateParsedOrg(test.OrgInitialState)
+			ymlparser.HydrateParsedOrg(ctx, test.OrgInitialState)
 			orgOps := resourceoperation.CollectOrganizationUnitOps(
 				ctx, consoleUI, orgClient, mgmtAcct, test.OrgInitialState, resourceoperation.Deploy,
 			)
@@ -392,7 +397,7 @@ func TestEndToEnd(t *testing.T) {
 				}
 			}
 
-			fetchedOrg, err := orgClient.FetchOUAndDescendents(ctx, rootId, "000000000000")
+			fetchedOrg, err := orgClient.FetchOUAndDescendents(ctx, rootId, mgmtAcct.AccountID)
 			assert.NoError(t, err, "Failed to fetch rootOU")
 
 			compareOrganizationUnits(t, test.OrgInitialState, &fetchedOrg)
@@ -401,14 +406,14 @@ func TestEndToEnd(t *testing.T) {
 		err = ioutil.WriteFile("organization.yml", []byte(test.OrgYaml), 0644)
 		assert.NoError(t, err, "Failed to write organization.yml")
 
-		parsedOrg, err := ymlparser.ParseOrganizationV2("organization.yml")
+		parsedOrg, err := ymlparser.ParseOrganizationV2(ctx, "organization.yml")
 		assert.NoError(t, err, "Failed to parse organization.yml")
 
 		compareOrganizationUnits(t, test.Expected, parsedOrg)
 
 		cmd.ProcessOrgEndToEnd(consoleUI, resourceoperation.Deploy)
 
-		fetchedOrg, err := orgClient.FetchOUAndDescendents(ctx, rootId, "000000000000")
+		fetchedOrg, err := orgClient.FetchOUAndDescendents(ctx, rootId, mgmtAcct.AccountID)
 		assert.NoError(t, err, "Failed to fetch rootOU")
 
 		compareOrganizationUnits(t, test.Expected, &fetchedOrg)
