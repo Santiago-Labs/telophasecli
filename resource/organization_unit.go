@@ -56,6 +56,28 @@ func (grp OrganizationUnit) AllDescendentAccounts() []*Account {
 	return accounts
 }
 
+// This should only be called from the Root OU.
+func (grp OrganizationUnit) DelegatedAdministrator() *Account {
+	for _, acct := range grp.AllDescendentAccounts() {
+		if acct.DelegatedAdministrator {
+			return acct
+		}
+	}
+
+	return nil
+}
+
+// This should only be called from the Root OU.
+func (grp OrganizationUnit) ManagementAccount() *Account {
+	for _, acct := range grp.AllDescendentAccounts() {
+		if acct.ManagementAccount {
+			return acct
+		}
+	}
+
+	return nil
+}
+
 func (grp OrganizationUnit) AllDescendentOUs() []*OrganizationUnit {
 	var OUs []*OrganizationUnit
 	OUs = append(OUs, grp.ChildOUs...)

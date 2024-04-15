@@ -15,7 +15,8 @@ type Account struct {
 	Tags                   []string          `yaml:"Tags,omitempty"`
 	BaselineStacks         []Stack           `yaml:"Stacks,omitempty"`
 	ServiceControlPolicies []Stack           `yaml:"ServiceControlPolicies,omitempty"`
-	ManagementAccount      bool              `yaml:"ManagementAccount,omitempty"`
+	ManagementAccount      bool              `yaml:"-"`
+	DelegatedAdministrator bool              `yaml:"DelegatedAdministrator,omitempty"`
 	Parent                 *OrganizationUnit `yaml:"-"`
 }
 
