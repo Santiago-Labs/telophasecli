@@ -37,18 +37,22 @@ func Execute() {
 func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int) {
 	ctx := context.Background()
 	orgClient := awsorgs.New()
-	mgmtAcct, err := orgClient.FetchManagementAccount(ctx)
+	rootAWSOU, err := ymlparser.ParseOrganizationV2(ctx, orgFile)
 	if err != nil {
-		consoleUI.Print(fmt.Sprintf("Error: %v", err), resource.Account{})
+		consoleUI.Print(fmt.Sprintf("error: %s", err), resource.Account{AccountID: "error", AccountName: "error"})
 		return
 	}
 
-	rootAWSOU, err := ymlparser.ParseOrganizationV2(orgFile)
-	if err != nil {
-		consoleUI.Print(fmt.Sprintf("error: %s", err), *mgmtAcct)
+	if rootAWSOU == nil {
+		consoleUI.Print("Could not parse AWS Organization", resource.Account{AccountID: "error", AccountName: "error"})
 		return
 	}
 
+	mgmtAcct, err := resolveMgmtAcct(ctx, orgClient, rootAWSOU)
+	if err != nil {
+		consoleUI.Print(fmt.Sprintf("Could not fetch AWS Management Account: %s", err), resource.Account{AccountID: "error", AccountName: "error"})
+		return
+	}
 	orgOps := resourceoperation.CollectOrganizationUnitOps(
 		ctx, consoleUI, orgClient, mgmtAcct, rootAWSOU, cmd,
 	)
@@ -69,11 +73,9 @@ func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int) {
 	}
 
 	var accountsToApply []resource.Account
-	if rootAWSOU != nil {
-		for _, acct := range rootAWSOU.AllDescendentAccounts() {
-			if contains(tag, acct.AllTags()) || tag == "" {
-				accountsToApply = append(accountsToApply, *acct)
-			}
+	for _, acct := range rootAWSOU.AllDescendentAccounts() {
+		if contains(tag, acct.AllTags()) || tag == "" {
+			accountsToApply = append(accountsToApply, *acct)
 		}
 	}
 
@@ -83,16 +85,46 @@ func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int) {
 
 	runIAC(ctx, consoleUI, cmd, accountsToApply)
 
-	scpOps := resourceoperation.CollectSCPOps(ctx, orgClient, consoleUI, cmd, rootAWSOU, mgmtAcct)
+	// Telophasecli can be run from either the management account or
+	// the delegated administrator account.
+	var scpAdmin *resource.Account
+	delegatedAdmin := rootAWSOU.DelegatedAdministrator()
+	if delegatedAdmin != nil {
+		scpAdmin = delegatedAdmin
+	} else {
+		scpAdmin = mgmtAcct
+	}
+
+	scpOps := resourceoperation.CollectSCPOps(ctx, orgClient, consoleUI, cmd, rootAWSOU, scpAdmin)
 	for _, op := range scpOps {
 		err := op.Call(ctx)
 		if err != nil {
-			consoleUI.Print(fmt.Sprintf("Error on SCP Operation: %v", err), *mgmtAcct)
+			consoleUI.Print(fmt.Sprintf("Error on SCP Operation: %v", err), *scpAdmin)
 		}
 	}
 
 	if len(scpOps) == 0 {
-		consoleUI.Print("No Service Control Policies to deploy.", *mgmtAcct)
+		consoleUI.Print("No Service Control Policies to deploy.", *scpAdmin)
 	}
 	consoleUI.Print("Done.\n", *mgmtAcct)
+}
+
+func resolveMgmtAcct(
+	ctx context.Context,
+	orgClient awsorgs.Client,
+	rootAWSOU *resource.OrganizationUnit,
+) (*resource.Account, error) {
+	// We must have access to the management account so that we can create Accounts and OUs,
+	// but the management account does not need to be managed by Telophase.
+	parsedMgmtAcct := rootAWSOU.ManagementAccount()
+	if parsedMgmtAcct != nil {
+		return parsedMgmtAcct, nil
+	}
+
+	fetchedMgmtAcct, err := orgClient.FetchManagementAccount(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return fetchedMgmtAcct, nil
+
 }

@@ -11,8 +11,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
+	"github.com/santiago-labs/telophasecli/lib/awssts"
 	"github.com/santiago-labs/telophasecli/lib/localstack"
 	"github.com/santiago-labs/telophasecli/lib/terraform"
 	"github.com/santiago-labs/telophasecli/resource"
@@ -95,8 +97,28 @@ func (so *scpOperation) ListDependents() []ResourceOperation {
 func (so *scpOperation) Call(ctx context.Context) error {
 	so.OutputUI.Print(fmt.Sprintf("Executing SCP Terraform stack in %s", so.Stack.Path), *so.MgmtAcct)
 
-	initTFCmd := so.initTf()
+	var acctRole *sts.AssumeRoleOutput
+	if so.MgmtAcct.AssumeRoleName != "" {
+		var err error
+		acctRole, _, err = authAWS(*so.MgmtAcct, so.MgmtAcct.AssumeRoleARN(), so.OutputUI)
+		if err != nil {
+			return err
+		}
+	}
+
+	initTFCmd, err := so.initTf()
+	if err != nil {
+		so.OutputUI.Print(fmt.Sprintf("Error initializing terraform: %s", err), *so.MgmtAcct)
+		return err
+	}
+
 	if initTFCmd != nil {
+		if acctRole != nil {
+			initTFCmd.Env = awssts.SetEnviron(os.Environ(),
+				*acctRole.Credentials.AccessKeyId,
+				*acctRole.Credentials.SecretAccessKey,
+				*acctRole.Credentials.SessionToken)
+		}
 		if err := so.OutputUI.RunCmd(initTFCmd, *so.MgmtAcct); err != nil {
 			return err
 		}
@@ -117,6 +139,13 @@ func (so *scpOperation) Call(ctx context.Context) error {
 	cmd := exec.Command(localstack.TfCmd(), args...)
 	cmd.Dir = workingPath
 
+	if acctRole != nil {
+		cmd.Env = awssts.SetEnviron(os.Environ(),
+			*acctRole.Credentials.AccessKeyId,
+			*acctRole.Credentials.SecretAccessKey,
+			*acctRole.Credentials.SessionToken)
+	}
+
 	if err := so.OutputUI.RunCmd(cmd, *so.MgmtAcct); err != nil {
 		return err
 	}
@@ -130,37 +159,34 @@ func (so *scpOperation) Call(ctx context.Context) error {
 	return nil
 }
 
-func (so *scpOperation) initTf() *exec.Cmd {
+func (so *scpOperation) initTf() (*exec.Cmd, error) {
 	workingPath := so.tmpPath()
 	terraformDir := filepath.Join(workingPath, ".terraform")
 	if terraformDir == "" || !strings.Contains(terraformDir, "telophasedirs") {
-		so.OutputUI.Print("expected terraform dir to be set", *so.MgmtAcct)
-		return nil
+		return nil, fmt.Errorf("expected terraform dir to be set")
 	}
 
 	if err := os.RemoveAll(terraformDir); err != nil {
-		so.OutputUI.Print(fmt.Sprintf("Error: failed to remove directory %s: %v", terraformDir, err), *so.MgmtAcct)
-		return nil
+		return nil, fmt.Errorf("failed to remove directory %s: %v", terraformDir, err)
 	}
 
-	if _, err := os.Stat(terraformDir); os.IsNotExist(err) {
+	_, err := os.Stat(terraformDir)
+	if os.IsNotExist(err) {
 		if err := os.MkdirAll(workingPath, 0755); err != nil {
-			so.OutputUI.Print(fmt.Sprintf("Error: failed to create directory %s: %v", terraformDir, err), *so.MgmtAcct)
-			return nil
+			return nil, fmt.Errorf("failed to create directory %s: %v", terraformDir, err)
 		}
 
 		if err := terraform.CopyDir(so.Stack.Path, workingPath, so.targetResource()); err != nil {
-			so.OutputUI.Print(fmt.Sprintf("Error: failed to copy files from %s to %s: %v", so.Stack.Path, workingPath, err), *so.MgmtAcct)
-			return nil
+			return nil, fmt.Errorf("failed to copy files from %s to %s: %v", so.Stack.Path, workingPath, err)
 		}
 
 		cmd := exec.Command(localstack.TfCmd(), "init")
 		cmd.Dir = workingPath
 
-		return cmd
+		return cmd, nil
 	}
 
-	return nil
+	return nil, err
 }
 
 func (so *scpOperation) targetResource() resource.Resource {

@@ -65,21 +65,28 @@ var accountProvision = &cobra.Command{
 func processOrg(consoleUI runner.ConsoleUI, cmd string) {
 	orgClient := awsorgs.New()
 	ctx := context.Background()
-	mgmtAcct, err := orgClient.FetchManagementAccount(ctx)
-	if err != nil {
-		consoleUI.Print(fmt.Sprintf("Error: %v", err), *mgmtAcct)
-		return
-	}
+
 	if cmd == "import" {
+		mgmtAcct, err := orgClient.FetchManagementAccount(ctx)
+		if err != nil {
+			consoleUI.Print(fmt.Sprintf("Error: %v", err), *mgmtAcct)
+			return
+		}
 		consoleUI.Print("Importing AWS Organization", *mgmtAcct)
 		if err := importOrgV2(ctx, consoleUI, orgClient, mgmtAcct); err != nil {
 			consoleUI.Print(fmt.Sprintf("error importing organization: %s", err), *mgmtAcct)
 		}
 	}
 
-	rootAWSOU, err := ymlparser.ParseOrganizationV2(orgFile)
+	rootAWSOU, err := ymlparser.ParseOrganizationV2(ctx, orgFile)
 	if err != nil {
-		consoleUI.Print(fmt.Sprintf("error parsing organization: %s", err), *mgmtAcct)
+		consoleUI.Print(fmt.Sprintf("error parsing organization: %s", err), resource.Account{AccountID: "error", AccountName: "error"})
+	}
+
+	mgmtAcct, err := resolveMgmtAcct(ctx, orgClient, rootAWSOU)
+	if err != nil {
+		consoleUI.Print(fmt.Sprintf("Could not fetch AWS Management Account: %s", err), resource.Account{AccountID: "error", AccountName: "error"})
+		return
 	}
 
 	if cmd == "diff" {
