@@ -5,6 +5,7 @@ go 1.20
 require (
 	github.com/aws/aws-sdk-go v1.46.0
 	github.com/fatih/color v1.15.0
+	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.4.0
 	github.com/pkg/errors v0.9.1
 	github.com/posthog/posthog-go v0.0.0-20230801140217-d607812dee69
@@ -19,7 +20,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gdamore/encoding v1.0.0 // indirect
 	github.com/gdamore/tcell/v2 v2.6.0 // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
