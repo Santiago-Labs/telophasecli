@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/samsarahq/go/oops"
 	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/awssts"
 	"github.com/santiago-labs/telophasecli/lib/localstack"
@@ -61,6 +62,17 @@ func (to *tfOperation) Call(ctx context.Context) error {
 	initTFCmd := to.initTf(stackRole)
 	if initTFCmd != nil {
 		if err := to.OutputUI.RunCmd(initTFCmd, *to.Account); err != nil {
+			return err
+		}
+	}
+
+	// Set workspace if we are using it.
+	setWorkspace, err := to.setWorkspace(stackRole)
+	if err != nil {
+		return err
+	}
+	if setWorkspace != nil {
+		if err := to.OutputUI.RunCmd(setWorkspace, *to.Account); err != nil {
 			return err
 		}
 	}
@@ -138,6 +150,47 @@ func (to *tfOperation) initTf(role *sts.AssumeRoleOutput) *exec.Cmd {
 	}
 
 	return nil
+}
+
+func replaceVals(workspace, AccountID, Region string) (string, error) {
+	currentContent := workspace
+	// Bracketed needs to be checked before non-bracketed otherwise {telophase.account_id} will replaced with {11111}.
+	currentContent = strings.ReplaceAll(currentContent, "${telophase.account_id}", AccountID)
+	currentContent = strings.ReplaceAll(currentContent, "telophase.account_id", AccountID)
+
+	preRegionContent := currentContent
+	currentContent = strings.ReplaceAll(currentContent, "${telophase.region}", Region)
+	currentContent = strings.ReplaceAll(currentContent, "telophase.region", Region)
+	if currentContent != preRegionContent && Region == "" {
+		return "", oops.Errorf("Region needs to be set on stack if performing substitution")
+	}
+
+	return currentContent, nil
+}
+
+func (to *tfOperation) setWorkspace(role *sts.AssumeRoleOutput) (*exec.Cmd, error) {
+	if !to.Stack.WorkspaceEnabled() {
+		return nil, nil
+	}
+
+	workingPath := terraform.TmpPath(*to.Account, to.Stack.Path)
+
+	rewrittenWorkspace, err := replaceVals(to.Stack.Workspace, to.Account.AccountID, to.Stack.Region)
+	if err != nil {
+		return nil, err
+	}
+
+	cmd := exec.Command(localstack.TfCmd(), "workspace", "select", "-or-create", rewrittenWorkspace)
+	cmd.Dir = workingPath
+
+	cmd.Env = awssts.SetEnviron(os.Environ(),
+		*role.Credentials.AccessKeyId,
+		*role.Credentials.SecretAccessKey,
+		*role.Credentials.SessionToken,
+		to.Stack.AWSRegionEnv(),
+	)
+
+	return cmd, nil
 }
 
 func (to *tfOperation) ToString() string {
