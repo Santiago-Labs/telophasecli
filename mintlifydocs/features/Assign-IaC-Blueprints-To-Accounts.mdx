@@ -22,6 +22,8 @@ Organization:
                 # This stack will be applied to `Safety Firmware` account only.
               - Path: tf/safety/firmware_bucket 
                 Type: Terraform
+                # You can set the region for where you want the resources to be created.
+                Region: "us-west-2"
           - Email: safety+ingestion@example.app
             AccountName: Safety Ingestion Team
       - Name: Development
@@ -33,4 +35,16 @@ Organization:
         Accounts:
           - Email: eng1@example.app
             AccountName: Engineer A
+```
+
+# Stacks
+CDK and Terraform stacks can be assigned to `Account`s and `OrganizationUnits`s. Stacks assigned to `OrganizationUnits` will be applied to all child `Account`s.
+
+```yaml
+Stacks:
+  - Path:  # (Required) Path to CDK or Terraform project. This must be a directory.
+    Type:  # (Required) "CDK" or "Terraform".
+    Name:  # (Optional) Apply only CDK stack with this name. By default, all CDK stacks are applied. (CDK Only)
+    RoleOverrideARN:  # (Optional) Force CDK and Terraform to us a specific role when applying a stack. The default role is the account's `AssumeRoleName`.
+    Region: # (Optional) What region the stack's resources will be provisioned in.
 ```

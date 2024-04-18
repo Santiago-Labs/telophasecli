@@ -125,7 +125,10 @@ func (so *scpOperation) Call(ctx context.Context) error {
 			initTFCmd.Env = awssts.SetEnviron(os.Environ(),
 				*acctRole.Credentials.AccessKeyId,
 				*acctRole.Credentials.SecretAccessKey,
-				*acctRole.Credentials.SessionToken)
+				*acctRole.Credentials.SessionToken,
+				// SCPs can't have regions
+				nil,
+			)
 		}
 		if err := so.OutputUI.RunCmd(initTFCmd, *so.MgmtAcct); err != nil {
 			return err
@@ -151,7 +154,10 @@ func (so *scpOperation) Call(ctx context.Context) error {
 		cmd.Env = awssts.SetEnviron(os.Environ(),
 			*acctRole.Credentials.AccessKeyId,
 			*acctRole.Credentials.SecretAccessKey,
-			*acctRole.Credentials.SessionToken)
+			*acctRole.Credentials.SessionToken,
+			// SCPs don't have regions
+			nil,
+		)
 	}
 
 	if err := so.OutputUI.RunCmd(cmd, *so.MgmtAcct); err != nil {
