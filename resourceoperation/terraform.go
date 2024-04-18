@@ -83,7 +83,9 @@ func (to *tfOperation) Call(ctx context.Context) error {
 	cmd.Env = awssts.SetEnviron(os.Environ(),
 		*stackRole.Credentials.AccessKeyId,
 		*stackRole.Credentials.SecretAccessKey,
-		*stackRole.Credentials.SessionToken)
+		*stackRole.Credentials.SessionToken,
+		to.Stack.AWSRegionEnv(),
+	)
 
 	if err := to.OutputUI.RunCmd(cmd, *to.Account); err != nil {
 		return err
@@ -128,7 +130,9 @@ func (to *tfOperation) initTf(role *sts.AssumeRoleOutput) *exec.Cmd {
 		cmd.Env = awssts.SetEnviron(os.Environ(),
 			*role.Credentials.AccessKeyId,
 			*role.Credentials.SecretAccessKey,
-			*role.Credentials.SessionToken)
+			*role.Credentials.SessionToken,
+			to.Stack.AWSRegionEnv(),
+		)
 
 		return cmd
 	}
