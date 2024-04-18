@@ -90,11 +90,6 @@ Organization:
       - Name: ProductionTenants
         OrganizationUnits:
           - Name: ProductionEU
-          - Name: ProductionUS
-      - Name: Development
-        OrganizationUnits:
-          - Name: DevEU
-          - Name: DevUS
     Accounts:
       - AccountName: master
         Email: master@example.com
@@ -107,20 +102,6 @@ Organization:
 					ChildOUs: []*resource.OrganizationUnit{
 						{
 							OUName: "ProductionEU",
-						},
-						{
-							OUName: "ProductionUS",
-						},
-					},
-				},
-				{
-					OUName: "Development",
-					ChildOUs: []*resource.OrganizationUnit{
-						{
-							OUName: "DevEU",
-						},
-						{
-							OUName: "DevUS",
 						},
 					},
 				},
@@ -141,20 +122,6 @@ Organization:
 					ChildOUs: []*resource.OrganizationUnit{
 						{
 							OUName: "ProductionEU",
-						},
-						{
-							OUName: "ProductionUS",
-						},
-					},
-				},
-				{
-					OUName: "Development",
-					ChildOUs: []*resource.OrganizationUnit{
-						{
-							OUName: "DevEU",
-						},
-						{
-							OUName: "DevUS",
 						},
 					},
 				},
@@ -179,8 +146,6 @@ Organization:
       Email: master@example.com
     - AccountName: test1
       Email: test1@example.com
-    - AccountName: test2
-      Email: test2@example.com
 `,
 		FetchExpected: &resource.OrganizationUnit{
 			OUName: "root",
@@ -193,10 +158,6 @@ Organization:
 				{
 					AccountName: "test1",
 					Email:       "test1@example.com",
-				},
-				{
-					AccountName: "test2",
-					Email:       "test2@example.com",
 				},
 			},
 		},
@@ -211,10 +172,6 @@ Organization:
 				{
 					AccountName: "test1",
 					Email:       "test1@example.com",
-				},
-				{
-					AccountName: "test2",
-					Email:       "test2@example.com",
 				},
 			},
 		},
@@ -230,35 +187,9 @@ Organization:
       Accounts:
         - AccountName: test1
           Email: test1@example.com
-      OrganizationUnits:
-        - Name: ProductionEU
-        - Name: ProductionUS
-          Accounts:
-            - AccountName: test2
-              Email: test2@example.com
-    - Name: Development
-      OrganizationUnits:
-        - Name: DevEU
-          Accounts:
-            - AccountName: test3
-              Email: test3@example.com
-            - AccountName: test4
-              Email: test4@example.com
-            - AccountName: test5
-              Email: test5@example.com
-        - Name: DevUS
-          Accounts:
-            - AccountName: test6
-              Email: test6@example.com
-            - AccountName: test7
-              Email: test7@example.com
   Accounts:
     - AccountName: master
       Email: master@example.com
-    - AccountName: test8
-      Email: test8@example.com
-    - AccountName: test9
-      Email: test9@example.com
 `,
 		FetchExpected: &resource.OrganizationUnit{
 			OUName: "root",
@@ -271,55 +202,6 @@ Organization:
 							Email:       "test1@example.com",
 						},
 					},
-					ChildOUs: []*resource.OrganizationUnit{
-						{
-							OUName: "ProductionEU",
-						},
-						{
-							OUName: "ProductionUS",
-							Accounts: []*resource.Account{
-								{
-									AccountName: "test2",
-									Email:       "test2@example.com",
-								},
-							},
-						},
-					},
-				},
-				{
-					OUName: "Development",
-					ChildOUs: []*resource.OrganizationUnit{
-						{
-							OUName: "DevEU",
-							Accounts: []*resource.Account{
-								{
-									AccountName: "test3",
-									Email:       "test3@example.com",
-								},
-								{
-									AccountName: "test4",
-									Email:       "test4@example.com",
-								},
-								{
-									AccountName: "test5",
-									Email:       "test5@example.com",
-								},
-							},
-						},
-						{
-							OUName: "DevUS",
-							Accounts: []*resource.Account{
-								{
-									AccountName: "test6",
-									Email:       "test6@example.com",
-								},
-								{
-									AccountName: "test7",
-									Email:       "test7@example.com",
-								},
-							},
-						},
-					},
 				},
 			},
 			Accounts: []*resource.Account{
@@ -327,14 +209,6 @@ Organization:
 					AccountName:       "master",
 					Email:             "master@example.com",
 					ManagementAccount: true,
-				},
-				{
-					AccountName: "test8",
-					Email:       "test8@example.com",
-				},
-				{
-					AccountName: "test9",
-					Email:       "test9@example.com",
 				},
 			},
 		},
@@ -349,55 +223,6 @@ Organization:
 							Email:       "test1@example.com",
 						},
 					},
-					ChildOUs: []*resource.OrganizationUnit{
-						{
-							OUName: "ProductionEU",
-						},
-						{
-							OUName: "ProductionUS",
-							Accounts: []*resource.Account{
-								{
-									AccountName: "test2",
-									Email:       "test2@example.com",
-								},
-							},
-						},
-					},
-				},
-				{
-					OUName: "Development",
-					ChildOUs: []*resource.OrganizationUnit{
-						{
-							OUName: "DevEU",
-							Accounts: []*resource.Account{
-								{
-									AccountName: "test3",
-									Email:       "test3@example.com",
-								},
-								{
-									AccountName: "test4",
-									Email:       "test4@example.com",
-								},
-								{
-									AccountName: "test5",
-									Email:       "test5@example.com",
-								},
-							},
-						},
-						{
-							OUName: "DevUS",
-							Accounts: []*resource.Account{
-								{
-									AccountName: "test6",
-									Email:       "test6@example.com",
-								},
-								{
-									AccountName: "test7",
-									Email:       "test7@example.com",
-								},
-							},
-						},
-					},
 				},
 			},
 			Accounts: []*resource.Account{
@@ -405,14 +230,6 @@ Organization:
 					AccountName:       "master",
 					Email:             "master@example.com",
 					ManagementAccount: true,
-				},
-				{
-					AccountName: "test8",
-					Email:       "test8@example.com",
-				},
-				{
-					AccountName: "test9",
-					Email:       "test9@example.com",
 				},
 			},
 		},
@@ -462,17 +279,10 @@ Organization:
     Name: root
     OrganizationUnits:
       - Name: US Engineers
+      - Name: EU Engineers
         Accounts:
           - AccountName: Engineer A
             Email: engineerA@example.com
-      - Name: EU Engineers
-        Accounts:
-          - AccountName: Engineer C
-            Email: engineerC@example.com
-          - AccountName: Engineer D
-            Email: engineerD@example.com
-          - AccountName: Engineer B
-            Email: engineerB@example.com
     Accounts:
       - AccountName: master
         Email: master@example.com
@@ -482,27 +292,13 @@ Organization:
 			ChildOUs: []*resource.OrganizationUnit{
 				{
 					OUName: "US Engineers",
-					Accounts: []*resource.Account{
-						{
-							AccountName: "Engineer A",
-							Email:       "engineerA@example.com",
-						},
-					},
 				},
 				{
 					OUName: "EU Engineers",
 					Accounts: []*resource.Account{
 						{
-							AccountName: "Engineer B",
-							Email:       "engineerB@example.com",
-						},
-						{
-							AccountName: "Engineer C",
-							Email:       "engineerC@example.com",
-						},
-						{
-							AccountName: "Engineer D",
-							Email:       "engineerD@example.com",
+							AccountName: "Engineer A",
+							Email:       "engineerA@example.com",
 						},
 					},
 				},
@@ -520,27 +316,13 @@ Organization:
 			ChildOUs: []*resource.OrganizationUnit{
 				{
 					OUName: "US Engineers",
-					Accounts: []*resource.Account{
-						{
-							AccountName: "Engineer A",
-							Email:       "engineerA@example.com",
-						},
-					},
 				},
 				{
 					OUName: "EU Engineers",
 					Accounts: []*resource.Account{
 						{
-							AccountName: "Engineer B",
-							Email:       "engineerB@example.com",
-						},
-						{
-							AccountName: "Engineer C",
-							Email:       "engineerC@example.com",
-						},
-						{
-							AccountName: "Engineer D",
-							Email:       "engineerD@example.com",
+							AccountName: "Engineer A",
+							Email:       "engineerA@example.com",
 						},
 					},
 				},
@@ -565,7 +347,6 @@ Organization:
         ServiceControlPolicies:
           - Type: Terraform
             Path: tf/scp-test
-      - Name: Development
     Accounts:
       - AccountName: master
         Email: master@example.com
@@ -581,9 +362,6 @@ Organization:
 							Path: "tf/scp-test",
 						},
 					},
-				},
-				{
-					OUName: "Development",
 				},
 			},
 			Accounts: []*resource.Account{
@@ -605,9 +383,6 @@ Organization:
 							Path: "tf/scp-test",
 						},
 					},
-				},
-				{
-					OUName: "Development",
 				},
 			},
 			Accounts: []*resource.Account{
