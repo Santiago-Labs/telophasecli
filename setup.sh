@@ -17,6 +17,8 @@ elif [ "$(uname)" = "Linux" ]; then
     if [ -f /etc/debian_version ]; then
         echo "Debian-based Linux detected. Installing packages with apt."
         sudo apt update && sudo apt install -y awscli
+        pip3 install awscli-local
+        pip3 install terraform-local
         sudo snap install terraform --classic
         curl -Lo localstack-cli-3.3.0-linux-amd64-onefile.tar.gz https://github.com/localstack/localstack-cli/releases/download/v3.3.0/localstack-cli-3.3.0-linux-amd64-onefile.tar.gz
         sudo tar xvzf localstack-cli-3.3.0-linux-*-onefile.tar.gz -C /usr/local/bin
