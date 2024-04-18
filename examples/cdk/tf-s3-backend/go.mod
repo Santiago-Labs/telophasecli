@@ -9,10 +9,8 @@ require (
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
-	github.com/aws/aws-sdk-go v1.48.1 // indirect
 	github.com/aws/constructs-go/constructs/v3 v3.4.232 // indirect
 	github.com/fatih/color v1.15.0 // indirect
-	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/yuin/goldmark v1.4.13 // indirect
