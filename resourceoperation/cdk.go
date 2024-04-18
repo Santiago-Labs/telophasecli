@@ -104,7 +104,9 @@ func (co *cdkOperation) Call(ctx context.Context) error {
 		cmd.Env = awssts.SetEnviron(os.Environ(),
 			*stackRole.Credentials.AccessKeyId,
 			*stackRole.Credentials.SecretAccessKey,
-			*stackRole.Credentials.SessionToken)
+			*stackRole.Credentials.SessionToken,
+			co.Stack.AWSRegionEnv(),
+		)
 	}
 	if err := co.OutputUI.RunCmd(cmd, *co.Account); err != nil {
 		return err
@@ -138,7 +140,9 @@ func bootstrapCDK(result *sts.AssumeRoleOutput, region string, acct resource.Acc
 		cmd.Env = awssts.SetEnviron(os.Environ(),
 			*result.Credentials.AccessKeyId,
 			*result.Credentials.SecretAccessKey,
-			*result.Credentials.SessionToken)
+			*result.Credentials.SessionToken,
+			stack.AWSRegionEnv(),
+		)
 	}
 
 	return cmd
@@ -162,7 +166,9 @@ func synthCDK(result *sts.AssumeRoleOutput, acct resource.Account, stack resourc
 		cmd.Env = awssts.SetEnviron(os.Environ(),
 			*result.Credentials.AccessKeyId,
 			*result.Credentials.SecretAccessKey,
-			*result.Credentials.SessionToken)
+			*result.Credentials.SessionToken,
+			stack.AWSRegionEnv(),
+		)
 	}
 
 	return cmd
