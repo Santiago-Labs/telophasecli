@@ -12,7 +12,7 @@ print_green() {
 
 if command -v brew &> /dev/null; then
     echo "Brew is installed, proceeding with awscli and terraform installation."
-    brew install awscli terraform localstack/tap/localstack-cli
+    brew install awscli awscli-local terraform terraform-local localstack/tap/localstack-cli
 elif [ "$(uname)" = "Linux" ]; then
     if [ -f /etc/debian_version ]; then
         echo "Debian-based Linux detected. Installing packages with apt."
