@@ -61,7 +61,7 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func compareOrganizationUnits(t *testing.T, expected, actual *resource.OrganizationUnit) {
+func compareOrganizationUnits(t *testing.T, expected, actual *resource.OrganizationUnit, ignoreStacks bool) {
 	assert.Equal(t, expected.OUName, actual.OUName, "OU Name not equal")
 
 	sort.Slice(expected.ChildOUs, func(i, j int) bool {
@@ -82,27 +82,33 @@ func compareOrganizationUnits(t *testing.T, expected, actual *resource.Organizat
 
 	acctDiff := cmp.Diff(expected.Accounts, actual.Accounts)
 	assert.Equal(t, len(expected.Accounts), len(actual.Accounts), "Accounts not equal: %v", acctDiff)
-	assert.Equal(t, expected.BaselineStacks, actual.BaselineStacks)
-	assert.Equal(t, expected.ServiceControlPolicies, actual.ServiceControlPolicies)
+
+	if !ignoreStacks {
+		assert.Equal(t, expected.BaselineStacks, actual.BaselineStacks)
+		assert.Equal(t, expected.ServiceControlPolicies, actual.ServiceControlPolicies)
+	}
 
 	for i, childOU := range expected.ChildOUs {
-		compareOrganizationUnits(t, childOU, actual.ChildOUs[i])
+		compareOrganizationUnits(t, childOU, actual.ChildOUs[i], ignoreStacks)
 	}
 
 	for i, account := range expected.Accounts {
-		compareAccounts(t, account, actual.Accounts[i])
+		compareAccounts(t, account, actual.Accounts[i], ignoreStacks)
 	}
 }
 
-func compareAccounts(t *testing.T, expected, actual *resource.Account) {
+func compareAccounts(t *testing.T, expected, actual *resource.Account, ignoreStacks bool) {
 	assert.Equal(t, expected.Email, actual.Email, "Account Emails not equal")
 	assert.Equal(t, expected.AccountName, actual.AccountName, "Account Name not equal")
 	assert.Equal(t, expected.State, actual.State, "Account State not equal")
 	assert.Equal(t, expected.AssumeRoleName, actual.AssumeRoleName, "Account AssumeRoleName not equal")
 	assert.Equal(t, expected.ManagementAccount, actual.ManagementAccount, "Account ManagementAccount not equal")
 	assert.Equal(t, expected.Tags, actual.Tags, "Account Tags not equal")
-	assert.Equal(t, expected.BaselineStacks, actual.BaselineStacks, "Account BaselineStacks not equal")
-	assert.Equal(t, expected.ServiceControlPolicies, actual.ServiceControlPolicies, "Account ServiceControlPolicies not equal")
+
+	if !ignoreStacks {
+		assert.Equal(t, expected.BaselineStacks, actual.BaselineStacks, "Account BaselineStacks not equal")
+		assert.Equal(t, expected.ServiceControlPolicies, actual.ServiceControlPolicies, "Account ServiceControlPolicies not equal")
+	}
 }
 
 func runCmd(cmd *exec.Cmd) (string, string, error) {

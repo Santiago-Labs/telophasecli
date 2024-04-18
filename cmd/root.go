@@ -34,7 +34,7 @@ func Execute() {
 	}
 }
 
-func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int) {
+func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int, targets string) {
 	ctx := context.Background()
 	orgClient := awsorgs.New()
 	rootAWSOU, err := ymlparser.ParseOrganizationV2(ctx, orgFile)
@@ -53,58 +53,65 @@ func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int) {
 		consoleUI.Print(fmt.Sprintf("Could not fetch AWS Management Account: %s", err), resource.Account{AccountID: "error", AccountName: "error"})
 		return
 	}
-	orgOps := resourceoperation.CollectOrganizationUnitOps(
-		ctx, consoleUI, orgClient, mgmtAcct, rootAWSOU, cmd,
-	)
-	for _, op := range resourceoperation.FlattenOperations(orgOps) {
-		consoleUI.Print(op.ToString(), *mgmtAcct)
-	}
-	if len(orgOps) == 0 {
-		consoleUI.Print("\033[32m No changes to AWS Organization. \033[0m", *mgmtAcct)
-	}
 
-	if cmd == resourceoperation.Deploy {
-		for _, op := range orgOps {
-			err := op.Call(ctx)
-			if err != nil {
-				consoleUI.Print(fmt.Sprintf("Error on AWS Organization Operation: %v", err), *mgmtAcct)
+	if targets == "organization" || targets == "" {
+		orgOps := resourceoperation.CollectOrganizationUnitOps(
+			ctx, consoleUI, orgClient, mgmtAcct, rootAWSOU, cmd,
+		)
+		for _, op := range resourceoperation.FlattenOperations(orgOps) {
+			consoleUI.Print(op.ToString(), *mgmtAcct)
+		}
+		if len(orgOps) == 0 {
+			consoleUI.Print("\033[32m No changes to AWS Organization. \033[0m", *mgmtAcct)
+		}
+
+		if cmd == resourceoperation.Deploy {
+			for _, op := range orgOps {
+				err := op.Call(ctx)
+				if err != nil {
+					consoleUI.Print(fmt.Sprintf("Error on AWS Organization Operation: %v", err), *mgmtAcct)
+				}
 			}
 		}
 	}
 
-	var accountsToApply []resource.Account
-	for _, acct := range rootAWSOU.AllDescendentAccounts() {
-		if contains(tag, acct.AllTags()) || tag == "" {
-			accountsToApply = append(accountsToApply, *acct)
+	if targets == "baseline" || targets == "" {
+		var accountsToApply []resource.Account
+		for _, acct := range rootAWSOU.AllDescendentAccounts() {
+			if contains(tag, acct.AllTags()) || tag == "" {
+				accountsToApply = append(accountsToApply, *acct)
+			}
 		}
-	}
 
-	if len(accountsToApply) == 0 {
-		consoleUI.Print("No accounts to deploy.", *mgmtAcct)
-	}
-
-	runIAC(ctx, consoleUI, cmd, accountsToApply)
-
-	// Telophasecli can be run from either the management account or
-	// the delegated administrator account.
-	var scpAdmin *resource.Account
-	delegatedAdmin := rootAWSOU.DelegatedAdministrator()
-	if delegatedAdmin != nil {
-		scpAdmin = delegatedAdmin
-	} else {
-		scpAdmin = mgmtAcct
-	}
-
-	scpOps := resourceoperation.CollectSCPOps(ctx, orgClient, consoleUI, cmd, rootAWSOU, scpAdmin)
-	for _, op := range scpOps {
-		err := op.Call(ctx)
-		if err != nil {
-			consoleUI.Print(fmt.Sprintf("Error on SCP Operation: %v", err), *scpAdmin)
+		if len(accountsToApply) == 0 {
+			consoleUI.Print("No accounts to deploy.", *mgmtAcct)
 		}
+
+		runIAC(ctx, consoleUI, cmd, accountsToApply)
 	}
 
-	if len(scpOps) == 0 {
-		consoleUI.Print("No Service Control Policies to deploy.", *scpAdmin)
+	if targets == "scp" || targets == "" {
+		// Telophasecli can be run from either the management account or
+		// the delegated administrator account.
+		var scpAdmin *resource.Account
+		delegatedAdmin := rootAWSOU.DelegatedAdministrator()
+		if delegatedAdmin != nil {
+			scpAdmin = delegatedAdmin
+		} else {
+			scpAdmin = mgmtAcct
+		}
+
+		scpOps := resourceoperation.CollectSCPOps(ctx, orgClient, consoleUI, cmd, rootAWSOU, scpAdmin)
+		for _, op := range scpOps {
+			err := op.Call(ctx)
+			if err != nil {
+				consoleUI.Print(fmt.Sprintf("Error on SCP Operation: %v", err), *scpAdmin)
+			}
+		}
+
+		if len(scpOps) == 0 {
+			consoleUI.Print("No Service Control Policies to deploy.", *scpAdmin)
+		}
 	}
 	consoleUI.Print("Done.\n", *mgmtAcct)
 }
@@ -126,5 +133,4 @@ func resolveMgmtAcct(
 		return nil, err
 	}
 	return fetchedMgmtAcct, nil
-
 }
