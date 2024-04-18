@@ -31,6 +31,10 @@ func CollectSCPOps(
 
 	var ops []ResourceOperation
 	for _, ou := range rootOU.AllDescendentOUs() {
+		if ou.OUID == nil {
+			consoleUI.Print(fmt.Sprintf("Skipping OU because it is not yet created: %s", ou.OUName), *mgmtAcct)
+			continue
+		}
 		for _, scp := range ou.ServiceControlPolicies {
 			ops = append(ops, NewSCPOperation(
 				consoleUI,
@@ -44,6 +48,10 @@ func CollectSCPOps(
 	}
 
 	for _, acct := range rootOU.AllDescendentAccounts() {
+		if acct.AccountID == "" {
+			consoleUI.Print(fmt.Sprintf("Skipping Account because it is not yet created: %s", acct.AccountName), *mgmtAcct)
+			continue
+		}
 		for _, scp := range acct.ServiceControlPolicies {
 			ops = append(ops, NewSCPOperation(
 				consoleUI,
