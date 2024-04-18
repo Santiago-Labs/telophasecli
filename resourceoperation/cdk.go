@@ -84,6 +84,7 @@ func (co *cdkOperation) Call(ctx context.Context) error {
 		cdkArgs = []string{
 			"diff",
 			"--context", fmt.Sprintf("telophaseAccountName=%s", co.Account.AccountName),
+			"--context", fmt.Sprintf("telophaseAccountId=%s", co.Account.AccountID),
 			"--output", cdk.TmpPath(*co.Account, co.Stack.Path),
 		}
 	} else if co.Operation == Deploy {
@@ -91,6 +92,7 @@ func (co *cdkOperation) Call(ctx context.Context) error {
 	}
 
 	cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("telophaseAccountName=%s", co.Account.AccountName))
+	cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("telophaseAccountId=%s", co.Account.AccountID))
 	if co.Stack.Name == "" {
 		cdkArgs = append(cdkArgs, "--all")
 	} else {
@@ -126,6 +128,7 @@ func bootstrapCDK(result *sts.AssumeRoleOutput, region string, acct resource.Acc
 		"bootstrap",
 		fmt.Sprintf("aws://%s/%s", acct.AccountID, region),
 		"--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName),
+		"--context", fmt.Sprintf("telophaseAccountId=%s", acct.AccountID),
 		"--output", cdk.TmpPath(acct, stack.Path),
 	}
 
@@ -145,6 +148,7 @@ func synthCDK(result *sts.AssumeRoleOutput, acct resource.Account, stack resourc
 	cdkArgs := []string{
 		"synth",
 		"--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName),
+		"--context", fmt.Sprintf("telophaseAccountId=%s", acct.AccountID),
 		"--output", cdk.TmpPath(acct, stack.Path),
 	}
 
