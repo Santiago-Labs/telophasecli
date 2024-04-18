@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
@@ -34,7 +35,7 @@ func Execute() {
 	}
 }
 
-func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int, targets string) {
+func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int, targets []string) {
 	ctx := context.Background()
 	orgClient := awsorgs.New()
 	rootAWSOU, err := ymlparser.ParseOrganizationV2(ctx, orgFile)
@@ -54,7 +55,23 @@ func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int, targets string) {
 		return
 	}
 
-	if targets == "organization" || targets == "" {
+	var deployStacks bool
+	var deploySCP bool
+	var deployOrganization bool
+
+	for _, target := range targets {
+		if strings.ReplaceAll(target, " ", "") == "stacks" {
+			deployStacks = true
+		}
+		if strings.ReplaceAll(target, " ", "") == "scp" {
+			deploySCP = true
+		}
+		if strings.ReplaceAll(target, " ", "") == "organization" {
+			deployOrganization = true
+		}
+	}
+
+	if len(targets) == 0 || deployOrganization {
 		orgOps := resourceoperation.CollectOrganizationUnitOps(
 			ctx, consoleUI, orgClient, mgmtAcct, rootAWSOU, cmd,
 		)
@@ -75,7 +92,7 @@ func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int, targets string) {
 		}
 	}
 
-	if targets == "baseline" || targets == "" {
+	if len(targets) == 0 || deployStacks {
 		var accountsToApply []resource.Account
 		for _, acct := range rootAWSOU.AllDescendentAccounts() {
 			if contains(tag, acct.AllTags()) || tag == "" {
@@ -90,7 +107,7 @@ func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int, targets string) {
 		runIAC(ctx, consoleUI, cmd, accountsToApply)
 	}
 
-	if targets == "scp" || targets == "" {
+	if len(targets) == 0 || deploySCP {
 		// Telophasecli can be run from either the management account or
 		// the delegated administrator account.
 		var scpAdmin *resource.Account
@@ -114,6 +131,21 @@ func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int, targets string) {
 		}
 	}
 	consoleUI.Print("Done.\n", *mgmtAcct)
+}
+
+func validateTargets() error {
+	if targets == "" {
+		return nil
+	}
+
+	for _, target := range strings.Split(targets, ",") {
+		strippedTarget := strings.ReplaceAll(target, " ", "")
+		if strippedTarget != "stacks" && strippedTarget != "scp" && strippedTarget != "organization" {
+			return fmt.Errorf("invalid targets: %s", targets)
+		}
+	}
+
+	return nil
 }
 
 func resolveMgmtAcct(
