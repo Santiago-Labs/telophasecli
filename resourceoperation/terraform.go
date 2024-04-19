@@ -131,7 +131,7 @@ func (to *tfOperation) initTf(role *sts.AssumeRoleOutput) *exec.Cmd {
 			return nil
 		}
 
-		if err := terraform.CopyDir(to.Stack.Path, workingPath, *to.Account); err != nil {
+		if err := terraform.CopyDir(to.Stack, workingPath, *to.Account); err != nil {
 			to.OutputUI.Print(fmt.Sprintf("Error: failed to copy files from %s to %s: %v", to.Stack.Path, workingPath, err), *to.Account)
 			return nil
 		}

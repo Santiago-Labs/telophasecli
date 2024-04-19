@@ -24,12 +24,12 @@ func TmpPath(acct resource.Account, filePath string) string {
 	return path.Join("telophasedirs", fmt.Sprintf("tf-tmp%s-%s", acct.ID(), hashString))
 }
 
-func CopyDir(src string, dst string, resource resource.Resource) error {
+func CopyDir(stack resource.Stack, dst string, resource resource.Resource) error {
 	ignoreDir := "telophasedirs"
 
-	abs, err := filepath.Abs(src)
+	abs, err := filepath.Abs(stack.Path)
 	if err != nil {
-		return oops.Wrapf(err, "could not get absolute file path for path: %s", src)
+		return oops.Wrapf(err, "could not get absolute file path for path: %s", stack.Path)
 	}
 	return filepath.Walk(abs, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
@@ -46,12 +46,12 @@ func CopyDir(src string, dst string, resource resource.Resource) error {
 		if info.IsDir() {
 			return os.MkdirAll(targetPath, info.Mode())
 		} else {
-			return replaceVariablesInFile(path, targetPath, resource)
+			return replaceVariablesInFile(path, targetPath, resource, stack)
 		}
 	})
 }
 
-func replaceVariablesInFile(srcFile, dstFile string, resource resource.Resource) error {
+func replaceVariablesInFile(srcFile, dstFile string, resource resource.Resource, stack resource.Stack) error {
 	content, err := ioutil.ReadFile(srcFile)
 	if err != nil {
 		return err
@@ -67,6 +67,14 @@ func replaceVariablesInFile(srcFile, dstFile string, resource resource.Resource)
 	updatedContent = strings.ReplaceAll(updatedContent, "telophase.resource_id", fmt.Sprintf("\"%s\"", resource.ID()))
 	updatedContent = strings.ReplaceAll(updatedContent, "${telophase.resource_name}", resource.Name())
 	updatedContent = strings.ReplaceAll(updatedContent, "telophase.resource_name", fmt.Sprintf("\"%s\"", resource.Name()))
+
+	// Update Region
+	preRegionContent := updatedContent
+	updatedContent = strings.ReplaceAll(updatedContent, "${telophase.region}", stack.Region)
+	updatedContent = strings.ReplaceAll(updatedContent, "telophase.region", stack.Region)
+	if updatedContent != preRegionContent && stack.Region == "" {
+		return oops.Errorf("Region needs to be set on stack if performing substitution")
+	}
 
 	return ioutil.WriteFile(dstFile, []byte(updatedContent), 0644)
 }

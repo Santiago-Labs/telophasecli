@@ -190,7 +190,7 @@ func (so *scpOperation) initTf() (*exec.Cmd, error) {
 			return nil, fmt.Errorf("failed to create directory %s: %v", terraformDir, err)
 		}
 
-		if err := terraform.CopyDir(so.Stack.Path, workingPath, so.targetResource()); err != nil {
+		if err := terraform.CopyDir(so.Stack, workingPath, so.targetResource()); err != nil {
 			return nil, fmt.Errorf("failed to copy files from %s to %s: %v", so.Stack.Path, workingPath, err)
 		}
 
