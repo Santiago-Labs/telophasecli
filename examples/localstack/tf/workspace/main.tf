@@ -18,7 +18,7 @@ locals {
 
 provider "aws" {
     # Two options can use ${telophase.region} or look at local config
-    region = local.region
+    region = "${telophase.region}" 
 }
 
 terraform {
