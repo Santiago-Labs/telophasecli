@@ -188,7 +188,6 @@ func (c Client) CreateOrganizationUnit(
 	mgmtAcct resource.Account,
 	ouName, newParentId string,
 ) (*organizations.OrganizationalUnit, error) {
-
 	consoleUI.Print(fmt.Sprintf("Creating OU: Name=%s\n", ouName), mgmtAcct)
 	out, err := c.organizationClient.CreateOrganizationalUnitWithContext(ctx, &organizations.CreateOrganizationalUnitInput{
 		Name:     &ouName,
@@ -253,7 +252,6 @@ func (c Client) CreateAccount(
 	mgmtAcct resource.Account,
 	acct *organizations.Account,
 ) (string, error) {
-
 	consoleUI.Print(fmt.Sprintf("Creating Account: Name=%s Email=%s\n", *acct.Name, *acct.Email), mgmtAcct)
 	out, err := c.organizationClient.CreateAccount(&organizations.CreateAccountInput{
 		AccountName: acct.Name,
@@ -298,7 +296,7 @@ func (c Client) CreateAccount(
 			return "", fmt.Errorf("unexpected state: %s", state)
 		}
 
-		time.Sleep(15 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 }
 

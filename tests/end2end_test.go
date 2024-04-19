@@ -926,12 +926,12 @@ func TestEndToEnd(t *testing.T) {
 		}
 	}()
 
+	orgClient := awsorgs.New()
 	for _, test := range tests {
 		fmt.Printf("Running test: %s\n", test.Name)
 		setupTest()
 
 		ctx := context.Background()
-		orgClient := awsorgs.New()
 
 		rootId, err := orgClient.GetRootId()
 		assert.NoError(t, err, "Failed to fetch rootId")
@@ -980,5 +980,6 @@ func TestEndToEnd(t *testing.T) {
 		compareOrganizationUnits(t, test.FetchExpected, &fetchedOrg, true)
 
 		test.ExpectedResources(t)
+
 	}
 }
