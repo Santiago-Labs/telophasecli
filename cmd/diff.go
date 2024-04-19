@@ -29,12 +29,14 @@ var diffCmd = &cobra.Command{
 			return
 		}
 		var consoleUI runner.ConsoleUI
+		parsedTargets := filterEmptyStrings(strings.Split(targets, ","))
+
 		if useTUI {
 			consoleUI = runner.NewTUI()
-			go ProcessOrgEndToEnd(consoleUI, resourceoperation.Diff, strings.Split(targets, ","))
+			go ProcessOrgEndToEnd(consoleUI, resourceoperation.Diff, parsedTargets)
 		} else {
 			consoleUI = runner.NewSTDOut()
-			ProcessOrgEndToEnd(consoleUI, resourceoperation.Diff, strings.Split(targets, ","))
+			ProcessOrgEndToEnd(consoleUI, resourceoperation.Diff, parsedTargets)
 		}
 
 		consoleUI.Start()

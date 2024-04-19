@@ -38,12 +38,13 @@ var deployCmd = &cobra.Command{
 			return
 		}
 		var consoleUI runner.ConsoleUI
+		parsedTargets := filterEmptyStrings(strings.Split(targets, ","))
 		if useTUI {
 			consoleUI = runner.NewTUI()
-			go ProcessOrgEndToEnd(consoleUI, resourceoperation.Deploy, strings.Split(targets, ","))
+			go ProcessOrgEndToEnd(consoleUI, resourceoperation.Deploy, parsedTargets)
 		} else {
 			consoleUI = runner.NewSTDOut()
-			ProcessOrgEndToEnd(consoleUI, resourceoperation.Deploy, strings.Split(targets, ","))
+			ProcessOrgEndToEnd(consoleUI, resourceoperation.Deploy, parsedTargets)
 		}
 
 		consoleUI.Start()

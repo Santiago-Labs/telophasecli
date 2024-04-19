@@ -166,3 +166,13 @@ func resolveMgmtAcct(
 	}
 	return fetchedMgmtAcct, nil
 }
+
+func filterEmptyStrings(slice []string) []string {
+	var result []string
+	for _, str := range slice {
+		if str != "" {
+			result = append(result, str)
+		}
+	}
+	return result
+}
