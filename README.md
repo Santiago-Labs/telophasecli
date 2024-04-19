@@ -16,8 +16,9 @@ Automation and Compliance are key concerns when adopting a multi-account AWS set
 Currently, Telophase is a CLI tool only. In the future, we plan to offer a web UI.
 
 ## Install
+If you'd like another method, please let us know by opening an issue!
+
 ### Go
-Go is the only supported installation method. If you'd like another method, please let us know by opening an issue!
 ```
 go install github.com/santiago-labs/telophasecli@latest
 ```
