@@ -46,4 +46,6 @@ aws dynamodb create-table --table-name tf-test-state \
 --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 \
 --endpoint-url http://localhost:4566
 
+awslocal organizations create-organization --feature-set ALL
+
 print_green "Setup complete! You can now run telophasecli :)"
