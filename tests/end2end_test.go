@@ -982,12 +982,4 @@ func TestEndToEnd(t *testing.T) {
 		test.ExpectedResources(t)
 
 	}
-
-	orgClient.PrintMetrics()
-	fmt.Printf("CDK Bootstrap: %v\n", resourceoperation.BootstrapTime)
-	fmt.Printf("AuthAWS: %v\n", resourceoperation.AuthAWSTime)
-	fmt.Printf("CDKCall: %v\n", resourceoperation.CDKCallTime)
-	fmt.Printf("InitTf: %v\n", resourceoperation.InitTfTime)
-	fmt.Printf("TF Call: %v\n", resourceoperation.TFCallTime)
-	fmt.Printf("RunCmd: %v\n", runner.RunTime)
 }

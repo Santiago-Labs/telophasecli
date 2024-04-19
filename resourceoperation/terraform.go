@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/samsarahq/go/oops"
@@ -16,11 +15,6 @@ import (
 	"github.com/santiago-labs/telophasecli/lib/localstack"
 	"github.com/santiago-labs/telophasecli/lib/terraform"
 	"github.com/santiago-labs/telophasecli/resource"
-)
-
-var (
-	InitTfTime time.Duration
-	TFCallTime time.Duration
 )
 
 type tfOperation struct {
@@ -49,12 +43,6 @@ func (to *tfOperation) ListDependents() []ResourceOperation {
 }
 
 func (to *tfOperation) Call(ctx context.Context) error {
-	start := time.Now()
-
-	defer func() {
-		fmt.Printf("TF Call: %v\n", time.Since(start))
-		TFCallTime += time.Since(start)
-	}()
 	to.OutputUI.Print(fmt.Sprintf("Executing Terraform stack in %s", to.Stack.Path), *to.Account)
 
 	var stackRole *sts.AssumeRoleOutput
@@ -125,12 +113,6 @@ func (to *tfOperation) Call(ctx context.Context) error {
 }
 
 func (to *tfOperation) initTf(role *sts.AssumeRoleOutput) *exec.Cmd {
-	start := time.Now()
-
-	defer func() {
-		fmt.Printf("TF Call: %v\n", time.Since(start))
-		InitTfTime += time.Since(start)
-	}()
 	workingPath := terraform.TmpPath(*to.Account, to.Stack.Path)
 	terraformDir := filepath.Join(workingPath, ".terraform")
 	if terraformDir == "" || !strings.Contains(terraformDir, "telophasedirs") {

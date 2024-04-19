@@ -50,8 +50,6 @@ func setupTest() {
 }
 
 func cacheProvider() {
-	destinationDir := filepath.Join(os.Getenv("HOME"), ".terraform.d", "plugins", "registry.terraform.io", "hashicorp", "aws")
-
 	version, err := getLatestProviderVersion("https://api.github.com/repos/hashicorp/terraform-provider-aws/releases/latest")
 	if err != nil {
 		fmt.Printf("Error fetching version: %v\n", err)
@@ -64,6 +62,7 @@ func cacheProvider() {
 
 	url := fmt.Sprintf("https://releases.hashicorp.com/terraform-provider-aws/%s/terraform-provider-aws_%s_%s_%s.zip", version, version, runtime.GOOS, runtime.GOARCH)
 
+	destinationDir := filepath.Join(os.Getenv("HOME"), ".terraform.d", "plugins", "registry.terraform.io", "hashicorp", "aws", version, fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH))
 	err = downloadAndUnzip(url, destinationDir)
 	if err != nil {
 		fmt.Printf("Error downloading and unzipping file: %v\n", err)
