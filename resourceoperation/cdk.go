@@ -46,7 +46,7 @@ func (co *cdkOperation) ListDependents() []ResourceOperation {
 func (co *cdkOperation) Call(ctx context.Context) error {
 	co.OutputUI.Print(fmt.Sprintf("Executing CDK stack in %s", co.Stack.Path), *co.Account)
 
-	var stackRole *sts.AssumeRoleOutput
+	var opRole *sts.AssumeRoleOutput
 
 	// We must bootstrap cdk with the account role.
 	if co.Stack.RoleOverrideARN != "" {
@@ -59,22 +59,22 @@ func (co *cdkOperation) Call(ctx context.Context) error {
 			return err
 		}
 
-		stackRole, _, err = authAWS(*co.Account, co.Stack.RoleOverrideARN, co.OutputUI)
+		opRole, _, err = authAWS(*co.Account, co.Stack.RoleOverrideARN, co.OutputUI)
 		if err != nil {
 			return err
 		}
 	} else {
-		acctRole, region, err := authAWS(*co.Account, co.Account.AssumeRoleARN(), co.OutputUI)
+		opRole, region, err := authAWS(*co.Account, co.Account.AssumeRoleARN(), co.OutputUI)
 		if err != nil {
 			return err
 		}
-		bootstrapCDK := bootstrapCDK(acctRole, region, *co.Account, co.Stack)
+		bootstrapCDK := bootstrapCDK(opRole, region, *co.Account, co.Stack)
 		if err := co.OutputUI.RunCmd(bootstrapCDK, *co.Account); err != nil {
 			return err
 		}
 	}
 
-	synthCDK := synthCDK(stackRole, *co.Account, co.Stack)
+	synthCDK := synthCDK(opRole, *co.Account, co.Stack)
 	if err := co.OutputUI.RunCmd(synthCDK, *co.Account); err != nil {
 		return err
 	}
@@ -100,11 +100,11 @@ func (co *cdkOperation) Call(ctx context.Context) error {
 	}
 	cmd := exec.Command(localstack.CdkCmd(), cdkArgs...)
 	cmd.Dir = co.Stack.Path
-	if stackRole != nil {
+	if opRole != nil {
 		cmd.Env = awssts.SetEnviron(os.Environ(),
-			*stackRole.Credentials.AccessKeyId,
-			*stackRole.Credentials.SecretAccessKey,
-			*stackRole.Credentials.SessionToken)
+			*opRole.Credentials.AccessKeyId,
+			*opRole.Credentials.SecretAccessKey,
+			*opRole.Credentials.SessionToken)
 	}
 	if err := co.OutputUI.RunCmd(cmd, *co.Account); err != nil {
 		return err
