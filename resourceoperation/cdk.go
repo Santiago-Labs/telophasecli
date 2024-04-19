@@ -64,14 +64,15 @@ func (co *cdkOperation) Call(ctx context.Context) error {
 			return err
 		}
 	} else {
-		opRole, region, err := authAWS(*co.Account, co.Account.AssumeRoleARN(), co.OutputUI)
+		subRole, region, err := authAWS(*co.Account, co.Account.AssumeRoleARN(), co.OutputUI)
 		if err != nil {
 			return err
 		}
-		bootstrapCDK := bootstrapCDK(opRole, region, *co.Account, co.Stack)
+		bootstrapCDK := bootstrapCDK(subRole, region, *co.Account, co.Stack)
 		if err := co.OutputUI.RunCmd(bootstrapCDK, *co.Account); err != nil {
 			return err
 		}
+		opRole = subRole
 	}
 
 	synthCDK := synthCDK(opRole, *co.Account, co.Stack)
