@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -16,6 +17,12 @@ import (
 	"github.com/santiago-labs/telophasecli/lib/cdk"
 	"github.com/santiago-labs/telophasecli/lib/localstack"
 	"github.com/santiago-labs/telophasecli/resource"
+)
+
+var (
+	CDKCallTime   time.Duration
+	BootstrapTime time.Duration
+	AuthAWSTime   time.Duration
 )
 
 type cdkOperation struct {
@@ -44,6 +51,12 @@ func (co *cdkOperation) ListDependents() []ResourceOperation {
 }
 
 func (co *cdkOperation) Call(ctx context.Context) error {
+	start := time.Now()
+
+	defer func() {
+		fmt.Printf("CDK Call: %v\n", time.Since(start))
+		CDKCallTime += time.Since(start)
+	}()
 	co.OutputUI.Print(fmt.Sprintf("Executing CDK stack in %s", co.Stack.Path), *co.Account)
 
 	var opRole *sts.AssumeRoleOutput
@@ -126,6 +139,12 @@ func (co *cdkOperation) ToString() string {
 }
 
 func bootstrapCDK(result *sts.AssumeRoleOutput, region string, acct resource.Account, stack resource.Stack) *exec.Cmd {
+	start := time.Now()
+
+	defer func() {
+		fmt.Printf("Bootstrap CDK: %v\n", time.Since(start))
+		BootstrapTime += time.Since(start)
+	}()
 	cdkArgs := []string{
 		"bootstrap",
 		fmt.Sprintf("aws://%s/%s", acct.AccountID, region),
@@ -175,6 +194,12 @@ func synthCDK(result *sts.AssumeRoleOutput, acct resource.Account, stack resourc
 }
 
 func authAWS(acct resource.Account, arn string, consoleUI runner.ConsoleUI) (*sts.AssumeRoleOutput, string, error) {
+	start := time.Now()
+
+	defer func() {
+		fmt.Printf("authAWS: %v\n", time.Since(start))
+		AuthAWSTime += time.Since(start)
+	}()
 	var svc *sts.STS
 	sess := session.Must(awssess.DefaultSession())
 	svc = sts.New(sess)

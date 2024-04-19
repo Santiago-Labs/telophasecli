@@ -1,11 +1,18 @@
 package tests
 
 import (
+	"archive/zip"
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -23,6 +30,8 @@ func setup() error {
 	if _, stderr, err := runCmd(cmd); err != nil {
 		return fmt.Errorf("Failed to run setup: %v\n %s \n", err, stderr)
 	}
+
+	cacheProvider()
 	return nil
 }
 
@@ -38,6 +47,113 @@ func setupTest() {
 		fmt.Printf("Failed to create localstack org: %v\n %s \n ", err, stderr)
 		os.Exit(1)
 	}
+}
+
+func cacheProvider() {
+	destinationDir := filepath.Join(os.Getenv("HOME"), ".terraform.d", "plugins", "registry.terraform.io", "hashicorp", "aws")
+
+	version, err := getLatestProviderVersion("https://api.github.com/repos/hashicorp/terraform-provider-aws/releases/latest")
+	if err != nil {
+		fmt.Printf("Error fetching version: %v\n", err)
+		return
+	}
+
+	if string(version[0]) == "v" {
+		version = version[1:]
+	}
+
+	url := fmt.Sprintf("https://releases.hashicorp.com/terraform-provider-aws/%s/terraform-provider-aws_%s_%s_%s.zip", version, version, runtime.GOOS, runtime.GOARCH)
+
+	err = downloadAndUnzip(url, destinationDir)
+	if err != nil {
+		fmt.Printf("Error downloading and unzipping file: %v\n", err)
+		return
+	}
+
+	fmt.Println("Provider installed successfully.")
+}
+
+func getLatestProviderVersion(url string) (string, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to fetch data: %s", resp.Status)
+	}
+
+	var result struct {
+		TagName string `json:"tag_name"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+
+	return result.TagName, nil
+}
+
+func downloadAndUnzip(url, destinationDir string) error {
+	tmpFile, err := os.CreateTemp("", "provider-*.zip")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmpFile.Name())
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
+		return err
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		return err
+	}
+
+	r, err := zip.OpenReader(tmpFile.Name())
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+
+		path := filepath.Join(destinationDir, f.Name)
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(path, f.Mode())
+		} else {
+			var fdir string
+			if lastIndex := strings.LastIndex(path, string(os.PathSeparator)); lastIndex > -1 {
+				fdir = path[:lastIndex]
+			}
+			err = os.MkdirAll(fdir, os.ModePerm)
+			if err != nil {
+				return err
+			}
+			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+
+			_, err = io.Copy(f, rc)
+			if err != nil {
+				return err
+			}
+		}
+		rc.Close()
+	}
+
+	return nil
 }
 
 func teardown() error {

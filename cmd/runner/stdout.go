@@ -5,9 +5,14 @@ import (
 	"fmt"
 	"os/exec"
 	"sync"
+	"time"
 
 	"github.com/santiago-labs/telophasecli/lib/colors"
 	"github.com/santiago-labs/telophasecli/resource"
+)
+
+var (
+	RunTime time.Duration
 )
 
 func NewSTDOut() ConsoleUI {
@@ -42,6 +47,12 @@ func (s *stdOut) ColoredId(acct resource.Account) string {
 // RunCmd takes the command and acct and runs it while prepending the
 // coloredAccountID from stderr and stdout and printing it.
 func (s *stdOut) RunCmd(cmd *exec.Cmd, acct resource.Account) error {
+	start := time.Now()
+
+	defer func() {
+		fmt.Printf("runCmd: %v\n", time.Since(start))
+		RunTime += time.Since(start)
+	}()
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("[ERROR] %s %v", s.ColoredId(acct), err)

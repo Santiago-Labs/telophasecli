@@ -18,6 +18,7 @@ import (
 
 type Client struct {
 	organizationClient *organizations.Organizations
+	metrics            map[string]time.Duration
 }
 
 func New() Client {
@@ -37,11 +38,25 @@ func New() Client {
 	}
 	return Client{
 		organizationClient: orgsClient,
+		metrics:            make(map[string]time.Duration),
+	}
+}
+
+func (c Client) PrintMetrics() {
+	for awsFunc := range c.metrics {
+		fmt.Printf("%s: %v \n", awsFunc, c.metrics[awsFunc])
 	}
 }
 
 // CurrentAccounts fetches all accounts in the organization.
 func (c Client) CurrentAccounts(ctx context.Context) ([]*organizations.Account, error) {
+	start := time.Now()
+
+	defer func() {
+		fmt.Printf("CurrentAccounts: %v\n", time.Since(start))
+		c.metrics["CurrentAccounts"] += time.Since(start)
+	}()
+
 	var accounts []*organizations.Account
 
 	err := c.organizationClient.ListAccountsPagesWithContext(ctx, &organizations.ListAccountsInput{},
@@ -58,6 +73,13 @@ func (c Client) CurrentAccounts(ctx context.Context) ([]*organizations.Account, 
 }
 
 func (c Client) FetchManagementAccount(ctx context.Context) (*resource.Account, error) {
+	start := time.Now()
+
+	defer func() {
+		fmt.Printf("FetchManagementAccount: %v\n", time.Since(start))
+		c.metrics["FetchManagementAccount"] += time.Since(start)
+	}()
+
 	org, err := c.organizationClient.DescribeOrganization(&organizations.DescribeOrganizationInput{})
 	if err != nil {
 		return nil, fmt.Errorf("DescribeOrganization: %s", err)
@@ -93,6 +115,13 @@ func (c Client) FetchManagementAccount(ctx context.Context) (*resource.Account, 
 }
 
 func (c Client) CurrentAccountsForParent(ctx context.Context, parentID string) ([]*organizations.Account, error) {
+	start := time.Now()
+
+	defer func() {
+		fmt.Printf("CurrentAccountsForParent: %v\n", time.Since(start))
+		c.metrics["CurrentAccountsForParent"] += time.Since(start)
+	}()
+
 	var accounts []*organizations.Account
 
 	err := c.organizationClient.ListAccountsForParentPagesWithContext(ctx, &organizations.ListAccountsForParentInput{
@@ -111,6 +140,13 @@ func (c Client) CurrentAccountsForParent(ctx context.Context, parentID string) (
 }
 
 func (c Client) CurrentOUsForParent(ctx context.Context, parentID string) ([]*organizations.OrganizationalUnit, error) {
+	start := time.Now()
+
+	defer func() {
+		fmt.Printf("CurrentOUsForParent: %v\n", time.Since(start))
+		c.metrics["CurrentOUsForParent"] += time.Since(start)
+	}()
+
 	var accounts []*organizations.OrganizationalUnit
 
 	err := c.organizationClient.ListOrganizationalUnitsForParentPagesWithContext(ctx, &organizations.ListOrganizationalUnitsForParentInput{
@@ -129,6 +165,12 @@ func (c Client) CurrentOUsForParent(ctx context.Context, parentID string) ([]*or
 }
 
 func (c Client) GetOrganizationUnit(ctx context.Context, OUId string) (*organizations.OrganizationalUnit, error) {
+	start := time.Now()
+
+	defer func() {
+		fmt.Printf("GetOrganizationUnit: %v\n", time.Since(start))
+		c.metrics["GetOrganizationUnit"] += time.Since(start)
+	}()
 	out, err := c.organizationClient.DescribeOrganizationalUnitWithContext(ctx, &organizations.DescribeOrganizationalUnitInput{
 		OrganizationalUnitId: &OUId,
 	})
@@ -140,6 +182,13 @@ func (c Client) GetOrganizationUnit(ctx context.Context, OUId string) (*organiza
 }
 
 func (c Client) GetOrganizationUnitChildren(ctx context.Context, OUId string) ([]*organizations.OrganizationalUnit, error) {
+	start := time.Now()
+
+	defer func() {
+		fmt.Printf("GetOrganizationUnitChildren: %v\n", time.Since(start))
+		c.metrics["GetOrganizationUnitChildren"] += time.Since(start)
+	}()
+
 	var childOUs []*organizations.OrganizationalUnit
 
 	err := c.organizationClient.ListOrganizationalUnitsForParentPagesWithContext(ctx, &organizations.ListOrganizationalUnitsForParentInput{
@@ -163,6 +212,13 @@ func (c Client) MoveAccount(
 	mgmtAcct resource.Account,
 	acctId, oldParentId, newParentId string,
 ) error {
+	start := time.Now()
+
+	defer func() {
+		fmt.Printf("MoveAccount: %v\n", time.Since(start))
+		c.metrics["MoveAccount"] += time.Since(start)
+	}()
+
 	if oldParentId == newParentId {
 		return nil
 	}
@@ -189,6 +245,12 @@ func (c Client) CreateOrganizationUnit(
 	ouName, newParentId string,
 ) (*organizations.OrganizationalUnit, error) {
 
+	start := time.Now()
+
+	defer func() {
+		fmt.Printf("CreateOrganizationUnit: %v\n", time.Since(start))
+		c.metrics["CreateOrganizationUnit"] += time.Since(start)
+	}()
 	consoleUI.Print(fmt.Sprintf("Creating OU: Name=%s\n", ouName), mgmtAcct)
 	out, err := c.organizationClient.CreateOrganizationalUnitWithContext(ctx, &organizations.CreateOrganizationalUnitInput{
 		Name:     &ouName,
@@ -207,6 +269,13 @@ func (c Client) RecreateOU(
 	mgmtAcct resource.Account,
 	ouID, ouName, newParentId string,
 ) error {
+	start := time.Now()
+
+	defer func() {
+		fmt.Printf("RecreateOU: %v\n", time.Since(start))
+		c.metrics["RecreateOU"] += time.Since(start)
+	}()
+
 	newOU, err := c.CreateOrganizationUnit(ctx, consoleUI, mgmtAcct, ouName, newParentId)
 	if err != nil {
 		return err
@@ -238,6 +307,13 @@ func (c Client) RecreateOU(
 }
 
 func (c Client) UpdateOrganizationUnit(ctx context.Context, ouID, newName string) error {
+	start := time.Now()
+
+	defer func() {
+		fmt.Printf("UpdateOrganizationUnit: %v\n", time.Since(start))
+		c.metrics["UpdateOrganizationUnit"] += time.Since(start)
+	}()
+
 	_, err := c.organizationClient.UpdateOrganizationalUnitWithContext(ctx,
 		&organizations.UpdateOrganizationalUnitInput{
 			Name:                 aws.String(newName),
@@ -253,6 +329,12 @@ func (c Client) CreateAccount(
 	mgmtAcct resource.Account,
 	acct *organizations.Account,
 ) (string, error) {
+	start := time.Now()
+
+	defer func() {
+		fmt.Printf("CreateAccount: %v\n", time.Since(start))
+		c.metrics["CreateAccount"] += time.Since(start)
+	}()
 
 	consoleUI.Print(fmt.Sprintf("Creating Account: Name=%s Email=%s\n", *acct.Name, *acct.Email), mgmtAcct)
 	out, err := c.organizationClient.CreateAccount(&organizations.CreateAccountInput{
@@ -298,7 +380,7 @@ func (c Client) CreateAccount(
 			return "", fmt.Errorf("unexpected state: %s", state)
 		}
 
-		time.Sleep(15 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 }
 
@@ -318,6 +400,12 @@ func (c Client) CloseAccounts(ctx context.Context, accts []*organizations.Accoun
 }
 
 func (c Client) GetRootId() (string, error) {
+	start := time.Now()
+
+	defer func() {
+		fmt.Printf("GetRootId: %v\n", time.Since(start))
+		c.metrics["GetRootId"] += time.Since(start)
+	}()
 	rootsOutput, err := c.organizationClient.ListRoots(&organizations.ListRootsInput{})
 	if err != nil {
 		return "", err
@@ -329,6 +417,12 @@ func (c Client) GetRootId() (string, error) {
 }
 
 func (c Client) ListOrganizationalUnits(parentID string) ([]*organizations.OrganizationalUnit, error) {
+	start := time.Now()
+
+	defer func() {
+		fmt.Printf("ListOrganizationalUnits: %v\n", time.Since(start))
+		c.metrics["ListOrganizationalUnits"] += time.Since(start)
+	}()
 	var OUs []*organizations.OrganizationalUnit
 	err := c.organizationClient.ListOrganizationalUnitsForParentPages(&organizations.ListOrganizationalUnitsForParentInput{
 		ParentId: &parentID,
@@ -340,6 +434,12 @@ func (c Client) ListOrganizationalUnits(parentID string) ([]*organizations.Organ
 }
 
 func (c Client) ListAccountsForParent(parentID string) ([]*organizations.Account, error) {
+	start := time.Now()
+
+	defer func() {
+		fmt.Printf("ListAccountsForParent: %v\n", time.Since(start))
+		c.metrics["ListAccountsForParent"] += time.Since(start)
+	}()
 	var accounts []*organizations.Account
 	err := c.organizationClient.ListAccountsForParentPages(&organizations.ListAccountsForParentInput{
 		ParentId: &parentID,
@@ -352,6 +452,13 @@ func (c Client) ListAccountsForParent(parentID string) ([]*organizations.Account
 }
 
 func (c Client) FetchOUAndDescendents(ctx context.Context, ouID, mgmtAccountID string) (resource.OrganizationUnit, error) {
+	start := time.Now()
+
+	defer func() {
+		fmt.Printf("FetchOUAndDescendents: %v\n", time.Since(start))
+		c.metrics["FetchOUAndDescendents"] += time.Since(start)
+	}()
+
 	var ou resource.OrganizationUnit
 
 	var providerOU *organizations.OrganizationalUnit
