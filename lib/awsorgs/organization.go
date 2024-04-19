@@ -271,7 +271,6 @@ func (c Client) CreateAccount(
 	}
 
 	for {
-		time.Sleep(15 * time.Second)
 
 		requestId := *out.CreateAccountStatus.Id
 		currStatus, err := c.organizationClient.DescribeCreateAccountStatus(&organizations.DescribeCreateAccountStatusInput{
@@ -298,6 +297,8 @@ func (c Client) CreateAccount(
 		default:
 			return "", fmt.Errorf("unexpected state: %s", state)
 		}
+
+		time.Sleep(15 * time.Second)
 	}
 }
 
