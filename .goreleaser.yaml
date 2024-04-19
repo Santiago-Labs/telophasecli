@@ -48,10 +48,6 @@ brews:
     description: "Open-Source AWS Control Tower" 
     homepage: "https://github.com/Santiago-Labs/telophasecli" 
     license: "GPL-3.0" 
-    folder: Formula
-    tap:
-      owner: Santiago-Labs
-      name: telophasecli 
 
     commit_author:
       name: dschofie 
