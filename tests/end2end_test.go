@@ -247,24 +247,11 @@ Organization:
 							AccountName: "Engineer A",
 							Email:       "engineerA@example.com",
 						},
-						{
-							AccountName: "Engineer B",
-							Email:       "engineerB@example.com",
-						},
 					},
 				},
 				{
-					OUName: "EU Engineers",
-					Accounts: []*resource.Account{
-						{
-							AccountName: "Engineer C",
-							Email:       "engineerC@example.com",
-						},
-						{
-							AccountName: "Engineer D",
-							Email:       "engineerD@example.com",
-						},
-					},
+					OUName:   "EU Engineers",
+					Accounts: []*resource.Account{},
 				},
 			},
 			Accounts: []*resource.Account{
