@@ -10,6 +10,10 @@ Organization:
           - Type: "Terraform"
             Path: "./tf/ci_iam"
             Name: "Default IAM Roles for CI"
+          - Type: "Terraform"
+            Path: "./tf/workspace"
+            Region: "eu-west-1"
+            Workspace: "${telophase.account_id}_${telophase.region}"
         Tags:
           - "production"
         Accounts:
