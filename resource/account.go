@@ -80,15 +80,27 @@ func (a Account) AllBaselineStacks() ([]Stack, error) {
 	// account.
 	var returnStacks []Stack
 	for i := range stacks {
-		if stacks[i].Region == "all" {
-			generatedStacks, err := a.GenerateStacks(stacks[i])
+		currStack := stacks[i]
+
+		if currStack.Region == "all" {
+			generatedStacks, err := a.GenerateStacks(currStack)
 			if err != nil {
 				return nil, err
 			}
 			returnStacks = append(returnStacks, generatedStacks...)
 			continue
 		}
-		returnStacks = append(returnStacks, stacks[i])
+
+		// Regions can be comma separated to target just a few
+		splitRegionStack := strings.Split(currStack.Region, ",")
+		if len(splitRegionStack) > 1 {
+			for _, region := range splitRegionStack {
+				returnStacks = append(returnStacks, currStack.NewForRegion(region))
+			}
+			continue
+		}
+
+		returnStacks = append(returnStacks, currStack)
 	}
 
 	return returnStacks, nil
