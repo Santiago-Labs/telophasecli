@@ -31,7 +31,7 @@ export AWS_REGION=us-east-1
 5. Deploy Infra in the Accounts
 
 Telophase will:
-1. Create the accounts and OUs listed in `organization.yml`
+1. Create the accounts and OUs listed in [`organization.yml`](https://github.com/Santiago-Labs/telophasecli/blob/main/examples/localstack/organization.yml)
 2. A CDK stack will create an S3 bucket for a terraform state will be create in each account. Additionally, a Terraform stack will create a CI deploy role in each account in the `Production` OU.
 ```bash
 LOCALSTACK=true telophasecli deploy --tui
