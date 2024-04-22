@@ -46,33 +46,23 @@ func (co *cdkOperation) ListDependents() []ResourceOperation {
 func (co *cdkOperation) Call(ctx context.Context) error {
 	co.OutputUI.Print(fmt.Sprintf("Executing CDK stack in %s", co.Stack.Path), *co.Account)
 
-	var opRole *sts.AssumeRoleOutput
+	opRole, region, err := authAWS(*co.Account, co.Account.AssumeRoleARN(), co.OutputUI)
+	if err != nil {
+		return err
+	}
 
 	// We must bootstrap cdk with the account role.
-	if co.Stack.RoleOverrideARN != "" {
-		acctRole, region, err := authAWS(*co.Account, co.Account.AssumeRoleARN(), co.OutputUI)
-		if err != nil {
-			return err
-		}
-		bootstrapCDK := bootstrapCDK(acctRole, region, *co.Account, co.Stack)
-		if err := co.OutputUI.RunCmd(bootstrapCDK, *co.Account); err != nil {
-			return err
-		}
+	bootstrapCDK := bootstrapCDK(opRole, region, *co.Account, co.Stack)
+	if err := co.OutputUI.RunCmd(bootstrapCDK, *co.Account); err != nil {
+		return err
+	}
 
+	// We use the stack role if it set after we have bootstrapped.
+	if co.Stack.RoleOverrideARN != "" {
 		opRole, _, err = authAWS(*co.Account, co.Stack.RoleOverrideARN, co.OutputUI)
 		if err != nil {
 			return err
 		}
-	} else {
-		subRole, region, err := authAWS(*co.Account, co.Account.AssumeRoleARN(), co.OutputUI)
-		if err != nil {
-			return err
-		}
-		bootstrapCDK := bootstrapCDK(subRole, region, *co.Account, co.Stack)
-		if err := co.OutputUI.RunCmd(bootstrapCDK, *co.Account); err != nil {
-			return err
-		}
-		opRole = subRole
 	}
 
 	synthCDK := synthCDK(opRole, *co.Account, co.Stack)
