@@ -46,6 +46,6 @@ Stacks:
     Type:  # (Required) "CDK" or "Terraform".
     Name:  # (Optional) Apply only CDK stack with this name. By default, all CDK stacks are applied. (CDK Only)
     RoleOverrideARN:  # (Optional) Force CDK and Terraform to us a specific role when applying a stack. The default role is the account's `AssumeRoleName`.
-    Region: # (Optional) What region the stack's resources will be provisioned in.
+    Region: # (Optional) What region the stack's resources will be provisioned in. Region can be a comma separated list of regions or "all" to apply to all regions in an account.
     Workspace: # (Optional) Specify a Terraform workspace to use. 
 ```
