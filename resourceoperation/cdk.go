@@ -84,16 +84,12 @@ func (co *cdkOperation) Call(ctx context.Context) error {
 	if co.Operation == Diff {
 		cdkArgs = []string{
 			"diff",
-			"--context", fmt.Sprintf("telophaseAccountName=%s", co.Account.AccountName),
-			"--context", fmt.Sprintf("telophaseAccountId=%s", co.Account.AccountID),
-			"--output", cdk.TmpPath(*co.Account, co.Stack.Path),
 		}
 	} else if co.Operation == Deploy {
-		cdkArgs = []string{"deploy", "--require-approval", "never", "--output", cdk.TmpPath(*co.Account, co.Stack.Path)}
+		cdkArgs = []string{"deploy", "--require-approval", "never"}
 	}
 
-	cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("telophaseAccountName=%s", co.Account.AccountName))
-	cdkArgs = append(cdkArgs, "--context", fmt.Sprintf("telophaseAccountId=%s", co.Account.AccountID))
+	cdkArgs = append(cdkArgs, cdkDefaultArgs(*co.Account, co.Stack)...)
 	if co.Stack.Name == "" {
 		cdkArgs = append(cdkArgs, "--all")
 	} else {
@@ -127,13 +123,12 @@ func (co *cdkOperation) ToString() string {
 }
 
 func bootstrapCDK(result *sts.AssumeRoleOutput, region string, acct resource.Account, stack resource.Stack) *exec.Cmd {
-	cdkArgs := []string{
+	cdkArgs := append([]string{
 		"bootstrap",
 		fmt.Sprintf("aws://%s/%s", acct.AccountID, region),
-		"--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName),
-		"--context", fmt.Sprintf("telophaseAccountId=%s", acct.AccountID),
-		"--output", cdk.TmpPath(acct, stack.Path),
-	}
+	},
+		cdkDefaultArgs(acct, stack)...,
+	)
 
 	cmd := exec.Command(localstack.CdkCmd(), cdkArgs...)
 	cmd.Dir = stack.Path
@@ -150,12 +145,10 @@ func bootstrapCDK(result *sts.AssumeRoleOutput, region string, acct resource.Acc
 }
 
 func synthCDK(result *sts.AssumeRoleOutput, acct resource.Account, stack resource.Stack) *exec.Cmd {
-	cdkArgs := []string{
-		"synth",
-		"--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName),
-		"--context", fmt.Sprintf("telophaseAccountId=%s", acct.AccountID),
-		"--output", cdk.TmpPath(acct, stack.Path),
-	}
+	cdkArgs := append(
+		[]string{"synth"},
+		cdkDefaultArgs(acct, stack)...,
+	)
 
 	if stack.Name != "" {
 		cdkArgs = append(cdkArgs, strings.Split(stack.Name, ",")...)
@@ -188,4 +181,12 @@ func authAWS(acct resource.Account, arn string, consoleUI runner.ConsoleUI) (*st
 
 	role, err := awssess.AssumeRole(svc, input)
 	return role, *sess.Config.Region, err
+}
+
+func cdkDefaultArgs(acct resource.Account, stack resource.Stack) []string {
+	return []string{
+		"--context", fmt.Sprintf("telophaseAccountName=%s", acct.AccountName),
+		"--context", fmt.Sprintf("telophaseAccountId=%s", acct.AccountID),
+		"--output", cdk.TmpPath(acct, stack.Path),
+	}
 }
