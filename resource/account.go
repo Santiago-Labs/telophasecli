@@ -3,6 +3,11 @@ package resource
 import (
 	"fmt"
 	"strings"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/account"
+	"github.com/samsarahq/go/oops"
+	"github.com/santiago-labs/telophasecli/lib/awssess"
 )
 
 type Account struct {
@@ -67,7 +72,55 @@ func (a Account) AllBaselineStacks() []Stack {
 	if a.Parent != nil {
 		stacks = append(stacks, a.Parent.AllBaselineStacks()...)
 	}
+
 	stacks = append(stacks, a.BaselineStacks...)
+
+	// We need to rerun through the stacks after we have collected them for an
+	// account because we check what regions are enabled for the specific
+	// account.
+	var returnStacks []Stack
+	for i := range stacks {
+		if stacks[i].Region == "all" {
+			returnStacks = append(returnStacks, a.GenerateStacks(stacks[i])...)
+			continue
+		}
+		returnStacks = append(returnStacks, stacks[i])
+	}
+
+	return returnStacks
+}
+
+func (a Account) GenerateStacks(stack Stack) []Stack {
+	// We only generate multiple stacks if the region is "all"
+	if stack.Region != "all" {
+		return []Stack{stack}
+	}
+
+	sess, err := awssess.DefaultSession()
+	if err != nil {
+		panic(fmt.Sprintf("error starting sess: %s", err))
+	}
+	acctClient := account.New(sess)
+	output, err := acctClient.ListRegions(&account.ListRegionsInput{
+		AccountId:  &a.AccountID,
+		MaxResults: aws.Int64(50),
+	})
+	if err != nil {
+		panic(oops.Wrapf(err, "listing regions for account: (%s)", a.AccountID))
+	}
+
+	var stacks []Stack
+	for _, region := range output.Regions {
+		if *region.RegionOptStatus == account.RegionOptStatusEnabled ||
+			*region.RegionOptStatus == account.RegionOptStatusEnabling ||
+			*region.RegionOptStatus == account.RegionOptStatusEnabledByDefault {
+
+			stacks = append(stacks,
+				stack.NewForRegion(*region.RegionName),
+			)
+		}
+	}
+
 	return stacks
 }
 
