@@ -67,7 +67,7 @@ func (a Account) AllTags() []string {
 	return tags
 }
 
-func (a Account) AllBaselineStacks() []Stack {
+func (a Account) AllBaselineStacks() ([]Stack, error) {
 	var stacks []Stack
 	if a.Parent != nil {
 		stacks = append(stacks, a.Parent.AllBaselineStacks()...)
@@ -81,24 +81,28 @@ func (a Account) AllBaselineStacks() []Stack {
 	var returnStacks []Stack
 	for i := range stacks {
 		if stacks[i].Region == "all" {
-			returnStacks = append(returnStacks, a.GenerateStacks(stacks[i])...)
+			generatedStacks, err := a.GenerateStacks(stacks[i])
+			if err != nil {
+				return nil, err
+			}
+			returnStacks = append(returnStacks, generatedStacks...)
 			continue
 		}
 		returnStacks = append(returnStacks, stacks[i])
 	}
 
-	return returnStacks
+	return returnStacks, nil
 }
 
-func (a Account) GenerateStacks(stack Stack) []Stack {
+func (a Account) GenerateStacks(stack Stack) ([]Stack, error) {
 	// We only generate multiple stacks if the region is "all"
 	if stack.Region != "all" {
-		return []Stack{stack}
+		return []Stack{stack}, nil
 	}
 
 	sess, err := awssess.DefaultSession()
 	if err != nil {
-		panic(fmt.Sprintf("error starting sess: %s", err))
+		return nil, oops.Wrapf(err, "error starting sess")
 	}
 	acctClient := account.New(sess)
 	output, err := acctClient.ListRegions(&account.ListRegionsInput{
@@ -106,7 +110,7 @@ func (a Account) GenerateStacks(stack Stack) []Stack {
 		MaxResults: aws.Int64(50),
 	})
 	if err != nil {
-		panic(oops.Wrapf(err, "listing regions for account: (%s)", a.AccountID))
+		return nil, oops.Wrapf(err, "listing regions for account: (%s)", a.AccountID)
 	}
 
 	var stacks []Stack
@@ -121,13 +125,18 @@ func (a Account) GenerateStacks(stack Stack) []Stack {
 		}
 	}
 
-	return stacks
+	return stacks, nil
 }
 
-func (a Account) FilterBaselineStacks(stackNames string) []Stack {
+func (a Account) FilterBaselineStacks(stackNames string) ([]Stack, error) {
 	var matchingStacks []Stack
 	targetStackNames := strings.Split(stackNames, ",")
-	for _, stack := range a.AllBaselineStacks() {
+	baselineStacks, err := a.AllBaselineStacks()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, stack := range baselineStacks {
 		acctStackNames := strings.Split(stack.Name, ",")
 		var matchingStackNames []string
 		for _, name := range acctStackNames {
@@ -146,7 +155,7 @@ func (a Account) FilterBaselineStacks(stackNames string) []Stack {
 			})
 		}
 	}
-	return matchingStacks
+	return matchingStacks, nil
 }
 
 func (a Account) FilterServiceControlPolicies(stackNames string) []Stack {
