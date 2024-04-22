@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/samsarahq/go/oops"
 	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/resource"
 	"github.com/santiago-labs/telophasecli/resourceoperation"
@@ -27,7 +28,10 @@ func runIAC(
 				return
 			}
 
-			ops := resourceoperation.CollectAccountOps(ctx, consoleUI, cmd, &acct, stacks)
+			ops, err := resourceoperation.CollectAccountOps(ctx, consoleUI, cmd, &acct, stacks)
+			if err != nil {
+				panic(oops.Wrapf(err, "error collecting account ops for acct: %s", acct.AccountID))
+			}
 
 			if len(ops) == 0 {
 				consoleUI.Print("No stacks to deploy\n", acct)

@@ -50,13 +50,21 @@ func CollectAccountOps(
 	operation int,
 	acct *resource.Account,
 	stackFilter string,
-) []ResourceOperation {
+) ([]ResourceOperation, error) {
 
 	var acctStacks []resource.Stack
 	if stackFilter != "" && stackFilter != "*" {
-		acctStacks = append(acctStacks, acct.FilterBaselineStacks(stackFilter)...)
+		baselineStacks, err := acct.FilterBaselineStacks(stackFilter)
+		if err != nil {
+			return nil, err
+		}
+		acctStacks = append(acctStacks, baselineStacks...)
 	} else {
-		acctStacks = append(acctStacks, acct.AllBaselineStacks()...)
+		baselineStacks, err := acct.AllBaselineStacks()
+		if err != nil {
+			return nil, err
+		}
+		acctStacks = append(acctStacks, baselineStacks...)
 	}
 
 	var ops []ResourceOperation
@@ -68,7 +76,7 @@ func CollectAccountOps(
 		}
 	}
 
-	return ops
+	return ops, nil
 }
 
 func (ao *accountOperation) AddDependent(op ResourceOperation) {
