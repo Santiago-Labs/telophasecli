@@ -148,23 +148,15 @@ func (a Account) FilterBaselineStacks(stackNames string) ([]Stack, error) {
 		return nil, err
 	}
 
-	for _, stack := range baselineStacks {
+	for i, stack := range baselineStacks {
 		acctStackNames := strings.Split(stack.Name, ",")
-		var matchingStackNames []string
 		for _, name := range acctStackNames {
 			for _, targetName := range targetStackNames {
 				if strings.TrimSpace(name) == strings.TrimSpace(targetName) {
-					matchingStackNames = append(matchingStackNames, name)
+					matchingStacks = append(matchingStacks, baselineStacks[i])
 					break
 				}
 			}
-		}
-		if len(matchingStackNames) > 0 {
-			matchingStacks = append(matchingStacks, Stack{
-				Path: stack.Path,
-				Type: stack.Type,
-				Name: strings.Join(matchingStackNames, ","),
-			})
 		}
 	}
 	return matchingStacks, nil
@@ -173,24 +165,17 @@ func (a Account) FilterBaselineStacks(stackNames string) ([]Stack, error) {
 func (a Account) FilterServiceControlPolicies(stackNames string) []Stack {
 	var matchingStacks []Stack
 	targetStackNames := strings.Split(stackNames, ",")
-	for _, stack := range a.ServiceControlPolicies {
+	for i, stack := range a.ServiceControlPolicies {
 		acctStackNames := strings.Split(stack.Name, ",")
-		var matchingStackNames []string
 		for _, name := range acctStackNames {
 			for _, targetName := range targetStackNames {
 				if strings.TrimSpace(name) == strings.TrimSpace(targetName) {
-					matchingStackNames = append(matchingStackNames, name)
+					matchingStacks = append(matchingStacks, a.ServiceControlPolicies[i])
 					break
 				}
 			}
 		}
-		if len(matchingStackNames) > 0 {
-			matchingStacks = append(matchingStacks, Stack{
-				Path: stack.Path,
-				Type: stack.Type,
-				Name: strings.Join(matchingStackNames, ","),
-			})
-		}
 	}
+
 	return matchingStacks
 }
