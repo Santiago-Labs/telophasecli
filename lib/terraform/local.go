@@ -52,6 +52,11 @@ func CopyDir(stack resource.Stack, dst string, resource resource.Resource) error
 }
 
 func replaceVariablesInFile(srcFile, dstFile string, resource resource.Resource, stack resource.Stack) error {
+	fileInfo, err := os.Stat(srcFile)
+	if err != nil {
+		return oops.Wrapf(err, "error accessing file %s", srcFile)
+	}
+
 	content, err := ioutil.ReadFile(srcFile)
 	if err != nil {
 		return err
@@ -76,5 +81,5 @@ func replaceVariablesInFile(srcFile, dstFile string, resource resource.Resource,
 		return oops.Errorf("Region needs to be set on stack if performing substitution")
 	}
 
-	return ioutil.WriteFile(dstFile, []byte(updatedContent), 0644)
+	return ioutil.WriteFile(dstFile, []byte(updatedContent), fileInfo.Mode())
 }
