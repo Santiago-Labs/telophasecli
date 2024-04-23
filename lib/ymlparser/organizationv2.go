@@ -18,7 +18,17 @@ type orgDatav2 struct {
 	Organization resource.OrganizationUnit `yaml:"Organization"`
 }
 
-func ParseOrganizationV2(ctx context.Context, filepath string) (*resource.OrganizationUnit, error) {
+type Parser struct {
+	orgClient awsorgs.Client
+}
+
+func NewParser(orgClient awsorgs.Client) Parser {
+	return Parser{
+		orgClient: orgClient,
+	}
+}
+
+func (o Parser) ParseOrganizationV2(ctx context.Context, filepath string) (*resource.OrganizationUnit, error) {
 	if filepath == "" {
 		return nil, errors.New("filepath is empty")
 	}
@@ -38,17 +48,15 @@ func ParseOrganizationV2(ctx context.Context, filepath string) (*resource.Organi
 		return nil, err
 	}
 
-	if err = HydrateParsedOrg(ctx, &org.Organization); err != nil {
+	if err = o.HydrateParsedOrg(ctx, &org.Organization); err != nil {
 		return nil, err
 	}
 
 	return &org.Organization, nil
 }
 
-func HydrateParsedOrg(ctx context.Context, parsedOrg *resource.OrganizationUnit) error {
-	orgClient := awsorgs.New()
-
-	rootId, err := orgClient.GetRootId()
+func (p Parser) HydrateParsedOrg(ctx context.Context, parsedOrg *resource.OrganizationUnit) error {
+	rootId, err := p.orgClient.GetRootId()
 	if err != nil {
 		return err
 	}
@@ -58,17 +66,17 @@ func HydrateParsedOrg(ctx context.Context, parsedOrg *resource.OrganizationUnit)
 		Name: &rootName,
 	}
 	parsedOrg.OUName = "root"
-	hydrateOUID(orgClient, parsedOrg, rootOU)
+	p.hydrateOUID(parsedOrg, rootOU)
 	hydrateOUParent(parsedOrg)
 	hydrateAccountParent(parsedOrg)
 
-	mgmtAcct, err := orgClient.FetchManagementAccount(ctx)
+	mgmtAcct, err := p.orgClient.FetchManagementAccount(ctx)
 	if err != nil {
 		return oops.Wrapf(err, "error fetching management account")
 	}
 
 	// Hydrate Group, then fetch all accounts (pointers) and populate ID.
-	providerAccts, err := orgClient.CurrentAccounts(ctx)
+	providerAccts, err := p.orgClient.CurrentAccounts(ctx)
 	if err != nil {
 		return oops.Wrapf(err, "CurrentAccounts")
 	}
@@ -96,10 +104,10 @@ func hydrateAccountParent(ou *resource.OrganizationUnit) {
 	}
 }
 
-func hydrateOUID(orgClient awsorgs.Client, parsedOU *resource.OrganizationUnit, providerOU *organizations.OrganizationalUnit) error {
+func (p Parser) hydrateOUID(parsedOU *resource.OrganizationUnit, providerOU *organizations.OrganizationalUnit) error {
 	if providerOU != nil {
 		parsedOU.OUID = providerOU.Id
-		providerChildren, err := orgClient.GetOrganizationUnitChildren(context.TODO(), *parsedOU.OUID)
+		providerChildren, err := p.orgClient.GetOrganizationUnitChildren(context.TODO(), *parsedOU.OUID)
 		if err != nil {
 			return oops.Wrapf(err, "GetOrganizationUnitChildren for OUID: %s", *parsedOU.OUID)
 		}
@@ -109,7 +117,7 @@ func hydrateOUID(orgClient awsorgs.Client, parsedOU *resource.OrganizationUnit, 
 			for _, providerChild := range providerChildren {
 				if parsedChild.OUName == *providerChild.Name {
 					found = true
-					err = hydrateOUID(orgClient, parsedChild, providerChild)
+					err = p.hydrateOUID(parsedChild, providerChild)
 					if err != nil {
 						return err
 					}
@@ -117,7 +125,7 @@ func hydrateOUID(orgClient awsorgs.Client, parsedOU *resource.OrganizationUnit, 
 			}
 
 			if !found {
-				err := hydrateOUID(orgClient, parsedChild, nil)
+				err := p.hydrateOUID(parsedChild, nil)
 				if err != nil {
 					return err
 				}
@@ -125,7 +133,7 @@ func hydrateOUID(orgClient awsorgs.Client, parsedOU *resource.OrganizationUnit, 
 		}
 	} else {
 		for _, parsedChild := range parsedOU.ChildOUs {
-			err := hydrateOUID(orgClient, parsedChild, nil)
+			err := p.hydrateOUID(parsedChild, nil)
 			if err != nil {
 				return err
 			}
