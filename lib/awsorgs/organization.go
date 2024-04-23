@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/organizations"
 	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/samsarahq/go/oops"
 	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/awssess"
 	"github.com/santiago-labs/telophasecli/resource"
@@ -318,7 +319,7 @@ func (c Client) CloseAccounts(ctx context.Context, accts []*organizations.Accoun
 func (c Client) GetRootId() (string, error) {
 	rootsOutput, err := c.organizationClient.ListRoots(&organizations.ListRootsInput{})
 	if err != nil {
-		return "", err
+		return "", oops.Wrapf(err, "organizaqtions.ListRootsInput, make sure you have access to organizations from this role")
 	}
 	if len(rootsOutput.Roots) > 0 {
 		return *rootsOutput.Roots[0].Id, nil
@@ -346,7 +347,7 @@ func (c Client) ListAccountsForParent(parentID string) ([]*organizations.Account
 		return !lastPage
 	})
 
-	return accounts, err
+	return accounts, oops.Wrapf(err, "organizations.ListAccountsForParent")
 }
 
 func (c Client) FetchOUAndDescendents(ctx context.Context, ouID, mgmtAccountID string) (resource.OrganizationUnit, error) {
