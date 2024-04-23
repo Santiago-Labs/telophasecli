@@ -58,8 +58,8 @@ func (co *cdkOperation) Call(ctx context.Context) error {
 	}
 
 	// We use the stack role if it set after we have bootstrapped.
-	if co.Stack.RoleOverrideARN != "" {
-		opRole, _, err = authAWS(*co.Account, co.Stack.RoleOverrideARN, co.OutputUI)
+	if roleArn := co.Stack.RoleARN(*co.Account); roleArn != nil {
+		opRole, _, err = authAWS(*co.Account, *roleArn, co.OutputUI)
 		if err != nil {
 			return err
 		}
