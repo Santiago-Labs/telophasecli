@@ -101,7 +101,7 @@ func hydrateOUID(orgClient awsorgs.Client, parsedOU *resource.OrganizationUnit, 
 		parsedOU.OUID = providerOU.Id
 		providerChildren, err := orgClient.GetOrganizationUnitChildren(context.TODO(), *parsedOU.OUID)
 		if err != nil {
-			return err
+			return oops.Wrapf(err, "GetOrganizationUnitChildren for OUID: %s", *parsedOU.OUID)
 		}
 
 		for _, parsedChild := range parsedOU.ChildOUs {
