@@ -1,27 +1,41 @@
 package resource
 
 import (
+	"fmt"
+
 	"github.com/samsarahq/go/oops"
 )
 
 type Stack struct {
-	Name            string `yaml:"Name"`
-	Type            string `yaml:"Type"`
-	Path            string `yaml:"Path"`
-	Region          string `yaml:"Region,omitempty"`
-	RoleOverrideARN string `yaml:"RoleOverrideARN,omitempty"`
-	Workspace       string `yaml:"Workspace,omitempty"`
+	// When adding a new type to the struct, make sure you add it to the `NewForRegion` method.
+	Name                      string `yaml:"Name"`
+	Type                      string `yaml:"Type"`
+	Path                      string `yaml:"Path"`
+	Region                    string `yaml:"Region,omitempty"`
+	RoleOverrideARNDeprecated string `yaml:"RoleOverrideARN,omitempty"` // Deprecated
+	AssumeRoleName            string `yaml:"AssumeRoleName,omitempty"`
+	Workspace                 string `yaml:"Workspace,omitempty"`
 }
 
 func (s Stack) NewForRegion(region string) Stack {
 	return Stack{
-		Name:            s.Name,
-		Type:            s.Type,
-		Path:            s.Path,
-		Region:          region,
-		RoleOverrideARN: s.RoleOverrideARN,
-		Workspace:       s.Workspace,
+		Name:                      s.Name,
+		Type:                      s.Type,
+		Path:                      s.Path,
+		Region:                    region,
+		RoleOverrideARNDeprecated: s.RoleOverrideARNDeprecated,
+		AssumeRoleName:            s.AssumeRoleName,
+		Workspace:                 s.Workspace,
 	}
+}
+
+func (s Stack) RoleARN(acct Account) *string {
+	if s.AssumeRoleName != "" {
+		result := fmt.Sprintf("arn:aws:iam::%s:role/%s", acct.AccountID, s.AssumeRoleName)
+		return &result
+	}
+
+	return nil
 }
 
 func (s Stack) AWSRegionEnv() *string {
