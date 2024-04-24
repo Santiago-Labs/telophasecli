@@ -1043,7 +1043,7 @@ func TestEndToEnd(t *testing.T) {
 		err = ioutil.WriteFile("organization.yml", []byte(test.OrgYaml), 0644)
 		assert.NoError(t, err, "Failed to write organization.yml")
 
-		parsedOrg, err := ymlparser.NewParser(orgClient).ParseOrganization(ctx, "organization.yml")
+		parsedOrg, err := ymlparser.NewParser(orgClient).ParseOrganizationV2(ctx, "organization.yml")
 		assert.NoError(t, err, "Failed to parse organization.yml")
 
 		compareOrganizationUnits(t, test.ParseExpected, parsedOrg, false)
