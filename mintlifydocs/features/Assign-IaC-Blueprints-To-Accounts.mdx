@@ -44,7 +44,7 @@ CDK and Terraform stacks can be assigned to `Account`s and `OrganizationUnits`s.
 Stacks:
   - Path:  # (Required) Path to CDK or Terraform project. This must be a directory.
     Type:  # (Required) "CDK" or "Terraform".
-    Name:  # (Optional) Apply only CDK stack with this name. By default, all CDK stacks are applied. (CDK Only)
+    Name:  # (Optional) Name of the Stack to filter on with --stacks.
     AssumeRoleName:  # (Optional) Force CDK and Terraform to us a specific role when applying a stack. The default role is the account's `AssumeRoleName` which is typically the `OrganizationAccountAccessRole`.
     Region: # (Optional) What region the stack's resources will be provisioned in. Region can be a comma separated list of regions or "all" to apply to all regions in an account.
     Workspace: # (Optional) Specify a Terraform workspace to use. 
