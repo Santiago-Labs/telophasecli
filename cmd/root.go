@@ -38,7 +38,7 @@ func Execute() {
 func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int, targets []string) {
 	ctx := context.Background()
 	orgClient := awsorgs.New()
-	rootAWSOU, err := ymlparser.NewParser(orgClient).ParseOrganizationV2(ctx, orgFile)
+	rootAWSOU, err := ymlparser.NewParser(orgClient).ParseOrganization(ctx, orgFile)
 	if err != nil {
 		consoleUI.Print(fmt.Sprintf("error: %s", err), resource.Account{AccountID: "error", AccountName: "error"})
 		return
