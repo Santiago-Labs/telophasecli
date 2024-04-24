@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -80,11 +79,9 @@ func (co *cdkOperation) Call(ctx context.Context) error {
 	}
 
 	cdkArgs = append(cdkArgs, cdkDefaultArgs(*co.Account, co.Stack)...)
-	if co.Stack.Name == "" {
-		cdkArgs = append(cdkArgs, "--all")
-	} else {
-		cdkArgs = append(cdkArgs, strings.Split(co.Stack.Name, ",")...)
-	}
+	// Deploy all CDK stacks every time.
+	cdkArgs = append(cdkArgs, "--all")
+
 	cmd := exec.Command(localstack.CdkCmd(), cdkArgs...)
 	cmd.Dir = co.Stack.Path
 	if opRole != nil {
@@ -139,10 +136,6 @@ func synthCDK(result *sts.AssumeRoleOutput, acct resource.Account, stack resourc
 		[]string{"synth"},
 		cdkDefaultArgs(acct, stack)...,
 	)
-
-	if stack.Name != "" {
-		cdkArgs = append(cdkArgs, strings.Split(stack.Name, ",")...)
-	}
 
 	cmd := exec.Command(localstack.CdkCmd(), cdkArgs...)
 	cmd.Dir = stack.Path
