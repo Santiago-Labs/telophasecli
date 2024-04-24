@@ -916,6 +916,83 @@ Organization:
 		},
 		Targets: []string{"stacks"},
 	},
+	{
+		Name: "Test that Stacks apply to multiple accounts with comma separated region and workspace",
+		OrgYaml: `
+Organization:
+Name: root
+OrganizationUnits:
+- Name: ProductionTenants
+	Stacks:
+	- Type: Terraform
+	Path: tf/s3-test
+	- Type: Terraform
+	Path: tf/dynamo
+	Name: Dynamo
+	Region: "us-west-2,eu-west-1"
+	Workspace: "{telophase.account_id}_{telophase.region}"
+	Accounts:
+	- AccountName: prod-us0
+		Email: prod-us0@example.com
+
+- Name: DevTenants
+`,
+		FetchExpected: &resource.OrganizationUnit{
+			OUName: "root",
+			Accounts: []*resource.Account{
+				{
+					AccountName:       "master",
+					Email:             "master@example.com",
+					ManagementAccount: true,
+				},
+			},
+		},
+		ParseExpected: &resource.OrganizationUnit{
+			OUName: "root",
+			ChildOUs: []*resource.OrganizationUnit{
+				{
+					OUName: "ProductionTenants",
+					Accounts: []*resource.Account{
+						{
+							AccountName:       "prod-us0",
+							Email:             "prod-us0@example.com",
+							ManagementAccount: true,
+							BaselineStacks: []resource.Stack{
+								{
+									Type: "Terraform",
+									Path: "tf/s3-test",
+								},
+								{
+									Type:      "Terraform",
+									Path:      "tf/dynamo",
+									Name:      "Dynamo",
+									Workspace: "{telophase.account_id}_{telophase.region}",
+									Region:    "us-west-2",
+								},
+								{
+									Type:      "Terraform",
+									Path:      "tf/dynamo",
+									Name:      "Dynamo",
+									Workspace: "{telophase.account_id}_{telophase.region}",
+									Region:    "eu-west-1",
+								},
+							},
+						},
+						{},
+					},
+				},
+				{
+					OUName: "DevTenants",
+				},
+			},
+			Accounts: []*resource.Account{},
+		},
+
+		ExpectedResources: func(t *testing.T) {
+			// TODO: Check accounts for resources
+		},
+		Targets: []string{"stacks"},
+	},
 }
 
 func TestEndToEnd(t *testing.T) {
@@ -966,7 +1043,7 @@ func TestEndToEnd(t *testing.T) {
 		err = ioutil.WriteFile("organization.yml", []byte(test.OrgYaml), 0644)
 		assert.NoError(t, err, "Failed to write organization.yml")
 
-		parsedOrg, err := ymlparser.NewParser(orgClient).ParseOrganizationV2(ctx, "organization.yml")
+		parsedOrg, err := ymlparser.NewParser(orgClient).ParseOrganization(ctx, "organization.yml")
 		assert.NoError(t, err, "Failed to parse organization.yml")
 
 		compareOrganizationUnits(t, test.ParseExpected, parsedOrg, false)
