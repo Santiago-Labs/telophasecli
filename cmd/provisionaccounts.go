@@ -73,12 +73,12 @@ func processOrg(consoleUI runner.ConsoleUI, cmd string) {
 			return
 		}
 		consoleUI.Print("Importing AWS Organization", *mgmtAcct)
-		if err := importOrgV2(ctx, consoleUI, orgClient, mgmtAcct); err != nil {
+		if err := importOrg(ctx, consoleUI, orgClient, mgmtAcct); err != nil {
 			consoleUI.Print(fmt.Sprintf("error importing organization: %s", err), *mgmtAcct)
 		}
 	}
 
-	rootAWSOU, err := ymlparser.NewParser(orgClient).ParseOrganizationV2(ctx, orgFile)
+	rootAWSOU, err := ymlparser.NewParser(orgClient).ParseOrganization(ctx, orgFile)
 	if err != nil {
 		consoleUI.Print(fmt.Sprintf("error parsing organization: %s", err), resource.Account{AccountID: "error", AccountName: "error"})
 	}
@@ -126,7 +126,7 @@ func processOrg(consoleUI runner.ConsoleUI, cmd string) {
 	consoleUI.Print("Done.\n", *mgmtAcct)
 }
 
-func importOrgV2(ctx context.Context, consoleUI runner.ConsoleUI, orgClient awsorgs.Client, mgmtAcct *resource.Account) error {
+func importOrg(ctx context.Context, consoleUI runner.ConsoleUI, orgClient awsorgs.Client, mgmtAcct *resource.Account) error {
 
 	rootId, err := orgClient.GetRootId()
 	if err != nil {
@@ -146,7 +146,7 @@ func importOrgV2(ctx context.Context, consoleUI runner.ConsoleUI, orgClient awso
 		Accounts: rootOU.Accounts,
 	}
 
-	if err := ymlparser.WriteOrgV2File(orgFile, &org); err != nil {
+	if err := ymlparser.WriteOrgFile(orgFile, &org); err != nil {
 		return err
 	}
 

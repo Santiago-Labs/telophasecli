@@ -28,7 +28,7 @@ func NewParser(orgClient awsorgs.Client) Parser {
 	}
 }
 
-func (o Parser) ParseOrganizationV2(ctx context.Context, filepath string) (*resource.OrganizationUnit, error) {
+func (o Parser) ParseOrganization(ctx context.Context, filepath string) (*resource.OrganizationUnit, error) {
 	if filepath == "" {
 		return nil, errors.New("filepath is empty")
 	}
@@ -44,7 +44,7 @@ func (o Parser) ParseOrganizationV2(ctx context.Context, filepath string) (*reso
 		return nil, err
 	}
 
-	if err := validOrganizationV2(org.Organization); err != nil {
+	if err := validOrganization(org.Organization); err != nil {
 		return nil, err
 	}
 
@@ -150,7 +150,7 @@ func hydrateOUParent(parsedOU *resource.OrganizationUnit) {
 	}
 }
 
-func WriteOrgV2File(filepath string, org *resource.OrganizationUnit) error {
+func WriteOrgFile(filepath string, org *resource.OrganizationUnit) error {
 	orgData := orgDatav2{
 		Organization: *org,
 	}
@@ -170,7 +170,7 @@ func WriteOrgV2File(filepath string, org *resource.OrganizationUnit) error {
 	return nil
 }
 
-func validOrganizationV2(data resource.OrganizationUnit) error {
+func validOrganization(data resource.OrganizationUnit) error {
 	accountEmails := map[string]struct{}{}
 
 	validStates := []string{"delete", ""}
