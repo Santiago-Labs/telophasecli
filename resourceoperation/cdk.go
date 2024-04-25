@@ -45,7 +45,7 @@ func (co *cdkOperation) ListDependents() []ResourceOperation {
 func (co *cdkOperation) Call(ctx context.Context) error {
 	co.OutputUI.Print(fmt.Sprintf("Executing CDK stack in %s", co.Stack.Path), *co.Account)
 
-	opRole, region, err := authAWS(*co.Account, co.Account.AssumeRoleARN(), co.OutputUI)
+	opRole, region, err := authAWS(*co.Account, *co.Stack.RoleARN(*co.Account), co.OutputUI)
 	if err != nil {
 		return err
 	}
@@ -54,14 +54,6 @@ func (co *cdkOperation) Call(ctx context.Context) error {
 	bootstrapCDK := bootstrapCDK(opRole, region, *co.Account, co.Stack)
 	if err := co.OutputUI.RunCmd(bootstrapCDK, *co.Account); err != nil {
 		return err
-	}
-
-	// We use the stack role if it set after we have bootstrapped.
-	if roleArn := co.Stack.RoleARN(*co.Account); roleArn != nil {
-		opRole, _, err = authAWS(*co.Account, *roleArn, co.OutputUI)
-		if err != nil {
-			return err
-		}
 	}
 
 	synthCDK := synthCDK(opRole, *co.Account, co.Stack)
