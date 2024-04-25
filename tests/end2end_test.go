@@ -513,6 +513,77 @@ Organization:
 		},
 	},
 	{
+		Name: "Test that we can apply stacks via CDK",
+		OrgYaml: `
+Organization:
+    Name: root
+    Stacks:
+      - Type: CDK 
+        Path: cdk/s3-test
+    Accounts:
+      - AccountName: master
+        Email: master@example.com
+`,
+		FetchExpected: &resource.OrganizationUnit{
+			OUName: "root",
+			BaselineStacks: []resource.Stack{
+				{
+					Type: "Terraform",
+					Path: "cdk/s3-test",
+				},
+			},
+			Accounts: []*resource.Account{
+				{
+					AccountName:       "master",
+					Email:             "master@example.com",
+					ManagementAccount: true,
+				},
+			},
+		},
+		ParseExpected: &resource.OrganizationUnit{
+			OUName: "root",
+			BaselineStacks: []resource.Stack{
+				{
+					Type: "Terraform",
+					Path: "cdk/s3-test",
+				},
+			},
+			Accounts: []*resource.Account{
+				{
+					AccountName:       "master",
+					Email:             "master@example.com",
+					ManagementAccount: true,
+				},
+			},
+		},
+		ExpectedResources: func(t *testing.T) {
+			sess, err := session.NewSession(&aws.Config{
+				Region:           aws.String("us-east-1"),
+				Endpoint:         aws.String("http://localhost:4566"),
+				S3ForcePathStyle: aws.Bool(true),
+			})
+			if err != nil {
+				t.Fatalf("Failed to create session: %v", err)
+			}
+
+			svc := s3.New(sess)
+			result, err := svc.ListBuckets(nil)
+			if err != nil {
+				t.Fatalf("Failed to list buckets: %v", err)
+			}
+
+			var bucketNames []string
+			for _, b := range result.Buckets {
+				bucketNames = append(bucketNames, *b.Name)
+			}
+
+			if len(bucketNames) != 1 || bucketNames[0] != "test" {
+				t.Fatalf("Test failed, expected only 'test' bucket, found buckets: %v", bucketNames)
+			}
+		},
+	},
+
+	{
 		Name: "Test that we can target new accounts only",
 		OrgYaml: `
 Organization:
