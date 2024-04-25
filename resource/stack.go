@@ -35,7 +35,8 @@ func (s Stack) RoleARN(acct Account) *string {
 		return &result
 	}
 
-	return nil
+	acctRole := acct.AssumeRoleARN()
+	return &acctRole
 }
 
 func (s Stack) AWSRegionEnv() *string {
