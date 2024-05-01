@@ -141,6 +141,28 @@ func (c Client) GetOrganizationUnit(ctx context.Context, OUId string) (*organiza
 	return out.OrganizationalUnit, nil
 }
 
+func (c Client) GetTags(ctx context.Context, id string) ([]string, error) {
+	var tags []string
+	err := c.organizationClient.ListTagsForResourcePagesWithContext(ctx, &organizations.ListTagsForResourceInput{
+		ResourceId: &id,
+	},
+		func(page *organizations.ListTagsForResourceOutput, lastPage bool) bool {
+			for _, tag := range page.Tags {
+				if aws.StringValue(tag.Value) != "" {
+					tags = append(tags, aws.StringValue(tag.Key)+"="+aws.StringValue(tag.Value))
+				} else {
+					tags = append(tags, aws.StringValue(tag.Key))
+				}
+			}
+			return !lastPage
+		},
+	)
+	if err != nil {
+		return nil, oops.Wrapf(err, "listing tags for id: %s", id)
+	}
+	return tags, nil
+}
+
 func (c Client) GetOrganizationUnitChildren(ctx context.Context, OUId string) ([]*organizations.OrganizationalUnit, error) {
 	var childOUs []*organizations.OrganizationalUnit
 
@@ -189,11 +211,13 @@ func (c Client) CreateOrganizationUnit(
 	consoleUI runner.ConsoleUI,
 	mgmtAcct resource.Account,
 	ouName, newParentId string,
+	tags []string,
 ) (*organizations.OrganizationalUnit, error) {
 	consoleUI.Print(fmt.Sprintf("Creating OU: Name=%s\n", ouName), mgmtAcct)
 	out, err := c.organizationClient.CreateOrganizationalUnitWithContext(ctx, &organizations.CreateOrganizationalUnitInput{
 		Name:     &ouName,
 		ParentId: &newParentId,
+		Tags:     buildTags(tags),
 	})
 	if err != nil {
 		return nil, err
@@ -207,8 +231,9 @@ func (c Client) RecreateOU(
 	consoleUI runner.ConsoleUI,
 	mgmtAcct resource.Account,
 	ouID, ouName, newParentId string,
+	tags []string,
 ) error {
-	newOU, err := c.CreateOrganizationUnit(ctx, consoleUI, mgmtAcct, ouName, newParentId)
+	newOU, err := c.CreateOrganizationUnit(ctx, consoleUI, mgmtAcct, ouName, newParentId, tags)
 	if err != nil {
 		return err
 	}
@@ -229,7 +254,7 @@ func (c Client) RecreateOU(
 		return err
 	}
 	for _, childOU := range childOUs {
-		err := c.RecreateOU(ctx, consoleUI, mgmtAcct, *childOU.Id, *childOU.Name, *newOU.Id)
+		err := c.RecreateOU(ctx, consoleUI, mgmtAcct, *childOU.Id, *childOU.Name, *newOU.Id, tags)
 		if err != nil {
 			return err
 		}
@@ -248,22 +273,71 @@ func (c Client) UpdateOrganizationUnit(ctx context.Context, ouID, newName string
 	return err
 }
 
+func buildTags(tags []string) []*organizations.Tag {
+	var awsTags []*organizations.Tag
+	for _, t := range tags {
+		parts := strings.Split(t, "=")
+		key := parts[0]
+		value := ""
+		if len(parts) == 2 {
+			value = parts[1]
+		}
+
+		awsTags = append(awsTags, &organizations.Tag{
+			Key:   aws.String(key),
+			Value: aws.String(value),
+		})
+	}
+
+	return awsTags
+}
+
+func (c Client) TagResource(ctx context.Context, id string, tags []string) error {
+	_, err := c.organizationClient.TagResourceWithContext(ctx,
+		&organizations.TagResourceInput{
+			ResourceId: aws.String(id),
+			Tags:       buildTags(tags),
+		})
+	if err != nil {
+		return oops.Wrapf(err, "tagging: %s", id)
+	}
+	return nil
+}
+
+func (c Client) UntagResources(ctx context.Context, id string, tags []string) error {
+	if len(tags) == 0 {
+		return nil
+	}
+	var tagKeys []*string
+	for _, t := range tags {
+		parts := strings.Split(t, "=")
+		key := parts[0]
+		tagKeys = append(tagKeys, &key)
+	}
+
+	_, err := c.organizationClient.UntagResourceWithContext(ctx,
+		&organizations.UntagResourceInput{
+			ResourceId: aws.String(id),
+			TagKeys:    tagKeys,
+		})
+	if err != nil {
+		return oops.Wrapf(err, "tagging: %s", id)
+	}
+	return nil
+}
+
 func (c Client) CreateAccount(
 	ctx context.Context,
 	consoleUI runner.ConsoleUI,
 	mgmtAcct resource.Account,
 	acct *organizations.Account,
+	tags []string,
 ) (string, error) {
 	consoleUI.Print(fmt.Sprintf("Creating Account: Name=%s Email=%s\n", *acct.Name, *acct.Email), mgmtAcct)
 	out, err := c.organizationClient.CreateAccount(&organizations.CreateAccountInput{
 		AccountName: acct.Name,
 		Email:       acct.Email,
-		Tags: []*organizations.Tag{
-			{
-				Key:   aws.String("TelophaseManaged"),
-				Value: aws.String("true"),
-			},
-		},
+		Tags:        buildTags(tags),
 	})
 	if err != nil {
 		consoleUI.Print(fmt.Sprintf("Error creating account: %s.\n", err.Error()), mgmtAcct)

@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"html/template"
 	"log"
+	"text/template"
 
 	"github.com/fatih/color"
 	"github.com/santiago-labs/telophasecli/cmd/runner"
@@ -23,6 +23,13 @@ type organizationUnitOperation struct {
 	OrgClient           awsorgs.Client
 	ConsoleUI           runner.ConsoleUI
 	DependentOperations []ResourceOperation
+	TagsDiff            *TagsDiff
+}
+
+// TagsDiff needs to be exported so it can be read by the template.
+type TagsDiff struct {
+	Added   []string
+	Removed []string
 }
 
 func NewOrganizationUnitOperation(
@@ -34,6 +41,7 @@ func NewOrganizationUnitOperation(
 	newParent *resource.OrganizationUnit,
 	currentParent *resource.OrganizationUnit,
 	newName *string,
+	tagsDiff *TagsDiff,
 ) ResourceOperation {
 
 	return &organizationUnitOperation{
@@ -45,6 +53,7 @@ func NewOrganizationUnitOperation(
 		CurrentParent:    currentParent,
 		NewName:          newName,
 		MgmtAccount:      mgmtAcct,
+		TagsDiff:         tagsDiff,
 	}
 }
 
@@ -90,6 +99,7 @@ func CollectOrganizationUnitOps(
 								parsedOU.Parent,
 								providerOU.Parent,
 								nil,
+								nil,
 							))
 						}
 					}
@@ -105,8 +115,28 @@ func CollectOrganizationUnitOps(
 							parsedOU.Parent,
 							providerOU.Parent,
 							nil,
+							nil,
 						),
 					)
+				}
+
+				added, removed := diffTags(parsedOU)
+				if len(added) > 0 || len(removed) > 0 {
+					fmt.Println("adding new", removed, added)
+					operations = append(operations, NewOrganizationUnitOperation(
+						orgClient,
+						consoleUI,
+						parsedOU,
+						mgmtAcct,
+						UpdateTags,
+						parsedOU.Parent,
+						providerOU.Parent,
+						nil,
+						&TagsDiff{
+							Added:   added,
+							Removed: removed,
+						},
+					))
 				}
 				break
 			}
@@ -129,6 +159,7 @@ func CollectOrganizationUnitOps(
 							parsedOU.Parent,
 							nil,
 							nil,
+							nil,
 						))
 					}
 				}
@@ -141,6 +172,7 @@ func CollectOrganizationUnitOps(
 						mgmtAcct,
 						Create,
 						parsedOU.Parent,
+						nil,
 						nil,
 						nil,
 					),
@@ -170,6 +202,7 @@ func CollectOrganizationUnitOps(
 								UpdateParent,
 								parsedAcct.Parent,
 								providerAcct.Parent,
+								nil,
 							))
 						}
 					}
@@ -182,8 +215,28 @@ func CollectOrganizationUnitOps(
 						UpdateParent,
 						parsedAcct.Parent,
 						providerAcct.Parent,
+						nil,
 					))
 				}
+
+				added, removed := diffTags(parsedAcct)
+				if len(added) > 0 || len(removed) > 0 {
+					fmt.Println("added, removed ", added, removed)
+					operations = append(operations, NewAccountOperation(
+						orgClient,
+						consoleUI,
+						parsedAcct,
+						mgmtAcct,
+						UpdateTags,
+						parsedAcct.Parent,
+						providerAcct.Parent,
+						&TagsDiff{
+							Added:   added,
+							Removed: removed,
+						},
+					))
+				}
+
 				break
 			}
 		}
@@ -204,6 +257,7 @@ func CollectOrganizationUnitOps(
 							Create,
 							parsedAcct.Parent,
 							nil,
+							nil,
 						)
 						newOU.AddDependent(newAcct)
 					}
@@ -216,6 +270,7 @@ func CollectOrganizationUnitOps(
 					mgmtAcct,
 					Create,
 					parsedAcct.Parent,
+					nil,
 					nil,
 				)
 				operations = append(operations, newAcct)
@@ -236,13 +291,13 @@ func (ou *organizationUnitOperation) ListDependents() []ResourceOperation {
 
 func (ou *organizationUnitOperation) Call(ctx context.Context) error {
 	if ou.Operation == Create {
-		newOrg, err := ou.OrgClient.CreateOrganizationUnit(ctx, ou.ConsoleUI, *ou.MgmtAccount, ou.OrganizationUnit.OUName, *ou.OrganizationUnit.Parent.OUID)
+		newOrg, err := ou.OrgClient.CreateOrganizationUnit(ctx, ou.ConsoleUI, *ou.MgmtAccount, ou.OrganizationUnit.OUName, *ou.OrganizationUnit.Parent.OUID, ou.OrganizationUnit.AllTags())
 		if err != nil {
 			return err
 		}
 		ou.OrganizationUnit.OUID = newOrg.Id
 	} else if ou.Operation == UpdateParent {
-		err := ou.OrgClient.RecreateOU(ctx, ou.ConsoleUI, *ou.MgmtAccount, *ou.OrganizationUnit.OUID, ou.OrganizationUnit.OUName, *ou.OrganizationUnit.Parent.OUID)
+		err := ou.OrgClient.RecreateOU(ctx, ou.ConsoleUI, *ou.MgmtAccount, *ou.OrganizationUnit.OUID, ou.OrganizationUnit.OUName, *ou.OrganizationUnit.Parent.OUID, ou.OrganizationUnit.AllTags())
 		if err != nil {
 			return err
 		}
@@ -251,6 +306,17 @@ func (ou *organizationUnitOperation) Call(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+	} else if ou.Operation == UpdateTags {
+		err := ou.OrgClient.TagResource(ctx, *ou.OrganizationUnit.OUID, ou.OrganizationUnit.AllTags())
+		if err != nil {
+			return err
+		}
+		err = ou.OrgClient.UntagResources(ctx, *ou.OrganizationUnit.OUID, ou.TagsDiff.Removed)
+		if err != nil {
+			return err
+		}
+
+		runner.ConsoleUI.Print(ou.ConsoleUI, "updated tags", *ou.MgmtAccount)
 	}
 
 	for _, op := range ou.DependentOperations {
@@ -270,9 +336,15 @@ func (ou *organizationUnitOperation) ToString() string {
 		templated = "\n" + `(Create Organizational Unit)
 +	Name: {{ .OrganizationUnit.Name }}
 +	Parent ID: {{ if .NewParent.ID }}{{ .NewParent.ID }}{{else}}<computed>{{end}}
-+	Parent Name: {{ .NewParent.Name }}
-
++	Parent Name: {{ .NewParent.Name }}`
+		if len(ou.OrganizationUnit.AllTags()) > 0 {
+			templated = templated + "\n" + `
++	Tags: {{ range AWSTags }}
++		- {{ . }}{{ end }}
 `
+
+		}
+
 	} else if ou.Operation == UpdateParent {
 		templated = "\n" + `(Update Organizational Unit Parent)
 ID: {{ .OrganizationUnit.ID }}
@@ -287,9 +359,34 @@ ID: {{ .OrganizationUnit.ID }}
 ~	Name: {{ .OrganizationUnit.Name }} -> {{ .NewName }}
 
 `
+	} else if ou.Operation == UpdateTags {
+		templated = "\n" + `(Update OU Tags)
+ID: {{ .OrganizationUnit.ID }}
+Tags: `
+		if ou.TagsDiff.Added != nil {
+			// TODO: ensure that just the tag line is green/red to more clearly denote the diff. Do this in account as well.
+			templated = templated + `(Adding Tags){{ range .TagsDiff.Added}}
++ 	{{ . }}{{ end }}
+`
+			if ou.TagsDiff.Removed == nil {
+				printColor = "green"
+			}
+		}
+		if ou.TagsDiff.Removed != nil {
+			templated = templated + `(Removing Tags){{ range .TagsDiff.Removed }}
+-	{{ . }}{{ end }}
+`
+			if ou.TagsDiff.Added == nil {
+				printColor = "red"
+			}
+		}
 	}
 
-	tpl, err := template.New("operation").Parse(templated)
+	tpl, err := template.New("operation").Funcs(template.FuncMap{
+		"AWSTags": func() []string {
+			return ou.OrganizationUnit.AllTags()
+		},
+	}).Parse(templated)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -299,6 +396,9 @@ ID: {{ .OrganizationUnit.ID }}
 	}
 	if printColor == "yellow" {
 		return color.YellowString(buf.String())
+	}
+	if printColor == "red" {
+		return color.RedString(buf.String())
 	}
 	return color.GreenString(buf.String())
 }
@@ -312,4 +412,71 @@ func FlattenOperations(topList []ResourceOperation) []ResourceOperation {
 	}
 
 	return finalOperations
+}
+
+type Taggable interface {
+	AllTags() []string
+	AllAWSTags() []string
+}
+
+func diffTags(taggable Taggable) (added, removed []string) {
+	oldMap := make(map[string]struct{})
+	for _, tag := range taggable.AllAWSTags() {
+		if ignorableTag(tag) {
+			continue
+		}
+		oldMap[tag] = struct{}{}
+	}
+
+	taggableMap := make(map[string]struct{})
+	for _, tag := range taggable.AllTags() {
+		taggableMap[tag] = struct{}{}
+	}
+
+	for _, tag := range taggable.AllTags() {
+		if _, ok := oldMap[tag]; !ok {
+			if contains(added, tag) {
+				// There can be duplicates when tags are inherited from an OU
+				continue
+			}
+			// All the added tags don't exist in the
+			added = append(added, tag)
+			continue
+		}
+	}
+
+	for _, tag := range taggable.AllAWSTags() {
+		if ignorableTag(tag) {
+			continue
+		}
+		if _, ok := taggableMap[tag]; !ok {
+			if contains(removed, tag) {
+				// There can be duplicates when tags are inherited from an OU
+				continue
+			}
+			// All the removed tags don't exist on the taggable
+			removed = append(removed, tag)
+			continue
+		}
+	}
+
+	return added, removed
+}
+
+func contains(slc []string, check string) bool {
+	for _, s := range slc {
+		if s == check {
+			return true
+		}
+	}
+	return false
+}
+
+func ignorableTag(tag string) bool {
+	ignorableTags := map[string]struct{}{
+		"TelophaseManaged=true": {},
+	}
+
+	_, ok := ignorableTags[tag]
+	return ok
 }

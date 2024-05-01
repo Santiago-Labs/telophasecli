@@ -18,6 +18,7 @@ type Account struct {
 
 	AssumeRoleName         string            `yaml:"AssumeRoleName,omitempty"`
 	Tags                   []string          `yaml:"Tags,omitempty"`
+	AWSTags                []string          `yaml:"-"`
 	BaselineStacks         []Stack           `yaml:"Stacks,omitempty"`
 	ServiceControlPolicies []Stack           `yaml:"ServiceControlPolicies,omitempty"`
 	ManagementAccount      bool              `yaml:"-"`
@@ -64,6 +65,41 @@ func (a Account) AllTags() []string {
 	if a.Parent != nil {
 		tags = append(tags, a.Parent.AllTags()...)
 	}
+	return tags
+}
+
+func (a Account) AllAWSTags() []string {
+	var tags []string
+	tags = append(tags, a.AWSTags...)
+	if a.Parent != nil {
+		tags = append(tags, a.Parent.AllAWSTags()...)
+	}
+	return tags
+}
+
+func (a Account) CurrentTags() []string {
+	// Default tags for every account
+	var tags []string
+	currTags := make(map[string]struct{})
+	for _, tag := range a.Tags {
+		key := strings.Split(tag, "=")[0]
+		if _, exists := currTags[key]; exists {
+			panic(fmt.Sprintf("duplicate tag key: %s on account with email: %s", key, a.Email))
+		}
+	}
+
+	tags = append(tags, a.Tags...)
+	if a.Parent != nil {
+		for _, tag := range a.Parent.AllTags() {
+			key := strings.Split(tag, "=")[0]
+			if _, exists := currTags[key]; exists {
+				panic(fmt.Sprintf("duplicate tag key: %s on account with email : %s inherited from parent tree", key, a.Email))
+			}
+
+			tags = append(tags, tag)
+		}
+	}
+
 	return tags
 }
 

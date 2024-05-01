@@ -37,7 +37,7 @@ Organization:
             Name: "Default IAM Roles for CI"
         # Tags are specified here
         Tags:
-          - "production"
+          - "env=production"
         Accounts:
           - Email: production+us0@example.com
             AccountName: US0 
@@ -64,6 +64,6 @@ Organization:
 ```
 ## Using Tags
 
-Running `telophasecli deploy --tag=production` will only deploy terraform and CDK changes for the accounts named `US0`, `US1`, `US2`, `US3`. The resulting TUI looks like:
+Running `telophasecli deploy --tag="env=production"` will only deploy terraform and CDK changes for the accounts named `US0`, `US1`, `US2`, `US3`. The resulting TUI looks like:
 
 <img src="/images/tui-tags.png" style={{ borderRadius: '0.5rem' }} />

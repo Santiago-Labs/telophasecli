@@ -3,11 +3,12 @@ package resourceoperation
 import (
 	"bytes"
 	"context"
-	"html/template"
 	"log"
+	"text/template"
 
 	"github.com/aws/aws-sdk-go/service/organizations"
 	"github.com/fatih/color"
+	"github.com/samsarahq/go/oops"
 	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/resource"
@@ -22,6 +23,7 @@ type accountOperation struct {
 	DependentOperations []ResourceOperation
 	ConsoleUI           runner.ConsoleUI
 	OrgClient           *awsorgs.Client
+	TagsDiff            *TagsDiff
 }
 
 func NewAccountOperation(
@@ -31,6 +33,7 @@ func NewAccountOperation(
 	operation int,
 	newParent *resource.OrganizationUnit,
 	currentParent *resource.OrganizationUnit,
+	tagsDiff *TagsDiff,
 ) ResourceOperation {
 
 	return &accountOperation{
@@ -41,6 +44,7 @@ func NewAccountOperation(
 		ConsoleUI:     consoleUI,
 		OrgClient:     &orgClient,
 		MgmtAccount:   mgmtAcct,
+		TagsDiff:      tagsDiff,
 	}
 }
 
@@ -93,7 +97,7 @@ func (ao *accountOperation) Call(ctx context.Context) error {
 			Email: &ao.Account.Email,
 			Name:  &ao.Account.AccountName,
 		}
-		acctID, err := ao.OrgClient.CreateAccount(ctx, ao.ConsoleUI, *ao.MgmtAccount, acct)
+		acctID, err := ao.OrgClient.CreateAccount(ctx, ao.ConsoleUI, *ao.MgmtAccount, acct, ao.Account.AllTags())
 		if err != nil {
 			return err
 		}
@@ -114,6 +118,17 @@ func (ao *accountOperation) Call(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+	} else if ao.Operation == UpdateTags {
+		err := ao.OrgClient.TagResource(ctx, ao.Account.AccountID, ao.Account.AllTags())
+		if err != nil {
+			return oops.Wrapf(err, "UpdateTags")
+		}
+		err = ao.OrgClient.UntagResources(ctx, ao.Account.AccountID, ao.TagsDiff.Removed)
+		if err != nil {
+			return oops.Wrapf(err, "UntagResources")
+		}
+
+		ao.ConsoleUI.Print("Updated Tags", *ao.Account)
 	}
 
 	for _, op := range ao.DependentOperations {
@@ -135,8 +150,15 @@ func (ao *accountOperation) ToString() string {
 +	Email: {{ .Account.Email }}
 +	Parent ID: {{ if .NewParent.ID }}{{ .NewParent.ID }}{{else}}<computed>{{end}}
 +	Parent Name: {{ .NewParent.Name }}
-
 `
+
+		if len(ao.Account.AllTags()) > 0 {
+			templated = templated +
+				`+	Tags: {{ range AllTags }}
++	- {{ . }}{{ end }}
+`
+
+		}
 	} else if ao.Operation == UpdateParent {
 		templated = "\n" + `(Update Account Parent)
 ID: {{ .Account.AccountID }}
@@ -146,9 +168,39 @@ Email: {{ .Account.Email }}
 ~	Parent Name: {{ .CurrentParent.Name }} -> {{ .NewParent.Name }}
 
 `
+	} else if ao.Operation == UpdateTags {
+		// We need to compute which tags have changed
+		templated = "\n" + `(Updating Account Tags)
+ID: {{ .Account.AccountID }}
+Name: {{ .Account.AccountName }}
+Tags: `
+
+		if ao.TagsDiff.Added != nil {
+			templated = templated + `(Added Tags){{ range .TagsDiff.Added }}
++	{{ . }}{{ end }}
+`
+			if ao.TagsDiff.Removed == nil {
+				printColor = "green"
+			}
+		}
+
+		if ao.TagsDiff.Removed != nil {
+			templated = templated + `(Removed Tags){{ range .TagsDiff.Removed}}
+-	{{ . }}{{end}}
+`
+			if ao.TagsDiff.Added == nil {
+				printColor = "red"
+			}
+		}
 	}
 
-	tpl, err := template.New("operation").Parse(templated)
+	tpl, err := template.New("operation").Funcs(template.FuncMap{
+		"AllTags": func() []string {
+			tags := ao.Account.AllTags()
+
+			return tags
+		},
+	}).Parse(templated)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -158,6 +210,9 @@ Email: {{ .Account.Email }}
 	}
 	if printColor == "yellow" {
 		return color.YellowString(buf.String())
+	}
+	if printColor == "red" {
+		return color.RedString(buf.String())
 	}
 	return color.GreenString(buf.String())
 }

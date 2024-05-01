@@ -45,7 +45,7 @@ Organization:
 Accounts:
   - Email:  # (Required) Email used to create the account. This will be the root user for this account.
     AccountName:  # (Required) Name of the account.
-    Tags:  # (Optional) Telophase label for this account.
+    Tags:  # (Optional) Telophase label for this account. Tags translate to AWS tags with a `=` as the key value delimiter. For example, `telophase:env=prod`
     Stacks:  # (Optional) CDK or Terraform stacks to apply to all accounts in this Organization Unit.
     State:  # (Optional) Can be set to `deleted` to delete an account. Experimental.
 ```
@@ -126,7 +126,9 @@ This will run two separate applies in the `us-prod` account:
 2. `tf/default-vpc` Terraform stack.
 
 # Tags
-Tags can be used to perform operations on groups of accounts. `Account`s and `OrganizationUnits`s can be tagged. Tags do _not_ represent AWS `Tag`s.
+Tags can be used to perform operations on groups of accounts. `Account`s and `OrganizationUnits`s can be tagged. Tags represent AWS `Tag`s.
+Telophase Tags map to AWS tags with a key, value pair delimited by an `=`. For example, `env=dev` will translate to an AWS tag on an Account or OU with the key `env` and value `dev`.
+
 
 Telophase commands optionally take tags as inputs, allowing you to limit the scope of the operation. 
 
@@ -136,13 +138,12 @@ Telophase commands optionally take tags as inputs, allowing you to limit the sco
     - Email: newdev+1@telophase.dev
       AccountName: newdev1
       Tags:
-        - "dev"
+        - "env=dev"
     - Email: newdev+2@telophase.dev
       AccountName: newdev2
-      Tags:
-        - "dev"
+
     - Email: production@telophase.dev
       AccountName: production
 ```
 
-`telophasecli diff --tag dev` will show a `diff` for `newdev1` and `newdev2` accounts only.
+`telophasecli diff --tag "env=dev"` will show a `diff` for only the `newdev1` account.

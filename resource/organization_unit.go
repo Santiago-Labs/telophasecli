@@ -6,6 +6,7 @@ type OrganizationUnit struct {
 	ChildGroups            []*OrganizationUnit `yaml:"AccountGroups,omitempty"` // Deprecated. Use `OrganizationUnits`
 	ChildOUs               []*OrganizationUnit `yaml:"OrganizationUnits,omitempty"`
 	Tags                   []string            `yaml:"Tags,omitempty"`
+	AWSTags                []string            `yaml:"-"`
 	Accounts               []*Account          `yaml:"Accounts,omitempty"`
 	BaselineStacks         []Stack             `yaml:"Stacks,omitempty"`
 	ServiceControlPolicies []Stack             `yaml:"ServiceControlPolicies,omitempty"`
@@ -32,6 +33,15 @@ func (grp OrganizationUnit) AllTags() []string {
 	tags = append(tags, grp.Tags...)
 	if grp.Parent != nil {
 		tags = append(tags, grp.Parent.AllTags()...)
+	}
+	return tags
+}
+
+func (grp OrganizationUnit) AllAWSTags() []string {
+	var tags []string
+	tags = append(tags, grp.AWSTags...)
+	if grp.Parent != nil {
+		tags = append(tags, grp.Parent.AllAWSTags()...)
 	}
 	return tags
 }

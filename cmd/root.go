@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/samsarahq/go/oops"
 	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
 	"github.com/santiago-labs/telophasecli/lib/metrics"
@@ -162,7 +163,7 @@ func resolveMgmtAcct(
 
 	fetchedMgmtAcct, err := orgClient.FetchManagementAccount(ctx)
 	if err != nil {
-		return nil, err
+		return nil, oops.Wrapf(err, "FetchManagementAccount")
 	}
 	return fetchedMgmtAcct, nil
 }

@@ -9,6 +9,7 @@ const (
 	UpdateParent = 1
 	Create       = 2
 	Update       = 3
+	UpdateTags   = 6
 
 	// IaC
 	Diff   = 4
