@@ -91,6 +91,9 @@ func (p Parser) HydrateParsedOrg(ctx context.Context, parsedOrg *resource.Organi
 		}
 	}
 
+	// We have to hydrate tags after account ID to get the right tags.
+	p.hydrateTags(ctx, parsedOrg)
+
 	return nil
 }
 
@@ -138,6 +141,28 @@ func (p Parser) hydrateOUID(parsedOU *resource.OrganizationUnit, providerOU *org
 				return err
 			}
 		}
+	}
+
+	return nil
+}
+
+func (p Parser) hydrateTags(ctx context.Context, ou *resource.OrganizationUnit) error {
+	tags, err := p.orgClient.GetTags(ctx, ou.ID())
+	if err != nil {
+		return oops.Wrapf(err, "GetTags OUID: %s", ou.ID())
+	}
+	ou.AWSTags = tags
+
+	for _, parsedChild := range ou.AllDescendentOUs() {
+		p.hydrateTags(ctx, parsedChild)
+	}
+
+	for _, acct := range ou.AllDescendentAccounts() {
+		tags, err := p.orgClient.GetTags(ctx, acct.ID())
+		if err != nil {
+			return oops.Wrapf(err, "GetTags Account ID: %s", acct.ID())
+		}
+		acct.AWSTags = tags
 	}
 
 	return nil
