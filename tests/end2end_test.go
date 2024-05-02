@@ -9,6 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/organizations"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/santiago-labs/telophasecli/cmd"
@@ -913,6 +914,86 @@ Organization:
 			}
 
 			assert.Equal(t, *result.Buckets[0].Name, "test")
+		},
+		Targets: []string{"stacks"},
+	},
+	{
+		Name: "Cloudformation example",
+		OrgYaml: `
+Organization:
+    Name: root
+    Accounts:
+      - AccountName: master
+        Email: master@example.com
+        Stacks:
+          - Type: Cloudformation 
+            Path: cloudformation/table.yml
+            Region: us-west-2
+            CloudformationParameters:
+              - "HashKeyElementName=Painter" 
+              - "TableName=test" 
+      - AccountName: test
+        Email: test@example.com
+`,
+		FetchExpected: &resource.OrganizationUnit{
+			OUName: "root",
+			Accounts: []*resource.Account{
+				{
+					AccountName:       "master",
+					Email:             "master@example.com",
+					ManagementAccount: true,
+				},
+			},
+		},
+		ParseExpected: &resource.OrganizationUnit{
+			OUName:   "root",
+			ChildOUs: []*resource.OrganizationUnit{},
+			Accounts: []*resource.Account{
+				{
+					AccountName:       "master",
+					Email:             "master@example.com",
+					ManagementAccount: true,
+					BaselineStacks: []resource.Stack{
+						{
+							Type:   "Cloudformation",
+							Path:   "cloudformation/table.yml",
+							Region: "us-west-2",
+							CloudformationParameters: []string{
+								"HashKeyElementName=Painter",
+								"TableName=test",
+							},
+						},
+					},
+				},
+				{
+					AccountName: "test",
+					Email:       "test@example.com",
+				},
+			},
+		},
+		ExpectedResources: func(t *testing.T) {
+			sess, err := session.NewSession(&aws.Config{
+				Region:           aws.String("us-west-2"),
+				Endpoint:         aws.String("http://localhost:4566"),
+				S3ForcePathStyle: aws.Bool(true),
+			})
+			if err != nil {
+				t.Fatalf("Failed to create session: %v", err)
+			}
+
+			svc := dynamodb.New(sess)
+
+			result, err := svc.ListTables(&dynamodb.ListTablesInput{})
+			if err != nil {
+				t.Fatalf("Failed to list buckets: %v", err)
+			}
+
+			if len(result.TableNames) == 0 {
+				t.Fatal("No tables created")
+			}
+
+			fmt.Println("table name", *result.TableNames[0])
+			assert.Equal(t, *result.TableNames[0], "test")
 		},
 		Targets: []string{"stacks"},
 	},
