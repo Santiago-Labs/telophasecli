@@ -139,6 +139,20 @@ func (a Account) AllBaselineStacks() ([]Stack, error) {
 		returnStacks = append(returnStacks, currStack)
 	}
 
+	cloudformationStackNames := map[string]struct{}{}
+	for _, stack := range returnStacks {
+		if err := stack.Validate(); err != nil {
+			return nil, err
+		}
+
+		if stack.Type == "Cloudformation" {
+			if _, ok := cloudformationStackNames[*stack.CloudformationStackName()]; ok {
+				return nil, oops.Errorf("Multiple Cloudformation stacks have the same Name: (%s) and Path (%s). Please set a distinct Name", stack.Name, stack.Path)
+			}
+			cloudformationStackNames[*stack.CloudformationStackName()] = struct{}{}
+		}
+	}
+
 	return returnStacks, nil
 }
 

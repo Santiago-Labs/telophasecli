@@ -77,6 +77,8 @@ func CollectAccountOps(
 			ops = append(ops, NewTFOperation(consoleUI, acct, stack, operation))
 		} else if stack.Type == "CDK" {
 			ops = append(ops, NewCDKOperation(consoleUI, acct, stack, operation))
+		} else if stack.Type == "Cloudformation" {
+			ops = append(ops, NewCloudformationOperation(consoleUI, acct, stack, operation))
 		}
 	}
 

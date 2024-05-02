@@ -2,7 +2,11 @@ package resource
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/samsarahq/go/oops"
 )
 
@@ -15,6 +19,8 @@ type Stack struct {
 	RoleOverrideARNDeprecated string `yaml:"RoleOverrideARN,omitempty"` // Deprecated
 	AssumeRoleName            string `yaml:"AssumeRoleName,omitempty"`
 	Workspace                 string `yaml:"Workspace,omitempty"`
+
+	CloudformationParameters []string `yaml:"CloudformationParameters,omitempty"`
 }
 
 func (s Stack) NewForRegion(region string) Stack {
@@ -26,6 +32,7 @@ func (s Stack) NewForRegion(region string) Stack {
 		RoleOverrideARNDeprecated: s.RoleOverrideARNDeprecated,
 		AssumeRoleName:            s.AssumeRoleName,
 		Workspace:                 s.Workspace,
+		CloudformationParameters:  s.CloudformationParameters,
 	}
 }
 
@@ -62,10 +69,50 @@ func (s Stack) Validate() error {
 		}
 		return nil
 
+	case "Cloudformation":
+		if _, err := s.CloudformationParametersType(); err != nil {
+			return oops.Wrapf(err, "")
+		}
+		return nil
+
 	case "":
 		return oops.Errorf("stack type needs to be set for stack: %+v", s)
 
 	default:
 		return oops.Errorf("only support stack types of `Terraform` and `CDK` not: %s", s.Type)
 	}
+}
+
+func (s Stack) CloudformationParametersType() ([]*cloudformation.Parameter, error) {
+	var params []*cloudformation.Parameter
+	for _, param := range s.CloudformationParameters {
+		parts := strings.Split(param, "=")
+		if len(parts) != 2 {
+			return nil, oops.Errorf("cloudformation parameter (%s) should be = delimited and have 2 parts it has %d parts", param, len(parts))
+		}
+
+		params = append(params, &cloudformation.Parameter{
+			ParameterKey:   aws.String(parts[0]),
+			ParameterValue: aws.String(parts[1]),
+		})
+	}
+
+	return params, nil
+}
+
+func (s Stack) CloudformationStackName() *string {
+	// Replace:
+	// - "/" with "-", "/" appears in the path
+	// - "." with "-", "." shows up with "".yml" or ".json"
+	name := strings.ReplaceAll(strings.ReplaceAll(s.Path, "/", "-"), ".", "-")
+	if s.Name != "" {
+		name = strings.ReplaceAll(s.Name, " ", "-") + "-" + name
+	}
+
+	return &name
+}
+
+func (s Stack) ChangeSetName() *string {
+	changeSetName := fmt.Sprintf("telophase-%s-%d", *s.CloudformationStackName(), time.Now().Unix())
+	return &changeSetName
 }
