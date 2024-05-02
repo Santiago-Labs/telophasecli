@@ -918,6 +918,71 @@ Organization:
 		Targets: []string{"stacks"},
 	},
 	{
+		Name: "CDK example",
+		OrgYaml: `
+Organization:
+    Name: root
+    Accounts:
+      - AccountName: master
+        Email: master@example.com
+        Stacks:
+          - Type: CDK
+            Path: cdk/dynamo
+`,
+		FetchExpected: &resource.OrganizationUnit{
+			OUName: "root",
+			Accounts: []*resource.Account{
+				{
+					AccountName:       "master",
+					Email:             "master@example.com",
+					ManagementAccount: true,
+				},
+			},
+		},
+		ParseExpected: &resource.OrganizationUnit{
+			OUName:   "root",
+			ChildOUs: []*resource.OrganizationUnit{},
+			Accounts: []*resource.Account{
+				{
+					AccountName:       "master",
+					Email:             "master@example.com",
+					ManagementAccount: true,
+					BaselineStacks: []resource.Stack{
+						{
+							Type: "CDK",
+							Path: "cdk/dynamo",
+							// Region: "us-west-2",
+						},
+					},
+				},
+			},
+		},
+		ExpectedResources: func(t *testing.T) {
+			sess, err := session.NewSession(&aws.Config{
+				Region:           aws.String("us-east-1"),
+				Endpoint:         aws.String("http://localhost:4566"),
+				S3ForcePathStyle: aws.Bool(true),
+			})
+			if err != nil {
+				t.Fatalf("Failed to create session: %v", err)
+			}
+
+			svc := dynamodb.New(sess)
+
+			result, err := svc.ListTables(&dynamodb.ListTablesInput{})
+			if err != nil {
+				t.Fatalf("Failed to list buckets: %v", err)
+			}
+
+			if len(result.TableNames) == 0 {
+				t.Fatal("No tables created")
+			}
+
+			assert.Equal(t, *result.TableNames[0], "cdktesttable")
+		},
+		Targets: []string{"stacks"},
+	},
+	{
 		Name: "Cloudformation example",
 		OrgYaml: `
 Organization:
@@ -992,7 +1057,6 @@ Organization:
 				t.Fatal("No tables created")
 			}
 
-			fmt.Println("table name", *result.TableNames[0])
 			assert.Equal(t, *result.TableNames[0], "test")
 		},
 		Targets: []string{"stacks"},
