@@ -3,7 +3,7 @@ title: 'organization.yml'
 description: 'Configure your `organization.yml`'
 ---
 
-This file, `organization.yml` represents your AWS Organization. Any changes to `Accounts` or `OrganizationUnits` will be reflected in your AWS Organization. You can create new accounts or organization units, move accounts to different organization units, and assign `cdk` or `terraform` stacks at **any** level in the hierarchy.
+This file, `organization.yml` represents your AWS Organization. Any changes to `Accounts` or `OrganizationUnits` will be reflected in your AWS Organization. You can create new accounts or organization units, move accounts to different organization units, and assign `Terraform`, `Cloudformation`, `CDK`stacks at **any** level in the hierarchy.
 
 # Structure
 Telophase allows you to structure accounts in any way the cloud provider allows. You can nest `Organization Units` within each other.
@@ -13,7 +13,7 @@ Organization:
     Name: root  ## AWS Organization Root
     OrganizationUnits:  ## Organization Units
         - Name: ProductionTenants
-          Stacks:  ## CDK or Terraform stacks to apply to all accounts in this Organization Unit
+          Stacks:  ## Terraform, Cloudformation and CDK stacks to apply to all accounts in this Organization Unit
             - Path: go/src/cdk
               Type: CDK
               Name: telophase-owner
@@ -46,7 +46,7 @@ Accounts:
   - Email:  # (Required) Email used to create the account. This will be the root user for this account.
     AccountName:  # (Required) Name of the account.
     Tags:  # (Optional) Telophase label for this account. Tags translate to AWS tags with a `=` as the key value delimiter. For example, `telophase:env=prod`
-    Stacks:  # (Optional) CDK or Terraform stacks to apply to all accounts in this Organization Unit.
+    Stacks:  # (Optional) Terraform, Cloudformation and CDK stacks to apply to all accounts in this Organization Unit.
     State:  # (Optional) Can be set to `deleted` to delete an account. Experimental.
 ```
 
@@ -70,7 +70,7 @@ This will create two Accounts:
 OrganizationUnits:
   - Name:  # (Required) Name of the Organization Unit.
     Accounts:  # (Optional) Child accounts of this Organization Unit.
-    Stacks:  # (Optional) CDK or Terraform stacks to apply to all accounts in this Organization Unit.
+    Stacks:  # (Optional) Terraform, Cloudformation, and CDK stacks to apply to all accounts in this Organization Unit.
     OrganizationUnits:  # (Optional) Child Organization Units of this Organization Unit.
 ```
 
@@ -96,16 +96,17 @@ This will create two OUs:
 2. `Dev Accounts` with child accounts `developer1` and `developer2`
 
 # Stacks
-CDK and Terraform stacks can be assigned to `Account`s and `OrganizationUnits`s. Stacks assigned to `OrganizationUnits` will be applied to all child `Account`s.
+Terraform, Cloudformation and CDK stacks can be assigned to `Account`s and `OrganizationUnits`s. Stacks assigned to `OrganizationUnits` will be applied to all child `Account`s.
 
 ```yaml
 Stacks:
   - Path:  # (Required) Path to CDK or Terraform project. This must be a directory.
-    Type:  # (Required) "CDK" or "Terraform".
+    Type:  # (Required) "Terraform", "CDK", "Cloudformation .
     Name:  # (Optional) Name of the Stack to filter on with --stacks.
-    AssumeRoleName:  # (Optional) Force CDK and Terraform to us a specific role when applying a stack. The default role is the account's `AssumeRoleName` which is typically the `OrganizationAccountAccessRole`.
+    AssumeRoleName:  # (Optional) Force the stack to use a specific role when applying a stack. The default role is the account's `AssumeRoleName` which is typically the `OrganizationAccountAccessRole`.
     Region: # (Optional) What region the stack's resources will be provisioned in. Region can be a comma separated list of regions or "all" to apply to all regions in an account.
     Workspace: # (Optional) Specify a Terraform workspace to use.
+    CloudformationParameters: # (Optional) A list of parameters to pass into the cloudformation stack.
 ```
 
 ### Example

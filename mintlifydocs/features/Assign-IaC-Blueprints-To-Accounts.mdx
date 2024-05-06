@@ -3,7 +3,7 @@ title: 'Assign IaC Blueprints to Accounts'
 icon: 'hand-pointer'
 ---
 
-Terraform and CDK (AWS Only) can be assigned at any level in the hierarchy. All child accounts inherit the stack.
+Terraform, Cloudformation and CDK (AWS Only) can be assigned at any level in the hierarchy. All child accounts inherit the stack.
 
 ## Example
 ```yml
@@ -24,6 +24,13 @@ Organization:
                 Type: Terraform
                 # You can set the region for where you want the resources to be created.
                 Region: "us-west-2"
+                # Cloudformation Path has to go directly to a cloudformation file.
+              - Path: cloudformation/table.yml
+                Type: CloudformationParameters 
+                # Set Cloudformation Parameters as Key=Value and can be passed in as a list.
+                CloudformationParameters:
+                  - "HashKeyElementName=Painter" 
+                  - "TableName=test" 
           - Email: safety+ingestion@example.app
             AccountName: Safety Ingestion Team
       - Name: Development
@@ -38,14 +45,17 @@ Organization:
 ```
 
 # Stacks
-CDK and Terraform stacks can be assigned to `Account`s and `OrganizationUnits`s. Stacks assigned to `OrganizationUnits` will be applied to all child `Account`s.
+Stacks can be assigned to `Account`s and `OrganizationUnits`s. Stacks assigned
+to `OrganizationUnits` will be applied to all child `Account`s. A Stack is a
+collection of resources that you can manage as one block in YAML.
 
 ```yaml
 Stacks:
   - Path:  # (Required) Path to CDK or Terraform project. This must be a directory.
-    Type:  # (Required) "CDK" or "Terraform".
+    Type:  # (Required) "CDK", "Terraform", or "Cloudformation".
     Name:  # (Optional) Name of the Stack to filter on with --stacks.
-    AssumeRoleName:  # (Optional) Force CDK and Terraform to us a specific role when applying a stack. The default role is the account's `AssumeRoleName` which is typically the `OrganizationAccountAccessRole`.
+    AssumeRoleName:  # (Optional) Force the stack to use a specific role when applying a stack. The default role is the account's `AssumeRoleName` which is typically the `OrganizationAccountAccessRole`.
     Region: # (Optional) What region the stack's resources will be provisioned in. Region can be a comma separated list of regions or "all" to apply to all regions in an account.
     Workspace: # (Optional) Specify a Terraform workspace to use. 
+    CloudformationParameters: # (Optional) A list of parameters to pass into the cloudformation stack.
 ```
