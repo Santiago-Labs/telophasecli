@@ -108,6 +108,9 @@ func (s Stack) CloudformationStackName() *string {
 	if s.Name != "" {
 		name = strings.ReplaceAll(s.Name, " ", "-") + "-" + name
 	}
+	if s.Region != "" {
+		name = name + "-" + s.Region
+	}
 
 	return &name
 }
