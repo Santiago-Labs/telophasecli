@@ -6,9 +6,9 @@ COPY ./ /telophasecli
 
 RUN go mod download
 
-# Build the Go app
-RUN go build -o telophasecli
-RUN alias telophase="./telophasecli"
+# run go install instead so that we can reuse the PATH to from the baseto from
+# the base image.
+RUN go install
 
 RUN apt-get update
 # We need npm to install the CDK and terraform
