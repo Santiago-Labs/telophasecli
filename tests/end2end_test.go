@@ -958,27 +958,7 @@ Organization:
 			},
 		},
 		ExpectedResources: func(t *testing.T) {
-			sess, err := session.NewSession(&aws.Config{
-				Region:           aws.String("us-east-1"),
-				Endpoint:         aws.String("http://localhost:4566"),
-				S3ForcePathStyle: aws.Bool(true),
-			})
-			if err != nil {
-				t.Fatalf("Failed to create session: %v", err)
-			}
-
-			svc := dynamodb.New(sess)
-
-			result, err := svc.ListTables(&dynamodb.ListTablesInput{})
-			if err != nil {
-				t.Fatalf("Failed to list buckets: %v", err)
-			}
-
-			if len(result.TableNames) == 0 {
-				t.Fatal("No tables created")
-			}
-
-			assert.Equal(t, *result.TableNames[0], "cdktesttable")
+			assertTable(t, "us-east-1", "cdktesttable")
 		},
 		Targets: []string{"stacks"},
 	},
@@ -993,7 +973,7 @@ Organization:
         Stacks:
           - Type: Cloudformation 
             Path: cloudformation/table.yml
-            Region: us-west-2
+            Region: "us-west-2,us-east-1"
             CloudformationParameters:
               - "HashKeyElementName=Painter" 
               - "TableName=test" 
@@ -1022,7 +1002,7 @@ Organization:
 						{
 							Type:   "Cloudformation",
 							Path:   "cloudformation/table.yml",
-							Region: "us-west-2",
+							Region: "us-west-2,us-east-1",
 							CloudformationParameters: []string{
 								"HashKeyElementName=Painter",
 								"TableName=test",
@@ -1037,27 +1017,8 @@ Organization:
 			},
 		},
 		ExpectedResources: func(t *testing.T) {
-			sess, err := session.NewSession(&aws.Config{
-				Region:           aws.String("us-west-2"),
-				Endpoint:         aws.String("http://localhost:4566"),
-				S3ForcePathStyle: aws.Bool(true),
-			})
-			if err != nil {
-				t.Fatalf("Failed to create session: %v", err)
-			}
-
-			svc := dynamodb.New(sess)
-
-			result, err := svc.ListTables(&dynamodb.ListTablesInput{})
-			if err != nil {
-				t.Fatalf("Failed to list buckets: %v", err)
-			}
-
-			if len(result.TableNames) == 0 {
-				t.Fatal("No tables created")
-			}
-
-			assert.Equal(t, *result.TableNames[0], "test")
+			assertTable(t, "us-west-2", "test")
+			assertTable(t, "us-east-1", "test")
 		},
 		Targets: []string{"stacks"},
 	},
@@ -1127,4 +1088,29 @@ func TestEndToEnd(t *testing.T) {
 		test.ExpectedResources(t)
 
 	}
+}
+
+func assertTable(t *testing.T, region, tableName string) {
+	sess, err := session.NewSession(&aws.Config{
+		Region:           aws.String(region),
+		Endpoint:         aws.String("http://localhost:4566"),
+		S3ForcePathStyle: aws.Bool(true),
+	})
+	if err != nil {
+		t.Fatalf("Failed to create session: %v", err)
+	}
+
+	svc := dynamodb.New(sess)
+
+	result, err := svc.ListTables(&dynamodb.ListTablesInput{})
+	if err != nil {
+		t.Fatalf("Failed to list buckets: %v", err)
+	}
+
+	if len(result.TableNames) == 0 {
+		t.Fatal("No tables created")
+	}
+
+	assert.Equal(t, *result.TableNames[0], tableName)
+
 }
