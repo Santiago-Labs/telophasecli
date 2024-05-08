@@ -16,8 +16,11 @@ func runIAC(
 	consoleUI runner.ConsoleUI,
 	cmd int,
 	accts []resource.Account,
-) {
+) error {
 	var wg sync.WaitGroup
+
+	var once sync.Once
+	var retError error
 
 	for i := range accts {
 		wg.Add(1)
@@ -40,6 +43,9 @@ func runIAC(
 
 			for _, op := range ops {
 				if err := op.Call(ctx); err != nil {
+					once.Do(func() {
+						retError = err
+					})
 					consoleUI.Print(fmt.Sprintf("%v", err), acct)
 					return
 				}
@@ -48,6 +54,8 @@ func runIAC(
 	}
 
 	wg.Wait()
+
+	return retError
 }
 func contains(e string, s []string) bool {
 	for _, a := range s {
