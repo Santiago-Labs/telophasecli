@@ -2,10 +2,13 @@ package cmd
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"strings"
 
 	"github.com/santiago-labs/telophasecli/cmd/runner"
 	"github.com/santiago-labs/telophasecli/resourceoperation"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/spf13/cobra"
 )
@@ -25,20 +28,29 @@ var diffCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		if err := validateTargets(); err != nil {
-			fmt.Println(err)
-			return
+			log.Fatal("error validating targets err:", err)
 		}
 		var consoleUI runner.ConsoleUI
 		parsedTargets := filterEmptyStrings(strings.Split(targets, ","))
 
+		var g errgroup.Group
+
 		if useTUI {
 			consoleUI = runner.NewTUI()
-			go ProcessOrgEndToEnd(consoleUI, resourceoperation.Diff, parsedTargets)
+			g.Go(func() error {
+				return ProcessOrgEndToEnd(consoleUI, resourceoperation.Diff, parsedTargets)
+			})
 		} else {
 			consoleUI = runner.NewSTDOut()
-			ProcessOrgEndToEnd(consoleUI, resourceoperation.Diff, parsedTargets)
+			if err := ProcessOrgEndToEnd(consoleUI, resourceoperation.Diff, parsedTargets); err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
 		}
 
 		consoleUI.Start()
+		if err := g.Wait(); err != nil {
+			os.Exit(1)
+		}
 	},
 }

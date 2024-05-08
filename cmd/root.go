@@ -36,24 +36,28 @@ func Execute() {
 	}
 }
 
-func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int, targets []string) {
+func setOpsError() error {
+	return fmt.Errorf("error running operations")
+}
+
+func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int, targets []string) error {
 	ctx := context.Background()
 	orgClient := awsorgs.New()
 	rootAWSOU, err := ymlparser.NewParser(orgClient).ParseOrganization(ctx, orgFile)
 	if err != nil {
 		consoleUI.Print(fmt.Sprintf("error: %s", err), resource.Account{AccountID: "error", AccountName: "error"})
-		return
+		return oops.Wrapf(err, "ParseOrg")
 	}
 
 	if rootAWSOU == nil {
 		consoleUI.Print("Could not parse AWS Organization", resource.Account{AccountID: "error", AccountName: "error"})
-		return
+		return oops.Errorf("No root AWS OU")
 	}
 
 	mgmtAcct, err := resolveMgmtAcct(ctx, orgClient, rootAWSOU)
 	if err != nil {
 		consoleUI.Print(fmt.Sprintf("Could not fetch AWS Management Account: %s", err), resource.Account{AccountID: "error", AccountName: "error"})
-		return
+		return oops.Wrapf(err, "resolveMgmtAcct")
 	}
 
 	var deployStacks bool
@@ -72,6 +76,11 @@ func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int, targets []string) {
 		}
 	}
 
+	// opsError is the error we return eventually. We want to allow partially
+	// applied operations across organizations, IaC, and SCPs so we only return
+	// this error in the end.
+	var opsError error
+
 	if len(targets) == 0 || deployOrganization {
 		orgOps := resourceoperation.CollectOrganizationUnitOps(
 			ctx, consoleUI, orgClient, mgmtAcct, rootAWSOU, cmd,
@@ -88,6 +97,7 @@ func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int, targets []string) {
 				err := op.Call(ctx)
 				if err != nil {
 					consoleUI.Print(fmt.Sprintf("Error on AWS Organization Operation: %v", err), *mgmtAcct)
+					opsError = setOpsError()
 				}
 			}
 		}
@@ -105,7 +115,11 @@ func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int, targets []string) {
 			consoleUI.Print("No accounts to deploy.", *mgmtAcct)
 		}
 
-		runIAC(ctx, consoleUI, cmd, accountsToApply)
+		err := runIAC(ctx, consoleUI, cmd, accountsToApply)
+		if err != nil {
+			consoleUI.Print("No accounts to deploy.", *mgmtAcct)
+			opsError = setOpsError()
+		}
 	}
 
 	if len(targets) == 0 || deploySCP {
@@ -124,6 +138,7 @@ func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int, targets []string) {
 			err := op.Call(ctx)
 			if err != nil {
 				consoleUI.Print(fmt.Sprintf("Error on SCP Operation: %v", err), *scpAdmin)
+				opsError = setOpsError()
 			}
 		}
 
@@ -131,7 +146,9 @@ func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int, targets []string) {
 			consoleUI.Print("No Service Control Policies to deploy.", *scpAdmin)
 		}
 	}
+
 	consoleUI.Print("Done.\n", *mgmtAcct)
+	return opsError
 }
 
 func validateTargets() error {
