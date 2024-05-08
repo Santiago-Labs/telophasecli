@@ -1,4 +1,4 @@
-FROM golang:1.20
+FROM golang:1.22.2
 
 WORKDIR /telophasecli
 
