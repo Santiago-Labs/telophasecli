@@ -1,0 +1,49 @@
+name: release-docker-image
+
+on:
+  push:
+    # run only against tags
+    tags:
+      - "v*.*.*"
+
+env:
+  AWS_REGION: us-west-2    
+
+jobs:
+  buildx:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.ECR_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Amazon ECR Public
+        id: login-ecr-public
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+      
+      - name: Build, tag, and push docker image to Amazon ECR Public
+        env:
+          REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
+          REGISTRY_ALIAS: w0i7g3v8 
+          REPOSITORY: telophase 
+          # ref_name is the tag
+          IMAGE_TAG: ${{ github.ref_name }}
+        run: |
+          docker buildx build \
+            --platform linux/arm/v7,linux/arm64/v8,linux/amd64 \
+            --tag $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG \
+            --push .
