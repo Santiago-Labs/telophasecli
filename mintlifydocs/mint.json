@@ -67,9 +67,6 @@
     "default": "light",
     "isHidden": true
   },
-  "feedback": {
-    "thumbsRating": true
-  },
   "analytics": {
     "posthog": {
       "apiKey": "phc_whf6xThJIHQw6Og5F9dsP3eb7dkrh3N4oZT7nzDhMR0"
