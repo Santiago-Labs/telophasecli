@@ -128,6 +128,7 @@ func (co *cloudformationOp) createChangeSet(ctx context.Context) (*cloudformatio
 			ChangeSetName: co.Stack.ChangeSetName(),
 			TemplateBody:  &strTemplate,
 			ChangeSetType: &changeSetType,
+			Capabilities:  co.Stack.CloudformationCapabilitiesArg(),
 		},
 	)
 	if err != nil {
