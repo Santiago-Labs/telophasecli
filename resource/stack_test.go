@@ -41,3 +41,40 @@ func setFields(s *Stack) {
 		}
 	}
 }
+
+func TestCloudformationStackName(t *testing.T) {
+	tests := []struct {
+		input Stack
+
+		want string
+	}{
+		{
+			input: Stack{
+				Name:   "name",
+				Path:   "path",
+				Region: "us-west-2",
+			},
+			want: "name-path-us-west-2",
+		},
+		{
+			input: Stack{
+				Path:   "./path",
+				Region: "us-west-2",
+			},
+			want: "path-us-west-2",
+		},
+		{
+			input: Stack{
+				Name:   "@danny",
+				Path:   "./path",
+				Region: "us-west-2",
+			},
+			want: "danny---path-us-west-2",
+		},
+	}
+
+	for _, tc := range tests {
+		assert.Equal(t, tc.want, *tc.input.CloudformationStackName())
+	}
+
+}
