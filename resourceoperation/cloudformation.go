@@ -194,7 +194,7 @@ func (co *cloudformationOp) executeChangeSet(ctx context.Context, changeSetID *s
 			return cs, nil
 
 		case cloudformation.ExecutionStatusExecuteFailed:
-			co.OutputUI.Print(fmt.Sprintf("Failed to execute change set: (%s) for path: %s", *co.Stack.CloudformationStackName(), co.Stack.Path), *co.Account)
+			co.OutputUI.Print(fmt.Sprintf("Failed to execute change set: (%s) for path: %s Reason: %s", *co.Stack.CloudformationStackName(), co.Stack.Path, *cs.StatusReason), *co.Account)
 			return cs, oops.Errorf("ExecuteChangeSet failed")
 		}
 
