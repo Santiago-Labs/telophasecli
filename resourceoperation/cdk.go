@@ -51,6 +51,10 @@ func (co *cdkOperation) Call(ctx context.Context) error {
 		return err
 	}
 
+	if co.Stack.Region != "" {
+		region = co.Stack.Region
+	}
+
 	// We must bootstrap cdk with the account role.
 	bootstrapCDK := bootstrapCDK(creds, region, *co.Account, co.Stack)
 	if err := co.OutputUI.RunCmd(bootstrapCDK, *co.Account); err != nil {
