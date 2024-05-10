@@ -3,20 +3,22 @@ package awssts
 import (
 	"strings"
 
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/santiago-labs/telophasecli/lib/localstack"
 )
 
-func SetEnviron(currEnv []string,
-	accessKeyID,
-	secretAccessKey,
-	sessionToken string,
+func SetEnvironCreds(currEnv []string,
+	creds *sts.Credentials,
 	awsRegion *string) []string {
 	var newEnv []string
+
 	for _, e := range currEnv {
-		if strings.Contains(e, "AWS_ACCESS_KEY_ID=") ||
-			strings.Contains(e, "AWS_SECRET_ACCESS_KEY=") ||
-			strings.Contains(e, "AWS_SESSION_TOKEN=") {
-			continue
+		if creds != nil {
+			if strings.Contains(e, "AWS_ACCESS_KEY_ID=") ||
+				strings.Contains(e, "AWS_SECRET_ACCESS_KEY=") ||
+				strings.Contains(e, "AWS_SESSION_TOKEN=") {
+				continue
+			}
 		}
 
 		if awsRegion != nil && strings.Contains(e, "AWS_REGION=") {
@@ -26,11 +28,13 @@ func SetEnviron(currEnv []string,
 		newEnv = append(newEnv, e)
 	}
 
-	newEnv = append(newEnv,
-		"AWS_ACCESS_KEY_ID="+accessKeyID,
-		"AWS_SECRET_ACCESS_KEY="+secretAccessKey,
-		"AWS_SESSION_TOKEN="+sessionToken,
-	)
+	if creds != nil {
+		newEnv = append(newEnv,
+			"AWS_ACCESS_KEY_ID="+*creds.AccessKeyId,
+			"AWS_SECRET_ACCESS_KEY="+*creds.SecretAccessKey,
+			"AWS_SESSION_TOKEN="+*creds.SessionToken,
+		)
+	}
 
 	if awsRegion != nil {
 		newEnv = append(newEnv, *awsRegion)

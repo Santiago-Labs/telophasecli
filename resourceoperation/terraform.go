@@ -45,13 +45,13 @@ func (to *tfOperation) ListDependents() []ResourceOperation {
 func (to *tfOperation) Call(ctx context.Context) error {
 	to.OutputUI.Print(fmt.Sprintf("Executing Terraform stack in %s", to.Stack.Path), *to.Account)
 
-	var stackRole *sts.AssumeRoleOutput
+	var creds *sts.Credentials
 	var assumeRoleErr error
 	if to.Account.AccountID != "" {
 		if roleArn := to.Stack.RoleARN(*to.Account); roleArn != nil {
-			stackRole, _, assumeRoleErr = authAWS(*to.Account, *roleArn, to.OutputUI)
+			creds, _, assumeRoleErr = authAWS(*to.Account, *roleArn, to.OutputUI)
 		} else {
-			stackRole, _, assumeRoleErr = authAWS(*to.Account, to.Account.AssumeRoleARN(), to.OutputUI)
+			creds, _, assumeRoleErr = authAWS(*to.Account, to.Account.AssumeRoleARN(), to.OutputUI)
 		}
 
 		if assumeRoleErr != nil {
@@ -59,7 +59,7 @@ func (to *tfOperation) Call(ctx context.Context) error {
 		}
 	}
 
-	initTFCmd := to.initTf(stackRole)
+	initTFCmd := to.initTf(creds)
 	if initTFCmd != nil {
 		if err := to.OutputUI.RunCmd(initTFCmd, *to.Account); err != nil {
 			return err
@@ -67,7 +67,7 @@ func (to *tfOperation) Call(ctx context.Context) error {
 	}
 
 	// Set workspace if we are using it.
-	setWorkspace, err := to.setWorkspace(stackRole)
+	setWorkspace, err := to.setWorkspace(creds)
 	if err != nil {
 		return err
 	}
@@ -92,10 +92,8 @@ func (to *tfOperation) Call(ctx context.Context) error {
 	cmd := exec.Command(localstack.TfCmd(), args...)
 	cmd.Dir = workingPath
 
-	cmd.Env = awssts.SetEnviron(os.Environ(),
-		*stackRole.Credentials.AccessKeyId,
-		*stackRole.Credentials.SecretAccessKey,
-		*stackRole.Credentials.SessionToken,
+	cmd.Env = awssts.SetEnvironCreds(os.Environ(),
+		creds,
 		to.Stack.AWSRegionEnv(),
 	)
 
@@ -112,7 +110,7 @@ func (to *tfOperation) Call(ctx context.Context) error {
 	return nil
 }
 
-func (to *tfOperation) initTf(role *sts.AssumeRoleOutput) *exec.Cmd {
+func (to *tfOperation) initTf(creds *sts.Credentials) *exec.Cmd {
 	workingPath := terraform.TmpPath(*to.Account, to.Stack.Path)
 	terraformDir := filepath.Join(workingPath, ".terraform")
 	if terraformDir == "" || !strings.Contains(terraformDir, "telophasedirs") {
@@ -139,10 +137,8 @@ func (to *tfOperation) initTf(role *sts.AssumeRoleOutput) *exec.Cmd {
 		cmd := exec.Command(localstack.TfCmd(), "init")
 		cmd.Dir = workingPath
 
-		cmd.Env = awssts.SetEnviron(os.Environ(),
-			*role.Credentials.AccessKeyId,
-			*role.Credentials.SecretAccessKey,
-			*role.Credentials.SessionToken,
+		cmd.Env = awssts.SetEnvironCreds(os.Environ(),
+			creds,
 			to.Stack.AWSRegionEnv(),
 		)
 
@@ -168,7 +164,7 @@ func replaceVals(workspace, AccountID, Region string) (string, error) {
 	return currentContent, nil
 }
 
-func (to *tfOperation) setWorkspace(role *sts.AssumeRoleOutput) (*exec.Cmd, error) {
+func (to *tfOperation) setWorkspace(creds *sts.Credentials) (*exec.Cmd, error) {
 	if !to.Stack.WorkspaceEnabled() {
 		return nil, nil
 	}
@@ -183,10 +179,8 @@ func (to *tfOperation) setWorkspace(role *sts.AssumeRoleOutput) (*exec.Cmd, erro
 	cmd := exec.Command(localstack.TfCmd(), "workspace", "select", "-or-create", rewrittenWorkspace)
 	cmd.Dir = workingPath
 
-	cmd.Env = awssts.SetEnviron(os.Environ(),
-		*role.Credentials.AccessKeyId,
-		*role.Credentials.SecretAccessKey,
-		*role.Credentials.SessionToken,
+	cmd.Env = awssts.SetEnvironCreds(os.Environ(),
+		creds,
 		to.Stack.AWSRegionEnv(),
 	)
 

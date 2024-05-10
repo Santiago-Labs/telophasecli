@@ -105,10 +105,10 @@ func (so *scpOperation) ListDependents() []ResourceOperation {
 func (so *scpOperation) Call(ctx context.Context) error {
 	so.OutputUI.Print(fmt.Sprintf("Executing SCP Terraform stack in %s", so.Stack.Path), *so.MgmtAcct)
 
-	var acctRole *sts.AssumeRoleOutput
+	var creds *sts.Credentials
 	if so.MgmtAcct.AssumeRoleName != "" {
 		var err error
-		acctRole, _, err = authAWS(*so.MgmtAcct, so.MgmtAcct.AssumeRoleARN(), so.OutputUI)
+		creds, _, err = authAWS(*so.MgmtAcct, so.MgmtAcct.AssumeRoleARN(), so.OutputUI)
 		if err != nil {
 			return err
 		}
@@ -121,15 +121,11 @@ func (so *scpOperation) Call(ctx context.Context) error {
 	}
 
 	if initTFCmd != nil {
-		if acctRole != nil {
-			initTFCmd.Env = awssts.SetEnviron(os.Environ(),
-				*acctRole.Credentials.AccessKeyId,
-				*acctRole.Credentials.SecretAccessKey,
-				*acctRole.Credentials.SessionToken,
-				// SCPs can't have regions
-				nil,
-			)
-		}
+		initTFCmd.Env = awssts.SetEnvironCreds(os.Environ(),
+			creds,
+			// SCPs can't have regions
+			nil,
+		)
 		if err := so.OutputUI.RunCmd(initTFCmd, *so.MgmtAcct); err != nil {
 			return err
 		}
@@ -149,16 +145,11 @@ func (so *scpOperation) Call(ctx context.Context) error {
 	workingPath := so.tmpPath()
 	cmd := exec.Command(localstack.TfCmd(), args...)
 	cmd.Dir = workingPath
-
-	if acctRole != nil {
-		cmd.Env = awssts.SetEnviron(os.Environ(),
-			*acctRole.Credentials.AccessKeyId,
-			*acctRole.Credentials.SecretAccessKey,
-			*acctRole.Credentials.SessionToken,
-			// SCPs don't have regions
-			nil,
-		)
-	}
+	cmd.Env = awssts.SetEnvironCreds(os.Environ(),
+		creds,
+		// SCPs don't have regions
+		nil,
+	)
 
 	if err := so.OutputUI.RunCmd(cmd, *so.MgmtAcct); err != nil {
 		return err
