@@ -78,3 +78,105 @@ func TestCloudformationStackName(t *testing.T) {
 	}
 
 }
+
+func TestValidate(t *testing.T) {
+	tests := []struct {
+		input       Stack
+		description string
+
+		wantErr bool
+	}{
+		{
+			input: Stack{
+				Type:   "Cloudformation",
+				Name:   "name",
+				Path:   "path",
+				Region: "us-west-2",
+			},
+			wantErr: false,
+		},
+		{
+			input: Stack{
+				Type:   "Terraform",
+				Path:   "./path",
+				Region: "us-west-2",
+			},
+			wantErr: false,
+		},
+		{
+			input: Stack{
+				Type:   "CDK",
+				Name:   "@danny",
+				Path:   "./path",
+				Region: "us-west-2",
+			},
+			wantErr: false,
+		},
+		{
+			input: Stack{
+				Type:   "Cloudformation",
+				Name:   "name",
+				Path:   "path",
+				Region: "us-west-2",
+				CloudformationCapabilities: []string{
+					"IAM_CAPABILITY",
+				},
+			},
+			description: "misspelled cloudformation capabilities",
+			wantErr:     true,
+		},
+		{
+			input: Stack{
+				Type:   "Cloudformation",
+				Name:   "name",
+				Path:   "path",
+				Region: "us-west-2",
+				CloudformationCapabilities: []string{
+					"IAM_CAPABILITY",
+				},
+			},
+			description: "misspelled cloudformation capabilities",
+			wantErr:     true,
+		},
+		{
+			input: Stack{
+				Type:   "Cloudformation",
+				Name:   "name",
+				Path:   "path",
+				Region: "us-west-2",
+				CloudformationCapabilities: []string{
+					"CAPABILITY_IAM",
+					"CAPABILITY_NAMED_IAM",
+					"CAPABILITY_AUTO_EXPAND",
+				},
+			},
+			description: "all valid capabilities",
+			wantErr:     false,
+		},
+		{
+			input: Stack{
+				Type:   "Cloudformation",
+				Name:   "name",
+				Path:   "path",
+				Region: "us-west-2",
+				CloudformationCapabilities: []string{
+					"CAPABILITY_IAM",
+					"CAPABILITY_NAMED_IAM",
+					// Misspelled below
+					"CAPABILITY_AUTOO_EXPAND",
+				},
+			},
+			description: "one invalid capability",
+			wantErr:     true,
+		},
+	}
+
+	for _, tc := range tests {
+		if tc.wantErr {
+			assert.Error(t, tc.input.Validate())
+		} else {
+			assert.NoError(t, tc.input.Validate())
+		}
+	}
+
+}

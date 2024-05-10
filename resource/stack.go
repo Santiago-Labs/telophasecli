@@ -21,7 +21,8 @@ type Stack struct {
 	AssumeRoleName            string `yaml:"AssumeRoleName,omitempty"`
 	Workspace                 string `yaml:"Workspace,omitempty"`
 
-	CloudformationParameters []string `yaml:"CloudformationParameters,omitempty"`
+	CloudformationParameters   []string `yaml:"CloudformationParameters,omitempty"`
+	CloudformationCapabilities []string `yaml:"CloudformationCapabilities,omitempty"`
 }
 
 func (s Stack) NewForRegion(region string) Stack {
@@ -33,7 +34,9 @@ func (s Stack) NewForRegion(region string) Stack {
 		RoleOverrideARNDeprecated: s.RoleOverrideARNDeprecated,
 		AssumeRoleName:            s.AssumeRoleName,
 		Workspace:                 s.Workspace,
-		CloudformationParameters:  s.CloudformationParameters,
+
+		CloudformationParameters:   s.CloudformationParameters,
+		CloudformationCapabilities: s.CloudformationCapabilities,
 	}
 }
 
@@ -74,13 +77,20 @@ func (s Stack) Validate() error {
 		if _, err := s.CloudformationParametersType(); err != nil {
 			return oops.Wrapf(err, "")
 		}
+
+		if valid := s.ValidCloudformationCapabilities(); !valid {
+			return fmt.Errorf("cloudformation capabilities set: %v is not one of the valid capabilities (CAPABILITY_IAM | CAPABILITY_NAMED_IAM | CAPABILITY_AUTO_EXPAND)", s.CloudformationCapabilities)
+		}
+		if s.Workspace != "" {
+			return oops.Errorf("Workspace: (%s) should not be set for Cloudformation stack", s.Workspace)
+		}
 		return nil
 
 	case "":
 		return oops.Errorf("stack type needs to be set for stack: %+v", s)
 
 	default:
-		return oops.Errorf("only support stack types of `Terraform` and `CDK` not: %s", s.Type)
+		return oops.Errorf("only support stack types of `Cloudformation`, `Terraform` and `CDK` not: %s", s.Type)
 	}
 }
 
@@ -99,6 +109,32 @@ func (s Stack) CloudformationParametersType() ([]*cloudformation.Parameter, erro
 	}
 
 	return params, nil
+}
+
+func (s Stack) CloudformationCapabilitiesArg() []*string {
+	var result []*string
+	for _, cap := range s.CloudformationCapabilities {
+		mirror := cap
+		result = append(result, &mirror)
+	}
+
+	return result
+}
+
+func (s Stack) ValidCloudformationCapabilities() bool {
+	validCapabilities := map[string]struct{}{
+		"CAPABILITY_IAM":         {},
+		"CAPABILITY_NAMED_IAM":   {},
+		"CAPABILITY_AUTO_EXPAND": {},
+	}
+
+	for _, cap := range s.CloudformationCapabilities {
+		if _, ok := validCapabilities[cap]; !ok {
+			return false
+		}
+	}
+
+	return true
 }
 
 // CloudformationStackName returns the corresponding stack name to create in cloudformation.
