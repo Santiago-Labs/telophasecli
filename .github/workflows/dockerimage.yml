@@ -34,6 +34,9 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
         with:
           registry-type: public
+          # ECR login has to be done in us-east-1
+        env:
+          AWS_REGION: us-east-1
       
       - name: Build, tag, and push docker image to Amazon ECR Public
         env:
@@ -42,6 +45,7 @@ jobs:
           REPOSITORY: telophase 
           # ref_name is the tag
           IMAGE_TAG: ${{ github.ref_name }}
+          AWS_REGION: ${{ env.AWS_REGION }}
         run: |
           docker buildx build \
             --platform linux/arm/v7,linux/arm64/v8,linux/amd64 \
