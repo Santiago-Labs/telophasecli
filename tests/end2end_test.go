@@ -928,6 +928,7 @@ Organization:
         Stacks:
           - Type: CDK
             Path: cdk/dynamo
+            Region: "us-west-2,us-east-1" 
 `,
 		FetchExpected: &resource.OrganizationUnit{
 			OUName: "root",
@@ -949,9 +950,9 @@ Organization:
 					ManagementAccount: true,
 					BaselineStacks: []resource.Stack{
 						{
-							Type: "CDK",
-							Path: "cdk/dynamo",
-							// Region: "us-west-2",
+							Type:   "CDK",
+							Path:   "cdk/dynamo",
+							Region: "us-west-2,us-east-1",
 						},
 					},
 				},
@@ -959,6 +960,7 @@ Organization:
 		},
 		ExpectedResources: func(t *testing.T) {
 			assertTable(t, "us-east-1", "cdktesttable")
+			assertTable(t, "us-west-2", "cdktesttable")
 		},
 		Targets: []string{"stacks"},
 	},
