@@ -2,6 +2,7 @@ package resource
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -100,6 +101,9 @@ func (s Stack) CloudformationParametersType() ([]*cloudformation.Parameter, erro
 	return params, nil
 }
 
+//	CloudformationStackName returns the corresponding stack name to create in cloudformation.
+//
+// The name needs to match [a-zA-Z][-a-zA-Z0-9]*|arn:[-a-zA-Z0-9:/._+]*
 func (s Stack) CloudformationStackName() *string {
 	// Replace:
 	// - "/" with "-", "/" appears in the path
@@ -111,6 +115,16 @@ func (s Stack) CloudformationStackName() *string {
 	if s.Region != "" {
 		name = name + "-" + s.Region
 	}
+
+	// Stack name needs to start with [a-zA-Z]
+	// Remove leading characters that are not alphabetic
+	firstAlphaRegex := regexp.MustCompile(`^[^a-zA-Z]*`)
+	name = firstAlphaRegex.ReplaceAllString(name, "")
+
+	// Ensure the first character is alphabetic (already guaranteed by the previous step)
+	// Remove or replace all characters that do not match [-a-zA-Z0-9]
+	validCharsRegex := regexp.MustCompile(`[^-a-zA-Z0-9]+`)
+	name = validCharsRegex.ReplaceAllString(name, "-")
 
 	return &name
 }
