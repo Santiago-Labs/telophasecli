@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/cloudformation/cloudformationiface"
@@ -28,16 +28,20 @@ type cloudformationOp struct {
 }
 
 func NewCloudformationOperation(consoleUI runner.ConsoleUI, acct *resource.Account, stack resource.Stack, op int) ResourceOperation {
-	cfg := aws.NewConfig()
-	if stack.Region != "" {
-		cfg.WithRegion(stack.Region)
+	creds, _, err := authAWS(*acct, *stack.RoleARN(*acct), consoleUI)
+	if err != nil {
+		panic(oops.Wrapf(err, "authAWS"))
 	}
-	sess := session.Must(awssess.DefaultSession(cfg))
-	creds := stscreds.NewCredentials(sess, *stack.RoleARN(*acct))
-	cloudformationClient := cloudformation.New(sess,
-		&aws.Config{
-			Credentials: creds,
-		})
+
+	var newCreds *credentials.Credentials
+	if creds != nil {
+		newCreds = credentials.NewStaticCredentials(*creds.AccessKeyId, *creds.SecretAccessKey, *creds.SessionToken)
+	}
+
+	cloudformationClient := cloudformation.New(session.Must(awssess.DefaultSession(&aws.Config{
+		Credentials: newCreds,
+		Region:      &stack.Region,
+	})))
 
 	return &cloudformationOp{
 		Account:              acct,
