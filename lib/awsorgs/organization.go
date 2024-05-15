@@ -394,7 +394,7 @@ func (c Client) CloseAccounts(ctx context.Context, accts []*organizations.Accoun
 func (c Client) GetRootId() (string, error) {
 	rootsOutput, err := c.organizationClient.ListRoots(&organizations.ListRootsInput{})
 	if err != nil {
-		return "", oops.Wrapf(err, "organizaqtions.ListRootsInput, make sure you have access to organizations from this role")
+		return "", oops.Wrapf(err, "organizations.ListRootsInput, make sure you have access to organizations from this role")
 	}
 	if len(rootsOutput.Roots) > 0 {
 		return *rootsOutput.Roots[0].Id, nil
