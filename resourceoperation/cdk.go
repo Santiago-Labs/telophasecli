@@ -137,6 +137,10 @@ func synthCDK(creds *sts.Credentials, acct resource.Account, stack resource.Stac
 }
 
 func authAWS(acct resource.Account, arn string, consoleUI runner.ConsoleUI) (*sts.Credentials, string, error) {
+	if os.Getenv("TELOPHASE_BYPASS_ASSUME_ROLE") != "" {
+		return nil, "us-east-1", nil
+	}
+
 	var svc *sts.STS
 	sess := session.Must(awssess.DefaultSession())
 	svc = sts.New(sess)
