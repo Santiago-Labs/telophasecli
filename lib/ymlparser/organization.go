@@ -44,6 +44,13 @@ func (o Parser) ParseOrganization(ctx context.Context, filepath string) (*resour
 		return nil, err
 	}
 
+	// We hydrate the OU filepaths before validating the organization because we
+	// need every org from all the file branches to be populated so we can get
+	// their corresponding accountIDs.
+	if err := o.hydrateOUFilepaths(ctx, &org.Organization); err != nil {
+		return nil, err
+	}
+
 	if err := validOrganization(org.Organization); err != nil {
 		return nil, err
 	}
@@ -53,6 +60,31 @@ func (o Parser) ParseOrganization(ctx context.Context, filepath string) (*resour
 	}
 
 	return &org.Organization, nil
+}
+
+func (p Parser) hydrateOUFilepaths(ctx context.Context, ou *resource.OrganizationUnit) error {
+	if ou.OUFilepath != nil {
+		data, err := ioutil.ReadFile(*ou.OUFilepath)
+		if err != nil {
+			return fmt.Errorf("err: %s reading file for OUFilepath %s", err.Error(), *ou.OUFilepath)
+		}
+
+		var childOU resource.OrganizationUnit
+		if err := yaml.Unmarshal(data, &childOU); err != nil {
+			return oops.Wrapf(err, "UnmarshalChildOU")
+		}
+		// Now we replace where the ou is pointing to with this parsed OU.
+		*ou = childOU
+	}
+
+	for _, childOU := range ou.ChildOUs {
+		err := p.hydrateOUFilepaths(ctx, childOU)
+		if err != nil {
+			return oops.Wrapf(err, "HydrateFilepaths")
+		}
+	}
+
+	return nil
 }
 
 func (p Parser) HydrateParsedOrg(ctx context.Context, parsedOrg *resource.OrganizationUnit) error {
