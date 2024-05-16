@@ -42,7 +42,7 @@ func setOpsError() error {
 
 func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int, targets []string) error {
 	ctx := context.Background()
-	orgClient := awsorgs.New()
+	orgClient := awsorgs.New(nil)
 	rootAWSOU, err := ymlparser.NewParser(orgClient).ParseOrganization(ctx, orgFile)
 	if err != nil {
 		consoleUI.Print(fmt.Sprintf("error: %s", err), resource.Account{AccountID: "error", AccountName: "error"})

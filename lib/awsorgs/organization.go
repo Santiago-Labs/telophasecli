@@ -22,7 +22,19 @@ type Client struct {
 	organizationClient organizationsiface.OrganizationsAPI
 }
 
-func New() Client {
+type Config struct {
+	OrganizationClient organizationsiface.OrganizationsAPI
+}
+
+func New(cfg *Config) Client {
+	if cfg != nil {
+		if cfg.OrganizationClient != nil {
+			return Client{
+				organizationClient: cfg.OrganizationClient,
+			}
+		}
+	}
+
 	sess := session.Must(awssess.DefaultSession())
 	orgsClient := organizations.New(sess)
 

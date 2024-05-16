@@ -1034,7 +1034,7 @@ func TestEndToEnd(t *testing.T) {
 		}
 	}()
 
-	orgClient := awsorgs.New()
+	orgClient := awsorgs.New(nil)
 	for _, test := range tests {
 		fmt.Printf("Running test: %s\n", test.Name)
 		setupTest()

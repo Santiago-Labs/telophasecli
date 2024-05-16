@@ -63,7 +63,7 @@ var accountProvision = &cobra.Command{
 }
 
 func processOrg(consoleUI runner.ConsoleUI, cmd string) {
-	orgClient := awsorgs.New()
+	orgClient := awsorgs.New(nil)
 	ctx := context.Background()
 
 	if cmd == "import" {
