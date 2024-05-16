@@ -11,6 +11,8 @@ type OrganizationUnit struct {
 	BaselineStacks         []Stack             `yaml:"Stacks,omitempty"`
 	ServiceControlPolicies []Stack             `yaml:"ServiceControlPolicies,omitempty"`
 	Parent                 *OrganizationUnit   `yaml:"-"`
+
+	OUFilepath *string `yaml:"OUFilepath,omitempty"`
 }
 
 func (grp OrganizationUnit) ID() string {
