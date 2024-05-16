@@ -140,6 +140,10 @@ func (so *scpOperation) Call(ctx context.Context) error {
 		args = []string{
 			"apply", "-auto-approve",
 		}
+
+		if so.Stack.Destroy {
+			args = append(args, "-destroy")
+		}
 	}
 
 	workingPath := so.tmpPath()
