@@ -72,6 +72,7 @@ OrganizationUnits:
     Accounts:  # (Optional) Child accounts of this Organization Unit.
     Stacks:  # (Optional) Terraform, Cloudformation, and CDK stacks to apply to all accounts in this Organization Unit.
     OrganizationUnits:  # (Optional) Child Organization Units of this Organization Unit.
+  - OUFilepath: # (Oprtional) provide a filepath to load a separate OU into telophase.
 ```
 
 ### Example
@@ -118,13 +119,13 @@ Accounts:
     Stacks:
       - Path: go/src/cdk
         Type: CDK
-        Name: restrict-us
+        Name: s3-remote-state 
       - Path: tf/default-vpc
         Type: Terraform
 ```
 
 This will run two separate applies in the `us-prod` account:
-1. `restrict-us` CDK stack in `go/src/cdk`
+1. `s3-remote-state` CDK stack in `go/src/cdk` that stands up an s3 bucket for a terraform remote state.
 2. `tf/default-vpc` Terraform stack.
 
 # Tags
