@@ -1,0 +1,7 @@
+Organization:
+    Name: root
+
+    OrganizationUnits:
+    # Path needs to be relative to where telophase is run
+      - OUFilepath: "./testdata/organization-child.yml"
+      - OUFilepath: "./testdata/organization-child2.yml"

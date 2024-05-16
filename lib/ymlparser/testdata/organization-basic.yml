@@ -1,0 +1,27 @@
+Organization:
+  OrganizationUnits:
+    - Name: ExampleOU 
+      Tags:
+        - "ou=ExampleTenants"
+
+      Stacks:
+        - Type: "CDK"
+          Path: "examples/localstack/s3-remote-state"
+          Name: "example"
+
+      Accounts:
+        - Email: test1@example.com
+          AccountName: test1 
+          Stacks:
+          - Type: "CDK"
+            Path: "examples/cdk/sqs"
+            Name: "example"
+            Region: "us-west-2,us-east-1"
+
+        - Email: test2@example.com 
+          AccountName: test2 
+
+    - Name: ExampleOU2
+      Accounts:
+        - Email: test3@example.com 
+          AccountName: test3
