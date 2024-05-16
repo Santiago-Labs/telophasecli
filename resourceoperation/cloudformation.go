@@ -83,6 +83,14 @@ func (co *cloudformationOp) Call(ctx context.Context) error {
 		return nil
 	}
 
+	if co.Stack.Destroy {
+		err := co.DeleteStack(ctx)
+		if err != nil {
+			return oops.Wrapf(err, "DeleteStack")
+		}
+		return nil
+	}
+
 	_, err = co.executeChangeSet(ctx, cs.ChangeSetId)
 	if err != nil {
 		return oops.Wrapf(err, "executing change set")
@@ -200,6 +208,16 @@ func (co *cloudformationOp) executeChangeSet(ctx context.Context, changeSetID *s
 
 		time.Sleep(5 * time.Second)
 	}
+}
+
+func (co *cloudformationOp) DeleteStack(ctx context.Context) error {
+	_, err := co.CloudformationClient.DeleteStackWithContext(ctx, &cloudformation.DeleteStackInput{
+		StackName: co.Stack.CloudformationStackName(),
+	})
+	if err != nil {
+		return oops.Wrapf(err, "DeleteStackWithContext stack: %s", *co.Stack.CloudformationStackName())
+	}
+	return nil
 }
 
 func (co *cloudformationOp) ToString() string {
