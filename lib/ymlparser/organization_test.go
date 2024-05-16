@@ -82,6 +82,11 @@ func TestParseOrganization(t *testing.T) {
 			orgPath: "./testdata/organization-with-filepath.yml",
 			want:    basicOU(),
 		},
+		{
+			name:    "OU with one child inline and one filepath",
+			orgPath: "./testdata/organization-one-child.yml",
+			want:    basicOU(),
+		},
 	}
 	for _, tc := range tests {
 		mockClient := awsorgs.New(&awsorgs.Config{
