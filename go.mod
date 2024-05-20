@@ -1,6 +1,6 @@
 module github.com/santiago-labs/telophasecli
 
-go 1.20
+go 1.22
 
 require (
 	github.com/aws/aws-sdk-go v1.46.0
