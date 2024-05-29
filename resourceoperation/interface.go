@@ -10,6 +10,7 @@ const (
 	Create       = 2
 	Update       = 3
 	UpdateTags   = 6
+	Delete       = 7
 
 	// IaC
 	Diff   = 4

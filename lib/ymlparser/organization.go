@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/organizations"
 	"github.com/samsarahq/go/oops"
 	"github.com/santiago-labs/telophasecli/lib/awsorgs"
@@ -116,6 +117,7 @@ func (p Parser) HydrateParsedOrg(ctx context.Context, parsedOrg *resource.Organi
 		for _, parsedAcct := range parsedOrg.AllDescendentAccounts() {
 			if parsedAcct.Email == *providerAcct.Email {
 				parsedAcct.AccountID = *providerAcct.Id
+				parsedAcct.Status = aws.StringValue(providerAcct.Status)
 			}
 			if parsedAcct.Email == mgmtAcct.Email {
 				parsedAcct.ManagementAccount = true
@@ -230,15 +232,7 @@ func WriteOrgFile(filepath string, org *resource.OrganizationUnit) error {
 func validOrganization(data resource.OrganizationUnit) error {
 	accountEmails := map[string]struct{}{}
 
-	validStates := []string{"delete", ""}
 	for _, account := range data.AllDescendentAccounts() {
-		if ok := isOneOf(account.State,
-			"delete",
-			"",
-		); !ok {
-			return fmt.Errorf("invalid state (%s) for account %s valid states are: empty string or %v", account.State, account.AccountName, validStates)
-		}
-
 		if _, ok := accountEmails[account.Email]; ok {
 			return fmt.Errorf("duplicate account email %s", account.Email)
 		} else {
@@ -259,15 +253,6 @@ func validOrganization(data resource.OrganizationUnit) error {
 	}
 
 	return nil
-}
-
-func isOneOf(s string, valid ...string) bool {
-	for _, v := range valid {
-		if s == v {
-			return true
-		}
-	}
-	return false
 }
 
 func fileExists(filename string) bool {

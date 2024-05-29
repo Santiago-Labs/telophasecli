@@ -13,17 +13,20 @@ import (
 type Account struct {
 	Email       string `yaml:"Email"`
 	AccountName string `yaml:"AccountName"`
-	State       string `yaml:"State,omitempty"`
 	AccountID   string `yaml:"-"`
 
-	AssumeRoleName         string            `yaml:"AssumeRoleName,omitempty"`
-	Tags                   []string          `yaml:"Tags,omitempty"`
-	AWSTags                []string          `yaml:"-"`
-	BaselineStacks         []Stack           `yaml:"Stacks,omitempty"`
-	ServiceControlPolicies []Stack           `yaml:"ServiceControlPolicies,omitempty"`
-	ManagementAccount      bool              `yaml:"-"`
+	AssumeRoleName         string   `yaml:"AssumeRoleName,omitempty"`
+	Tags                   []string `yaml:"Tags,omitempty"`
+	AWSTags                []string `yaml:"-"`
+	BaselineStacks         []Stack  `yaml:"Stacks,omitempty"`
+	ServiceControlPolicies []Stack  `yaml:"ServiceControlPolicies,omitempty"`
+	ManagementAccount      bool     `yaml:"-"`
+
+	Delete                 bool              `yaml:"Delete"`
 	DelegatedAdministrator bool              `yaml:"DelegatedAdministrator,omitempty"`
 	Parent                 *OrganizationUnit `yaml:"-"`
+
+	Status string `yaml:"-,omitempty"`
 }
 
 func (a Account) AssumeRoleARN() string {

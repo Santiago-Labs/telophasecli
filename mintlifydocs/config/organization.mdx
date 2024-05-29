@@ -45,9 +45,10 @@ Organization:
 Accounts:
   - Email:  # (Required) Email used to create the account. This will be the root user for this account.
     AccountName:  # (Required) Name of the account.
+    Delete:  # (Optional) Set to true if you want telophase to close the account, after closing an account it can be removed from organizations.yml. 
+      # If deleting an account you need to pass in --allow-account-delete to telophasecli as a confirmation of the deletion.
     Tags:  # (Optional) Telophase label for this account. Tags translate to AWS tags with a `=` as the key value delimiter. For example, `telophase:env=prod`
     Stacks:  # (Optional) Terraform, Cloudformation and CDK stacks to apply to all accounts in this Organization Unit.
-    State:  # (Optional) Can be set to `deleted` to delete an account. Experimental.
 ```
 
 ## Example

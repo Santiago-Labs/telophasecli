@@ -14,9 +14,10 @@ import (
 )
 
 var (
-	tag     string
-	targets string
-	stacks  string
+	tag                string
+	targets            string
+	stacks             string
+	allowDeleteAccount bool
 
 	// TUI
 	useTUI bool
@@ -29,6 +30,7 @@ func init() {
 	deployCmd.Flags().StringVar(&targets, "targets", "", "Filter resource types to deploy. Options: organization, scp, stacks")
 	deployCmd.Flags().StringVar(&orgFile, "org", "organization.yml", "Path to the organization.yml file")
 	deployCmd.Flags().BoolVar(&useTUI, "tui", false, "use the TUI for deploy")
+	deployCmd.Flags().BoolVar(&allowDeleteAccount, "allow-account-delete", false, "Allow closing an AWS account")
 }
 
 var deployCmd = &cobra.Command{

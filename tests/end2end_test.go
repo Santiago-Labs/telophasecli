@@ -1055,7 +1055,7 @@ func TestEndToEnd(t *testing.T) {
 
 			ymlparser.NewParser(orgClient).HydrateParsedOrg(ctx, test.OrgInitialState)
 			orgOps := resourceoperation.CollectOrganizationUnitOps(
-				ctx, consoleUI, orgClient, mgmtAcct, test.OrgInitialState, resourceoperation.Deploy,
+				ctx, consoleUI, orgClient, mgmtAcct, test.OrgInitialState, resourceoperation.Deploy, false,
 			)
 			for _, op := range orgOps {
 				err := op.Call(ctx)

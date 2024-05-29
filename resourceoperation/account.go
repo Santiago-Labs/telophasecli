@@ -3,6 +3,7 @@ package resourceoperation
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"log"
 	"text/template"
 
@@ -24,6 +25,7 @@ type accountOperation struct {
 	ConsoleUI           runner.ConsoleUI
 	OrgClient           *awsorgs.Client
 	TagsDiff            *TagsDiff
+	AllowDelete         bool
 }
 
 func NewAccountOperation(
@@ -34,7 +36,7 @@ func NewAccountOperation(
 	newParent *resource.OrganizationUnit,
 	currentParent *resource.OrganizationUnit,
 	tagsDiff *TagsDiff,
-) ResourceOperation {
+) *accountOperation {
 
 	return &accountOperation{
 		Account:       account,
@@ -46,6 +48,10 @@ func NewAccountOperation(
 		MgmtAccount:   mgmtAcct,
 		TagsDiff:      tagsDiff,
 	}
+}
+
+func (ao *accountOperation) SetAllowDelete(allowDelete bool) {
+	ao.AllowDelete = allowDelete
 }
 
 func CollectAccountOps(
@@ -131,6 +137,16 @@ func (ao *accountOperation) Call(ctx context.Context) error {
 		}
 
 		ao.ConsoleUI.Print("Updated Tags", *ao.Account)
+	} else if ao.Operation == Delete {
+		if !ao.AllowDelete {
+			return fmt.Errorf("attempting to delete account: (name:%s email:%s id:%s) stopping because --allow-account-delete is not passed into telophasecli", ao.Account.AccountName, ao.Account.Email, ao.Account.AccountID)
+		}
+
+		// Stacks need to be cleaned up from an AWS account before its closed.
+		err := ao.OrgClient.CloseAccount(ctx, ao.Account.AccountID, ao.Account.AccountName, ao.Account.Email)
+		if err != nil {
+			return oops.Wrapf(err, "CloseAccounts")
+		}
 	}
 
 	for _, op := range ao.DependentOperations {
@@ -170,6 +186,17 @@ Email: {{ .Account.Email }}
 ~	Parent Name: {{ .CurrentParent.Name }} -> {{ .NewParent.Name }}
 
 `
+	} else if ao.Operation == Delete {
+		printColor = "red"
+		includeDeleteStr := ""
+		if !ao.AllowDelete {
+			includeDeleteStr = " To ensure deletion run telophasecli with --allow-account-delete flag"
+		}
+		templated = "\n" + fmt.Sprintf(`(DELETE ACCOUNT)%s
+-	Name: {{ .Account.AccountName }}
+-	Email: {{ .Account.Email }}
+-	ID: {{ .Account.ID }}
+`, includeDeleteStr)
 	} else if ao.Operation == UpdateTags {
 		// We need to compute which tags have changed
 		templated = "\n" + `(Updating Account Tags)
