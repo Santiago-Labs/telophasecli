@@ -215,7 +215,7 @@ func compareOrganizationUnits(t *testing.T, expected, actual *resource.Organizat
 func compareAccounts(t *testing.T, expected, actual *resource.Account, ignoreStacks bool) {
 	assert.Equal(t, expected.Email, actual.Email, "Account Emails not equal")
 	assert.Equal(t, expected.AccountName, actual.AccountName, "Account Name not equal")
-	assert.Equal(t, expected.State, actual.State, "Account State not equal")
+	assert.Equal(t, expected.Delete, actual.Delete, "Account delete not equal")
 	assert.Equal(t, expected.AssumeRoleName, actual.AssumeRoleName, "Account AssumeRoleName not equal")
 	assert.Equal(t, expected.ManagementAccount, actual.ManagementAccount, "Account ManagementAccount not equal")
 	assert.Equal(t, expected.Tags, actual.Tags, "Account Tags not equal")

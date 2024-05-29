@@ -388,19 +388,16 @@ func (c Client) CreateAccount(
 	}
 }
 
-func (c Client) CloseAccounts(ctx context.Context, accts []*organizations.Account) []error {
-	var errs []error
-	for _, acct := range accts {
-		fmt.Printf("Closing Account: %s Email: %s\n", *acct.Name, *acct.Email)
-		_, err := c.organizationClient.CloseAccountWithContext(ctx, &organizations.CloseAccountInput{
-			AccountId: acct.Id,
-		})
-		if err != nil {
-			errs = append(errs, err)
-		}
+func (c Client) CloseAccount(ctx context.Context, acctID, acctName, acctEmail string) error {
+	fmt.Printf("Closing Account: %s Email: %s\n", acctName, acctEmail)
+	_, err := c.organizationClient.CloseAccountWithContext(ctx, &organizations.CloseAccountInput{
+		AccountId: &acctID,
+	})
+	if err != nil {
+		return oops.Wrapf(err, "closing account")
 	}
 
-	return errs
+	return nil
 }
 
 func (c Client) GetRootId() (string, error) {
@@ -471,6 +468,7 @@ func (c Client) FetchOUAndDescendents(ctx context.Context, ouID, mgmtAccountID s
 			Email:       *providerAcct.Email,
 			Parent:      &ou,
 			AccountName: *providerAcct.Name,
+			Status:      aws.StringValue(providerAcct.Status),
 		}
 		if *providerAcct.Id == mgmtAccountID {
 			acct.ManagementAccount = true

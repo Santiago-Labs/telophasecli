@@ -20,6 +20,7 @@ func init() {
 	rootCmd.AddCommand(accountProvision)
 	accountProvision.Flags().StringVar(&orgFile, "org", "organization.yml", "Path to the organization.yml file")
 	accountProvision.Flags().BoolVar(&useTUI, "tui", false, "use the TUI for diff")
+	accountProvision.Flags().BoolVar(&allowDeleteAccount, "allow-account-delete", false, "Allow closing an AWS account")
 }
 
 func isValidAccountArg(arg string) bool {
@@ -92,7 +93,7 @@ func processOrg(consoleUI runner.ConsoleUI, cmd string) {
 	if cmd == "diff" {
 		consoleUI.Print("Diffing AWS Organization", *mgmtAcct)
 		orgOps := resourceoperation.CollectOrganizationUnitOps(
-			ctx, consoleUI, orgClient, mgmtAcct, rootAWSOU, resourceoperation.Diff,
+			ctx, consoleUI, orgClient, mgmtAcct, rootAWSOU, resourceoperation.Diff, allowDeleteAccount,
 		)
 		for _, op := range resourceoperation.FlattenOperations(orgOps) {
 			consoleUI.Print(op.ToString(), *mgmtAcct)
@@ -105,7 +106,7 @@ func processOrg(consoleUI runner.ConsoleUI, cmd string) {
 	if cmd == "deploy" {
 		consoleUI.Print("Diffing AWS Organization", *mgmtAcct)
 		orgOps := resourceoperation.CollectOrganizationUnitOps(
-			ctx, consoleUI, orgClient, mgmtAcct, rootAWSOU, resourceoperation.Deploy,
+			ctx, consoleUI, orgClient, mgmtAcct, rootAWSOU, resourceoperation.Deploy, allowDeleteAccount,
 		)
 
 		for _, op := range resourceoperation.FlattenOperations(orgOps) {

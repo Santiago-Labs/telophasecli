@@ -42,7 +42,7 @@ func NewOrganizationUnitOperation(
 	currentParent *resource.OrganizationUnit,
 	newName *string,
 	tagsDiff *TagsDiff,
-) ResourceOperation {
+) *organizationUnitOperation {
 
 	return &organizationUnitOperation{
 		OrgClient:        orgClient,
@@ -64,6 +64,7 @@ func CollectOrganizationUnitOps(
 	mgmtAcct *resource.Account,
 	rootOU *resource.OrganizationUnit,
 	op int,
+	allowDelete bool,
 ) []ResourceOperation {
 
 	// Order of operations matters. Groups must be Created first, followed by account creation,
@@ -122,7 +123,6 @@ func CollectOrganizationUnitOps(
 
 				added, removed := diffTags(parsedOU)
 				if len(added) > 0 || len(removed) > 0 {
-					fmt.Println("adding new", removed, added)
 					operations = append(operations, NewOrganizationUnitOperation(
 						orgClient,
 						consoleUI,
@@ -221,7 +221,6 @@ func CollectOrganizationUnitOps(
 
 				added, removed := diffTags(parsedAcct)
 				if len(added) > 0 || len(removed) > 0 {
-					fmt.Println("added, removed ", added, removed)
 					operations = append(operations, NewAccountOperation(
 						orgClient,
 						consoleUI,
@@ -235,6 +234,21 @@ func CollectOrganizationUnitOps(
 							Removed: removed,
 						},
 					))
+				}
+
+				if found && parsedAcct.Delete && !oneOf(parsedAcct.Status, []string{"SUSPENDED", "CLOSED", "ENDED"}) {
+					op := NewAccountOperation(
+						orgClient,
+						consoleUI,
+						parsedAcct,
+						mgmtAcct,
+						Delete,
+						nil,
+						nil,
+						nil,
+					)
+					op.SetAllowDelete(allowDelete)
+					operations = append(operations, op)
 				}
 
 				break
@@ -479,4 +493,13 @@ func ignorableTag(tag string) bool {
 
 	_, ok := ignorableTags[tag]
 	return ok
+}
+
+func oneOf(check string, slc []string) bool {
+	for _, s := range slc {
+		if s == check {
+			return true
+		}
+	}
+	return false
 }

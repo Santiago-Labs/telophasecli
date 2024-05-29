@@ -83,7 +83,7 @@ func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int, targets []string) e
 
 	if len(targets) == 0 || deployOrganization {
 		orgOps := resourceoperation.CollectOrganizationUnitOps(
-			ctx, consoleUI, orgClient, mgmtAcct, rootAWSOU, cmd,
+			ctx, consoleUI, orgClient, mgmtAcct, rootAWSOU, cmd, allowDeleteAccount,
 		)
 		for _, op := range resourceoperation.FlattenOperations(orgOps) {
 			consoleUI.Print(op.ToString(), *mgmtAcct)
