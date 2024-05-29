@@ -122,7 +122,6 @@ func CollectOrganizationUnitOps(
 
 				added, removed := diffTags(parsedOU)
 				if len(added) > 0 || len(removed) > 0 {
-					fmt.Println("adding new", removed, added)
 					operations = append(operations, NewOrganizationUnitOperation(
 						orgClient,
 						consoleUI,
@@ -221,7 +220,6 @@ func CollectOrganizationUnitOps(
 
 				added, removed := diffTags(parsedAcct)
 				if len(added) > 0 || len(removed) > 0 {
-					fmt.Println("added, removed ", added, removed)
 					operations = append(operations, NewAccountOperation(
 						orgClient,
 						consoleUI,
