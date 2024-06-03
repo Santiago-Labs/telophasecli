@@ -1,0 +1,542 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: |
+  This Cloudformation template creates an S3 bucket and DynamoDB table suitable
+  for a Terraform S3 State Backend. Using this template avoids the problem of
+  needing to use a Terraform module to create a state backend before you have a
+  state backend for that module.
+
+Parameters:
+  Name:
+    Description: |
+      Name of the S3 bucket, DynamoDB table, and IAM role;
+      Defaults to "terraform-state-AWS_ACCOUNT_ID"
+    Default: ""
+    Type: String
+  NoncurrentVersionExpirationInDays:
+    Description: Number of days after which older state versions are purged
+    Default: 90
+    Type: Number
+  LogsArchiveInDays:
+    Description: Number of days after which logs are moved to glacier storage
+    Default: 30
+    Type: Number
+  LogsDeleteInDays:
+    Description: Number of days after which logs are deleted
+    Default: 365
+    Type: Number
+  LogsGroup:
+    Description: Set to Disabled to disable the Cloudwatch log group
+    Type: String
+    AllowedValues:
+    - Disabled
+    - Enabled
+    Default: Enabled
+  LogsObjectLockInDays:
+    Description: Number of days for which log objects are locked
+    Default: 30
+    Type: Number
+  AdminPrincipal:
+    Description: |
+      IAM principal allowed to assume the state management role as a human
+      operator; defaults to the current AWS account.
+    Default: ""
+    Type: String
+  AdminConditionTag:
+    Description: |
+      If Enabled, principals will need to have the tag "Repository"
+      with a value containing Repository in order to assume the role.
+    Type: String
+    AllowedValues:
+    - Enabled
+    - Disabled
+    Default: Disabled
+  ExecutionPrincipal:
+    Description: |
+      IAM principal allowed to assume the state management for running
+      Terraform; defaults to the current AWS account.
+    Default: ""
+    Type: String
+  ExecutionConditionTag:
+    Description: |
+      If Enabled, principals will need to have the tag "Repository"
+      with a value containing Repository in order to assume the role.
+    Type: String
+    AllowedValues:
+    - Enabled
+    - Disabled
+    Default: Disabled
+  SSOPermissionSet:
+    Description: |
+      If provided, IAM roles created from this permission set will be allowed to
+      access Terraform state.
+    Type: String
+    Default: ""
+  StateVpcId:
+    Description: |
+      If provided, state can access only from the given VPC.
+    Type: String
+    Default: ""
+  Repository:
+    Description: Value for the Repository tag; defaults to Name.
+    Type: String
+    Default: ""
+
+Conditions:
+  GenerateNames: !Equals [!Ref Name, ""]
+  ObjectLockEnabled: !Not [!Equals [!Ref LogsObjectLockInDays, 0]]
+  SkipAdminPrincipal: !Equals [!Ref AdminPrincipal, ""]
+  SkipSSOPermissionSet: !Equals [!Ref SSOPermissionSet, ""]
+  SkipVpc: !Equals [!Ref StateVpcId, ""]
+  UseDefaultExecutionPrincipal: !Equals [!Ref ExecutionPrincipal, ""]
+  UseDefaultRoleTagValue: !Equals [!Ref Repository, ""]
+  UseExecutionConditionTag: !Equals [!Ref ExecutionConditionTag, "Enabled"]
+  UseLogGroup: !Equals [!Ref LogsGroup, "Enabled"]
+  UseAdminConditionTag: !Equals [!Ref AdminConditionTag, "Enabled"]
+
+Resources:
+
+  KMSKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Terraform state backend
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Id: backend
+        Statement:
+        - Sid: EnableAdminManagement
+          Effect: Allow
+          Principal:
+            AWS: !If
+            - SkipAdminPrincipal
+            - !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            - !Ref AdminPrincipal
+          NotAction:
+          - kms:Encrypt
+          - kms:Decrypt
+          - kms:ReEncrypt*
+          - kms:GenerateDataKey*
+          Resource: '*'
+        - Sid: AllowStateBackend
+          Effect: Allow
+          Principal:
+            AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+          Action:
+          - kms:Encrypt
+          - kms:Decrypt
+          - kms:ReEncrypt*
+          - kms:GenerateDataKey*
+          Resource: '*'
+          Condition:
+            StringEquals:
+              "kms:ViaService":
+              - !Sub "s3.${AWS::Region}.amazonaws.com"
+              - !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+        - Sid: AllowCloudTrail
+          Effect: Allow
+          Principal:
+            Service: cloudtrail.amazonaws.com
+          Action:
+          - kms:GenerateDataKey
+          Resource: "*"
+          Condition:
+            StringLike:
+              "kms:EncryptionContext:aws:cloudtrail:arn":
+              - !Sub "arn:aws:cloudtrail:*:${AWS::AccountId}:trail/*"
+        - Sid: AllowCloudWatchLogs
+          Effect: Allow
+          Principal:
+            Service: !Sub "logs.${AWS::Region}.amazonaws.com"
+          Action:
+          - kms:Decrypt*
+          - kms:Describe*
+          - kms:Encrypt*
+          - kms:GenerateDataKey*
+          - kms:ReEncrypt*
+          Resource: "*"
+          Condition:
+            ArnEquals:
+              "kms:EncryptionContext:aws:logs:arn": !If
+              - GenerateNames
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:terraform-state-${AWS::AccountId}"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${Name}"
+    Metadata:
+      Description: KMS key used to encrypt Terraform state
+
+  KMSKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub "alias/${StateBucket}"
+      TargetKeyId: !GetAtt KMSKey.Arn
+    Metadata:
+      Description: Alias for the KMS key
+
+  LockTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+      - AttributeName: LockID
+        AttributeType: S
+      KeySchema:
+      - AttributeName: LockID
+        KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      ContributorInsightsSpecification:
+        Enabled: true
+      SSESpecification:
+        KMSMasterKeyId: !Ref KMSKey
+        SSEEnabled: true
+        SSEType: KMS
+      TableName: !Ref StateBucket
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W78
+            reason: Terraform lock tables do not need to be backed up
+      Description: DynamoDB table to lock Terraform
+
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowExecution
+            Effect: Allow
+            Principal:
+              AWS: !If
+              - UseDefaultExecutionPrincipal
+              - !Sub "arn:aws:iam::${AWS::AccountId}:root"
+              - !Ref ExecutionPrincipal
+            Action:
+              - "sts:AssumeRole"
+            Condition: !If
+            - UseExecutionConditionTag
+            - StringLike:
+                "aws:PrincipalTag/Repository": !If
+                - UseDefaultRoleTagValue
+                - !Ref Name
+                - !Ref Repository
+            - {}
+          - !If
+            - SkipAdminPrincipal
+            - !Ref AWS::NoValue
+            - Sid: AllowAdmins
+              Effect: Allow
+              Principal: !Ref AdminPrincipal
+              Action:
+                - "sts:AssumeRole"
+              Condition: !If
+              - UseAdminConditionTag
+              - StringLike:
+                  "aws:PrincipalTag/Repository": !If
+                  - UseDefaultRoleTagValue
+                  - !Ref Name
+                  - !Ref Repository
+              - {}
+          - !If
+            - SkipSSOPermissionSet
+            - !Ref AWS::NoValue
+            - Sid: AllowSSOPermissionSet
+              Effect: Allow
+              Principal:
+                AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+              Action:
+                - "sts:AssumeRole"
+              Condition:
+                ArnLike:
+                  "aws:PrincipalArn":
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_${SSOPermissionSet}_*"
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-reserved/sso.amazonaws.com/${AWS::Region}/AWSReservedSSO_${SSOPermissionSet}_*"
+      Tags:
+      - Key: Repository
+        Value: !If
+        - UseDefaultRoleTagValue
+        - !Ref Name
+        - !Ref Repository
+      Description: Role to manage Terraform state
+      Policies:
+      - PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Sid: ListStateObjects
+            Effect: Allow
+            Action:
+            - s3:ListBucket
+            Resource: !GetAtt StateBucket.Arn
+          - Sid: UpdateStateObjects
+            Effect: Allow
+            Action:
+            - s3:GetObject
+            - s3:PutObject
+            Resource: !Sub
+            - "${Arn}/*"
+            - Arn: !GetAtt StateBucket.Arn
+          - Sid: UpdateLockTable
+            Effect: Allow
+            Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:DeleteItem
+            Resource: !GetAtt LockTable.Arn
+          - Sid: DecryptState
+            Effect: Allow
+            Action:
+            - kms:DescribeKey
+            - kms:Encrypt
+            - kms:Decrypt
+            - kms:ReEncrypt*
+            - kms:GenerateDataKey
+            - kms:GenerateDataKeyWithoutPlaintext
+            Resource: !GetAtt KMSKey.Arn
+        PolicyName: ManageTerraformState
+      RoleName: !If
+      - GenerateNames
+      - !Sub "terraform-state-${AWS::AccountId}"
+      - !Ref Name
+    Metadata:
+      Description: IAM role for managing Terraform state
+
+  StateBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      AccessControl: Private
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !Ref KMSKey
+      BucketName: !If
+      - GenerateNames
+      - !Sub "terraform-state-${AWS::AccountId}"
+      - !Ref Name
+      LifecycleConfiguration:
+        Rules:
+        - Id: ExpireOldVersions
+          NoncurrentVersionExpirationInDays: !Ref NoncurrentVersionExpirationInDays
+          Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+    Metadata:
+      Description: Bucket containing Terraform state
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: Access logs are managed via Cloudtrail
+
+  StateBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Bucket: !Ref StateBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Sid: RequireObjectEncryption
+          Effect: Deny
+          Action:
+          - s3:PutObject
+          Principal: "*"
+          Resource: !Sub "${StateBucket.Arn}/*"
+          Condition:
+            StringNotEquals:
+              "s3:x-amz-server-side-encryption-aws-kms-key-id": !GetAtt KMSKey.Arn
+        - !If
+          - SkipVpc
+          - !Ref AWS::NoValue
+          - Sid: RequireVpcAccess
+            Effect: Deny
+            Principal: "*"
+            Resource: !Sub "${StateBucket.Arn}/*"
+            Action:
+            - s3:*
+            Condition:
+              StringNotEquals:
+                aws:SourceVpc:
+                  !Ref StateVpcId
+    Metadata:
+      Description: Policy requiring encryption
+
+  StateTrail:
+    Type: AWS::CloudTrail::Trail
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    DependsOn:
+    - TrailBucketPolicy
+    Properties:
+      CloudWatchLogsLogGroupArn: !If
+      - UseLogGroup
+      - !GetAtt TrailLogGroup.Arn
+      - !Ref AWS::NoValue
+      CloudWatchLogsRoleArn: !If
+      - UseLogGroup
+      - !GetAtt TrailRole.Arn
+      - !Ref AWS::NoValue
+      EnableLogFileValidation: true
+      EventSelectors:
+      - DataResources:
+        - Type: AWS::S3::Object
+          Values:
+          - !Sub "arn:aws:s3:::${StateBucket}/"
+        IncludeManagementEvents: false
+        ReadWriteType: All
+      IncludeGlobalServiceEvents: false
+      IsLogging: true
+      KMSKeyId: !GetAtt KMSKey.Arn
+      S3BucketName: !Ref TrailBucket
+    Metadata:
+      Description: trail logging data events for
+
+  TrailBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      AccessControl: Private
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !Ref KMSKey
+      LifecycleConfiguration:
+        Rules:
+        - Id: OlderLogsInGlacier
+          ExpirationInDays: !Ref LogsDeleteInDays
+          Status: Enabled
+          Transitions:
+          - TransitionInDays: !Ref LogsArchiveInDays
+            StorageClass: GLACIER
+      ObjectLockEnabled: !If [ObjectLockEnabled, true, false]
+      ObjectLockConfiguration: !If
+        - ObjectLockEnabled
+        - ObjectLockEnabled: Enabled
+          Rule:
+            DefaultRetention:
+              Days: 30
+              Mode: GOVERNANCE
+        - {}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    Metadata:
+      Description: Bucket for Terraform state Cloudtrail
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: This is a logging bucket
+
+  TrailBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Bucket: !Ref TrailBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Sid: AllowCloudTrailACLCheck
+          Effect: Allow
+          Action:
+          - s3:GetBucketacl
+          Principal:
+            Service: cloudtrail.amazonaws.com
+          Resource: !GetAtt TrailBucket.Arn
+        - Sid: AllowCloudTrailWrite
+          Effect: Allow
+          Action:
+          - s3:PutObject
+          Principal:
+            Service: cloudtrail.amazonaws.com
+          Resource: !Sub "${TrailBucket.Arn}/*"
+          Condition:
+            StringEquals:
+              "s3:x-amz-acl": "bucket-owner-full-control"
+    Metadata:
+      Description: Policy to allow Cloudtrail
+
+  TrailLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: UseLogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      KmsKeyId: !GetAtt KMSKey.Arn
+      LogGroupName: !If
+      - GenerateNames
+      - !Sub "terraform-state-${AWS::AccountId}"
+      - !Ref Name
+      RetentionInDays: !Ref LogsDeleteInDays
+    Metadata:
+      Description: CloudWatch log group for state changes
+
+  TrailRole:
+    Type: AWS::IAM::Role
+    Condition: UseLogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: "cloudtrail.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Description: Role to write Terraform state logs
+      Policies:
+      - PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Sid: WriteStateLogs
+            Effect: Allow
+            Action:
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: !GetAtt TrailLogGroup.Arn
+        PolicyName: WriteStateLogs
+    Metadata:
+      Description: IAM role assumed by CloudTrail to write state logs
+
+Outputs:
+  KmsKeyAlias:
+    Description: Alias of the KMS key used to encrypt Terraform state
+    Value: !Ref KMSKeyAlias
+  KmsKeyId:
+    Description: ID of the KMS key used to encrypt Terraform state
+    Value: !GetAtt KMSKey.Arn
+  LockTableName:
+    Description: Name of the DynamoDB table used to lock Terraform state
+    Value: !Ref LockTable
+  LogGroup:
+    Description: CloudWatch log group for state changes
+    Value: !If
+    - UseLogGroup
+    - !Ref TrailLogGroup
+    - ""
+  Region:
+    Description: Region in which the S3 state backend resources are created
+    Value: !Ref AWS::Region
+  RoleArn:
+    Description: ARN of the IAM role capable of managing Terraform state
+    Value: !GetAtt Role.Arn
+  StateBucketName:
+    Description: Name of the S3 bucket containing Terraform state
+    Value: !Ref StateBucket
