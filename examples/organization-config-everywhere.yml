@@ -1,0 +1,29 @@
+Organization:
+
+  # All OUs/accounts will inherit these stacks.
+  Stacks:
+    - Type: "Cloudformation"
+      Path: "cloudformation/s3/bucket.yml"
+      Name: "s3-remote-state-terraform"
+      CloudformationCapabilities:
+        - "CAPABILITY_NAMED_IAM"
+
+    - Type: "Terraform"
+      Path: "tf/awsconfig"
+      Name: "AWS-Config-Every-Region"
+
+  OrganizationUnits:
+    - Name: Security
+      Accounts:
+        - Email: example+audit@example.com
+          AccountName: Audit
+          DelegatedAdministratorServices:
+            - "config.amazonaws.com"
+            - "config-multiaccountsetup.amazonaws.com"
+          Stacks:
+            - Type: "Terraform"
+              Path: "tf/configaggregator"
+              Name: "aggregator"
+
+        - Email: example+logarchive@example.com 
+          AccountName: Log Archive 
