@@ -6,11 +6,12 @@ import (
 
 const (
 	// Accounts
-	UpdateParent = 1
-	Create       = 2
-	Update       = 3
-	UpdateTags   = 6
-	Delete       = 7
+	UpdateParent  = 1
+	Create        = 2
+	Update        = 3
+	UpdateTags    = 6
+	Delete        = 7
+	DelegateAdmin = 8
 
 	// IaC
 	Diff   = 4

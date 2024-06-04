@@ -77,6 +77,11 @@ func CollectOrganizationUnitOps(
 		return []ResourceOperation{}
 	}
 
+	delegatedAdmins, err := orgClient.FetchDelegatedAdminPrincipals(ctx)
+	if err != nil {
+		consoleUI.Print(fmt.Sprintf("Failed to fetch delegated admins, continuing anyway, error: %v", err), *mgmtAcct)
+	}
+
 	providerOUs := providerRootOU.AllDescendentOUs()
 	for _, parsedOU := range rootOU.AllDescendentOUs() {
 		var found bool
@@ -249,6 +254,25 @@ func CollectOrganizationUnitOps(
 					)
 					op.SetAllowDelete(allowDelete)
 					operations = append(operations, op)
+				}
+
+				if len(parsedAcct.DelegatedAdministratorServices) > 0 && delegatedAdmins != nil {
+					for _, delegatedAdminService := range parsedAcct.DelegatedAdministratorServices {
+						if services := delegatedAdmins[parsedAcct.AccountID]; !oneOf(delegatedAdminService, services) {
+							op := NewAccountOperation(
+								orgClient,
+								consoleUI,
+								parsedAcct,
+								mgmtAcct,
+								DelegateAdmin,
+								nil,
+								nil,
+								nil,
+							)
+							op.SetDelegateAdminPrincipal(delegatedAdminService)
+							operations = append(operations, op)
+						}
+					}
 				}
 
 				break

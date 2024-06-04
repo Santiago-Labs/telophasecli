@@ -434,6 +434,61 @@ func (c Client) ListAccountsForParent(parentID string) ([]*organizations.Account
 	return accounts, oops.Wrapf(err, "organizations.ListAccountsForParent")
 }
 
+func (c Client) DelegateAdmin(ctx context.Context, acctID, servicePrincipal string) error {
+	if _, err := c.organizationClient.EnableAWSServiceAccessWithContext(ctx, &organizations.EnableAWSServiceAccessInput{
+		ServicePrincipal: &servicePrincipal,
+	}); err != nil {
+		return oops.Wrapf(err, "organizations.EnableAWSServiceAccess service %s", servicePrincipal)
+	}
+
+	_, err := c.organizationClient.RegisterDelegatedAdministratorWithContext(ctx, &organizations.RegisterDelegatedAdministratorInput{
+		AccountId:        &acctID,
+		ServicePrincipal: &servicePrincipal,
+	})
+	if err != nil {
+		return oops.Wrapf(err, "organizations.RegisterDelegatedAdministrator service %s", servicePrincipal)
+	}
+
+	return nil
+}
+
+// FetchDelegatedAdminPrincipals returns a list of accounts that have delegated
+// admin permissions and the service principals with a key of account ID and
+// value with a slice of service principals that are delegated to the account key.
+func (c Client) FetchDelegatedAdminPrincipals(ctx context.Context) (map[string][]string, error) {
+	var delegatedAccounts []string
+	err := c.organizationClient.ListDelegatedAdministratorsPagesWithContext(ctx, &organizations.ListDelegatedAdministratorsInput{},
+		func(page *organizations.ListDelegatedAdministratorsOutput, lastPage bool) bool {
+			for _, acct := range page.DelegatedAdministrators {
+				delegatedAccounts = append(delegatedAccounts, *acct.Id)
+			}
+			return !lastPage
+		})
+	if err != nil {
+		return nil, oops.Wrapf(err, "organizations.ListDelegatedAdministrators")
+	}
+
+	// Now we need to see what services are enabled for each account
+	resp := make(map[string][]string)
+	for _, acct := range delegatedAccounts {
+		var servicePrincipals []string
+		err := c.organizationClient.ListDelegatedServicesForAccountPagesWithContext(ctx, &organizations.ListDelegatedServicesForAccountInput{
+			AccountId: &acct,
+		}, func(page *organizations.ListDelegatedServicesForAccountOutput, lastPage bool) bool {
+			for _, service := range page.DelegatedServices {
+				servicePrincipals = append(servicePrincipals, *service.ServicePrincipal)
+			}
+			return !lastPage
+		})
+		if err != nil {
+			return nil, oops.Wrapf(err, "organizations.ListDelegatedServicesForAccount acctID: %s", acct)
+		}
+		resp[acct] = servicePrincipals
+	}
+
+	return resp, nil
+}
+
 func (c Client) FetchOUAndDescendents(ctx context.Context, ouID, mgmtAccountID string) (resource.OrganizationUnit, error) {
 	var ou resource.OrganizationUnit
 

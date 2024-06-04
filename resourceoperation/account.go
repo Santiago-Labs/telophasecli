@@ -26,6 +26,8 @@ type accountOperation struct {
 	OrgClient           *awsorgs.Client
 	TagsDiff            *TagsDiff
 	AllowDelete         bool
+
+	DelegateAdminPrincipal string
 }
 
 func NewAccountOperation(
@@ -52,6 +54,10 @@ func NewAccountOperation(
 
 func (ao *accountOperation) SetAllowDelete(allowDelete bool) {
 	ao.AllowDelete = allowDelete
+}
+
+func (ao *accountOperation) SetDelegateAdminPrincipal(principal string) {
+	ao.DelegateAdminPrincipal = principal
 }
 
 func CollectAccountOps(
@@ -147,6 +153,11 @@ func (ao *accountOperation) Call(ctx context.Context) error {
 		if err != nil {
 			return oops.Wrapf(err, "CloseAccounts")
 		}
+	} else if ao.Operation == DelegateAdmin {
+		err := ao.OrgClient.DelegateAdmin(ctx, ao.Account.AccountID, ao.DelegateAdminPrincipal)
+		if err != nil {
+			return oops.Wrapf(err, "DelegateAdmin principal: %s", ao.DelegateAdminPrincipal)
+		}
 	}
 
 	for _, op := range ao.DependentOperations {
@@ -221,6 +232,13 @@ Tags: `
 				printColor = "red"
 			}
 		}
+	} else if ao.Operation == DelegateAdmin {
+		templated = "\n" + `(Delegate Service)
+ID: {{ .Account.AccountID }}
+Name: {{ .Account.AccountName }}
++ ServicePrincipal: {{ .DelegateAdminPrincipal }}
+`
+		printColor = "green"
 	}
 
 	tpl, err := template.New("operation").Funcs(template.FuncMap{

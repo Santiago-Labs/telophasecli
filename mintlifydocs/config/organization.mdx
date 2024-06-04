@@ -49,6 +49,7 @@ Accounts:
       # If deleting an account you need to pass in --allow-account-delete to telophasecli as a confirmation of the deletion.
     Tags:  # (Optional) Telophase label for this account. Tags translate to AWS tags with a `=` as the key value delimiter. For example, `telophase:env=prod`
     Stacks:  # (Optional) Terraform, Cloudformation and CDK stacks to apply to all accounts in this Organization Unit.
+    DelegatedAdministratorServices: # (Optional) List of delegated service principals for the current account (e.g. config.amazonaws.com)
 ```
 
 ## Example

@@ -22,9 +22,10 @@ type Account struct {
 	ServiceControlPolicies []Stack  `yaml:"ServiceControlPolicies,omitempty"`
 	ManagementAccount      bool     `yaml:"-"`
 
-	Delete                 bool              `yaml:"Delete"`
-	DelegatedAdministrator bool              `yaml:"DelegatedAdministrator,omitempty"`
-	Parent                 *OrganizationUnit `yaml:"-"`
+	Delete                         bool              `yaml:"Delete"`
+	DelegatedAdministrator         bool              `yaml:"DelegatedAdministrator,omitempty"`
+	DelegatedAdministratorServices []string          `yaml:"DelegatedAdministratorServices,omitempty"`
+	Parent                         *OrganizationUnit `yaml:"-"`
 
 	Status string `yaml:"-,omitempty"`
 }
