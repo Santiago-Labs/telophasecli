@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 )
@@ -35,7 +35,7 @@ func UpsertAccount(accountID string, accountName string) {
 		}
 		if resp.StatusCode != 200 {
 			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -58,7 +58,7 @@ func RecordDeploy(accountID string, accountName string) {
 		}
 		if resp.StatusCode != 200 {
 			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				fmt.Println(err)
 			}

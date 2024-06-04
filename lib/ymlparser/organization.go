@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -34,7 +33,7 @@ func (o Parser) ParseOrganization(ctx context.Context, filepath string) (*resour
 		return nil, errors.New("filepath is empty")
 	}
 
-	data, err := ioutil.ReadFile(filepath)
+	data, err := os.ReadFile(filepath)
 	if err != nil {
 		return nil, fmt.Errorf("err: %s reading file %s", err.Error(), filepath)
 	}
@@ -65,7 +64,7 @@ func (o Parser) ParseOrganization(ctx context.Context, filepath string) (*resour
 
 func (p Parser) hydrateOUFilepaths(ctx context.Context, ou *resource.OrganizationUnit) error {
 	if ou.OUFilepath != nil {
-		data, err := ioutil.ReadFile(*ou.OUFilepath)
+		data, err := os.ReadFile(*ou.OUFilepath)
 		if err != nil {
 			return fmt.Errorf("err: %s reading file for OUFilepath %s", err.Error(), *ou.OUFilepath)
 		}
@@ -222,7 +221,7 @@ func WriteOrgFile(filepath string, org *resource.OrganizationUnit) error {
 		return fmt.Errorf("file %s already exists we will not overwrite it", filepath)
 	}
 
-	if err := ioutil.WriteFile(filepath, result, 0644); err != nil {
+	if err := os.WriteFile(filepath, result, 0644); err != nil {
 		return err
 	}
 

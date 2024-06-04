@@ -56,7 +56,7 @@ func (ao *accountOperation) SetAllowDelete(allowDelete bool) {
 	ao.AllowDelete = allowDelete
 }
 
-func (ao *accountOperation) SetDelegateAdminPrincipal(principal string) {
+func (ao *accountOperation) SetDelegatedAdminPrincipal(principal string) {
 	ao.DelegateAdminPrincipal = principal
 }
 

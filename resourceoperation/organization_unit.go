@@ -269,7 +269,7 @@ func CollectOrganizationUnitOps(
 								nil,
 								nil,
 							)
-							op.SetDelegateAdminPrincipal(delegatedAdminService)
+							op.SetDelegatedAdminPrincipal(delegatedAdminService)
 							operations = append(operations, op)
 						}
 					}

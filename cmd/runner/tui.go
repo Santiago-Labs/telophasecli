@@ -3,7 +3,7 @@ package runner
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"sync"
 	"sync/atomic"
@@ -78,13 +78,13 @@ func (t *tui) createIfNotExists(acct resource.Account) {
 		t.main.SetText(tview.TranslateANSI(currText()))
 	})
 
-	file, err := ioutil.TempFile("/tmp", acctId)
+	file, err := os.CreateTemp("/tmp", acctId)
 	if err != nil {
 		panic(err)
 	}
 
 	setter := func() string {
-		bytes, err := ioutil.ReadFile(file.Name())
+		bytes, err := os.ReadFile(file.Name())
 		if err != nil {
 			fmt.Printf("ERR: %s \n", err)
 			return ""

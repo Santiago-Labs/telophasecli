@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -57,7 +56,7 @@ func replaceVariablesInFile(srcFile, dstFile string, resource resource.Resource,
 		return oops.Wrapf(err, "error accessing file %s", srcFile)
 	}
 
-	content, err := ioutil.ReadFile(srcFile)
+	content, err := os.ReadFile(srcFile)
 	if err != nil {
 		return err
 	}
@@ -81,5 +80,5 @@ func replaceVariablesInFile(srcFile, dstFile string, resource resource.Resource,
 		return oops.Errorf("Region needs to be set on stack if performing substitution")
 	}
 
-	return ioutil.WriteFile(dstFile, []byte(updatedContent), fileInfo.Mode())
+	return os.WriteFile(dstFile, []byte(updatedContent), fileInfo.Mode())
 }

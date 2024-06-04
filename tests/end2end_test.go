@@ -3,7 +3,7 @@ package tests
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"runtime/debug"
 	"testing"
 
@@ -1071,7 +1071,7 @@ func TestEndToEnd(t *testing.T) {
 			compareOrganizationUnits(t, test.OrgInitialState, &fetchedOrg, true)
 		}
 
-		err = ioutil.WriteFile("organization.yml", []byte(test.OrgYaml), 0644)
+		err = os.WriteFile("organization.yml", []byte(test.OrgYaml), 0644)
 		assert.NoError(t, err, "Failed to write organization.yml")
 
 		parsedOrg, err := ymlparser.NewParser(orgClient).ParseOrganization(ctx, "organization.yml")
