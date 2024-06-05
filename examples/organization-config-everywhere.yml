@@ -1,13 +1,15 @@
 Organization:
-
-  # All OUs/accounts will inherit these stacks.
+  # All OUs/accounts will inherit these stacks and apply to every account.
   Stacks:
+    # This stack creates an S3 bucket and dynamo DB table in every account.
     - Type: "Cloudformation"
       Path: "cloudformation/s3/bucket.yml"
       Name: "s3-remote-state-terraform"
       CloudformationCapabilities:
         - "CAPABILITY_NAMED_IAM"
 
+    # This stack enables AWS config in every region in every account.
+    - Type: "Cloudformation"
     - Type: "Terraform"
       Path: "tf/awsconfig"
       Name: "AWS-Config-Every-Region"
@@ -17,10 +19,12 @@ Organization:
       Accounts:
         - Email: example+audit@example.com
           AccountName: Audit
+          # This account will have config and config-multiaccountsetup delegated.
           DelegatedAdministratorServices:
             - "config.amazonaws.com"
             - "config-multiaccountsetup.amazonaws.com"
           Stacks:
+            # This stack creates the aggregator for the organization in the delegated admin account.
             - Type: "Terraform"
               Path: "tf/configaggregator"
               Name: "aggregator"
