@@ -40,6 +40,19 @@ var (
 				AccountName: "Example2",
 				AccountID:   "2",
 			},
+			{
+				Email:              "mgmt-account@example.com",
+				AccountName:        "mgmt-account",
+				AccountID:          "3",
+				NoStackInheritance: true,
+				BaselineStacks: []resource.Stack{
+					{
+						Name: "mgmt-stack",
+						Type: "Terraform",
+						Path: "tf/mgmt",
+					},
+				},
+			},
 		},
 		ChildOUs: []*resource.OrganizationUnit{
 			{
@@ -160,6 +173,17 @@ func TestAllBaselineStacks(t *testing.T) {
 					Name: "cdk1",
 					Type: "CDK",
 					Path: "cdk/example",
+				},
+			},
+		},
+		{
+			rootOU:             rootOU,
+			targetAccountEmail: "mgmt-account@example.com",
+			wantStacks: []resource.Stack{
+				{
+					Name: "mgmt-stack",
+					Type: "Terraform",
+					Path: "tf/mgmt",
 				},
 			},
 		},

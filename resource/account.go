@@ -19,6 +19,7 @@ type Account struct {
 	Tags                   []string `yaml:"Tags,omitempty"`
 	AWSTags                []string `yaml:"-"`
 	BaselineStacks         []Stack  `yaml:"Stacks,omitempty"`
+	NoStackInheritance     bool     `yaml:"NoStackInheritance,omitempty"`
 	ServiceControlPolicies []Stack  `yaml:"ServiceControlPolicies,omitempty"`
 	ManagementAccount      bool     `yaml:"-"`
 
@@ -109,7 +110,7 @@ func (a Account) CurrentTags() []string {
 
 func (a Account) AllBaselineStacks() ([]Stack, error) {
 	var stacks []Stack
-	if a.Parent != nil {
+	if a.Parent != nil && !a.NoStackInheritance {
 		stacks = append(stacks, a.Parent.AllBaselineStacks()...)
 	}
 
