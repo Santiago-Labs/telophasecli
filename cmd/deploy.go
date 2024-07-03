@@ -26,7 +26,7 @@ var (
 func init() {
 	rootCmd.AddCommand(deployCmd)
 	deployCmd.Flags().StringVar(&stacks, "stacks", "", "Filter stacks to deploy")
-	deployCmd.Flags().StringVar(&tag, "tag", "", "Filter accounts and organization units to deploy")
+	deployCmd.Flags().StringVar(&tag, "tag", "", "Filter accounts and organization units to deploy with a comma separated list")
 	deployCmd.Flags().StringVar(&targets, "targets", "", "Filter resource types to deploy. Options: organization, scp, stacks")
 	deployCmd.Flags().StringVar(&orgFile, "org", "organization.yml", "Path to the organization.yml file")
 	deployCmd.Flags().BoolVar(&useTUI, "tui", false, "use the TUI for deploy")
