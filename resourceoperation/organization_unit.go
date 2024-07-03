@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"text/template"
 
 	"github.com/fatih/color"
@@ -473,6 +474,10 @@ func diffTags(taggable Taggable) (added, removed []string) {
 
 	for _, tag := range taggable.AllTags() {
 		if _, ok := oldMap[tag]; !ok {
+			if ignorableTag(tag) {
+				continue
+			}
+
 			if contains(added, tag) {
 				// There can be duplicates when tags are inherited from an OU
 				continue
@@ -514,9 +519,18 @@ func ignorableTag(tag string) bool {
 	ignorableTags := map[string]struct{}{
 		"TelophaseManaged=true": {},
 	}
+	ignorableKeys := map[string]struct{}{
+		"AccountName": {},
+	}
 
 	_, ok := ignorableTags[tag]
-	return ok
+	if ok {
+		return true
+	}
+	if _, ok := ignorableKeys[strings.Split(tag, "=")[0]]; ok {
+		return true
+	}
+	return false
 }
 
 func oneOf(check string, slc []string) bool {
