@@ -65,7 +65,7 @@ func (a Account) IsProvisioned() bool {
 }
 
 func (a Account) AllTags() []string {
-	var tags []string
+	tags := []string{"AccountName=" + a.AccountName}
 	tags = append(tags, a.Tags...)
 	if a.Parent != nil {
 		tags = append(tags, a.Parent.AllTags()...)
