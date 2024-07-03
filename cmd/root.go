@@ -104,10 +104,13 @@ func ProcessOrgEndToEnd(consoleUI runner.ConsoleUI, cmd int, targets []string) e
 	}
 
 	if len(targets) == 0 || deployStacks {
+		totalTags := strings.Split(tag, ",")
 		var accountsToApply []resource.Account
 		for _, acct := range rootAWSOU.AllDescendentAccounts() {
-			if contains(tag, acct.AllTags()) || tag == "" {
-				accountsToApply = append(accountsToApply, *acct)
+			for _, tag := range totalTags {
+				if contains(tag, acct.AllTags()) || tag == "" {
+					accountsToApply = append(accountsToApply, *acct)
+				}
 			}
 		}
 
