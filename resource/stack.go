@@ -23,6 +23,8 @@ type Stack struct {
 
 	CloudformationParameters   []string `yaml:"CloudformationParameters,omitempty"`
 	CloudformationCapabilities []string `yaml:"CloudformationCapabilities,omitempty"`
+
+	Destroy bool `yaml:"Destroy,omitempty"`
 }
 
 func (s Stack) NewForRegion(region string) Stack {
