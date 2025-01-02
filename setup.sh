@@ -16,7 +16,7 @@ if command -v brew &> /dev/null; then
 elif [ "$(uname)" = "Linux" ]; then
     if [ -f /etc/debian_version ]; then
         echo "Debian-based Linux detected. Installing packages with apt."
-        sudo apt update && sudo apt install -y awscli
+        sudo snap install aws-cli --classic
         pip3 install awscli-local
         pip3 install terraform-local
         sudo snap install terraform --classic
