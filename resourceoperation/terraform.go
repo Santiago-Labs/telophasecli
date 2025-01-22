@@ -88,6 +88,10 @@ func (to *tfOperation) Call(ctx context.Context) error {
 		}
 	}
 
+	if to.Stack.Destroy {
+		args = append(args, "-destroy")
+	}
+
 	workingPath := terraform.TmpPath(*to.Account, to.Stack.Path)
 	cmd := exec.Command(localstack.TfCmd(), args...)
 	cmd.Dir = workingPath

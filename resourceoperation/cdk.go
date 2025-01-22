@@ -73,6 +73,10 @@ func (co *cdkOperation) Call(ctx context.Context) error {
 		}
 	} else if co.Operation == Deploy {
 		cdkArgs = []string{"deploy", "--require-approval", "never"}
+
+		if co.Stack.Destroy {
+			cdkArgs = []string{"destroy", "--require-approval", "never"}
+		}
 	}
 
 	cdkArgs = append(cdkArgs, cdkDefaultArgs(*co.Account, co.Stack)...)
